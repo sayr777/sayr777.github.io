@@ -1,0 +1,153 @@
+{{ define "main" }}
+
+<!-- HERO -->
+<section class="pass-hero">
+  <div class="pass-badge">🔓 Открытый исходный код · Без вендор-локина</div>
+  <h1>Управление доступом<br><em>нового поколения</em></h1>
+  <p class="pass-lead">Умный дом, облачный контроль для малого бизнеса и корпоративный СКУД — на единой открытой платформе.</p>
+  <div class="pass-hero-btns">
+    <a href="/home/" class="pass-btn pass-btn--home">🏠 Умный дом</a>
+    <a href="/cloud/" class="pass-btn pass-btn--cloud">☁️ Для бизнеса</a>
+    <a href="/enterprise/" class="pass-btn pass-btn--ent">🏢 Для предприятия</a>
+  </div>
+  <div class="pass-stats">
+    <div><strong>0 ₽</strong><span>абонентская плата<br>self-hosted</span></div>
+    <div><strong>40+</strong><span>open-source<br>компонентов</span></div>
+    <div><strong>3×</strong><span>дешевле<br>аналогов</span></div>
+    <div><strong>2</strong><span>собственных<br>IoT-устройства</span></div>
+  </div>
+</section>
+
+<!-- PRODUCTS -->
+<section class="pass-section">
+  <div class="pass-section-label">Продукты</div>
+  <h2>Три решения — один стек</h2>
+  <p class="pass-section-sub">Каждый продукт оптимизирован под свой сценарий, но работает на общей технологической базе.</p>
+  <div class="pass-products">
+
+    <a href="/home/" class="pass-card pass-card--home">
+      <div class="pass-card-icon">🏠</div>
+      <span class="pass-tag pass-tag--home">HomePass</span>
+      <h3>Умный дом</h3>
+      <p>Полная автоматизация частного дома. Работает без интернета, без облаков, без подписок.</p>
+      <ul>
+        <li>Видеонаблюдение с AI-детекцией</li>
+        <li>BLE-замок: открытие при подходе</li>
+        <li>Котёл, тёплый пол — по расписанию</li>
+        <li>Home Assistant — 3000+ интеграций</li>
+      </ul>
+      <div class="pass-price">
+        <span class="pass-price-from">от</span>
+        <span class="pass-price-val">34 000 ₽</span>
+        <span class="pass-price-note"> DIY · 0 ₽/мес</span>
+      </div>
+    </a>
+
+    <a href="/cloud/" class="pass-card pass-card--cloud">
+      <div class="pass-card-icon">☁️</div>
+      <span class="pass-tag pass-tag--cloud">CloudPass</span>
+      <h3>Для малого бизнеса</h3>
+      <p>Облачное решение для кафе, магазинов, сетей объектов. Без сервера, без IT-специалиста.</p>
+      <ul>
+        <li>QR-пропуска без карточек</li>
+        <li>Сеть до 15 объектов в одном окне</li>
+        <li>Табель → выгрузка в 1С/Excel</li>
+        <li>Мобильное приложение</li>
+      </ul>
+      <div class="pass-price">
+        <span class="pass-price-from">от</span>
+        <span class="pass-price-val">990 ₽/мес</span>
+        <span class="pass-price-note"> + оборудование</span>
+      </div>
+    </a>
+
+    <a href="/enterprise/" class="pass-card pass-card--ent">
+      <div class="pass-card-icon">🏢</div>
+      <span class="pass-tag pass-tag--ent">TenantPass</span>
+      <h3>Для предприятия</h3>
+      <p>On-premise СКУД + СУРВ для заводов, гостиниц, бизнес-центров. Данные внутри периметра.</p>
+      <ul>
+        <li>Keycloak ABAC: время + зона + риск</li>
+        <li>Интеграция 1С:ЗУП, AD, ERP</li>
+        <li>ML: биометрия, LPR, tailgating</li>
+        <li>152-ФЗ · ФСТЭК · ТК РФ</li>
+      </ul>
+      <div class="pass-price">
+        <span class="pass-price-from">от</span>
+        <span class="pass-price-val">460 000 ₽</span>
+        <span class="pass-price-note"> под ключ · 0 ₽/мес</span>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<!-- WHY -->
+<section class="pass-section">
+  <div class="pass-section-label">Почему мы</div>
+  <h2>Независимость заложена в архитектуре</h2>
+  <p class="pass-section-sub">Каждое техническое решение принято так, чтобы вы не зависели ни от нас, ни от кого-либо ещё.</p>
+  <div class="pass-why">
+    <div class="pass-why-item"><div class="pass-why-icon">🔓</div><h4>Только открытый код</h4><p>Apache 2.0 / MIT. Подробная документация у заказчика — систему может подхватить любой администратор или разработчик.</p></div>
+    <div class="pass-why-item"><div class="pass-why-icon">🗄️</div><h4>Данные остаются у вас</h4><p>Облако, собственный сервер или мультисайт — данные не уходят третьим сторонам.</p></div>
+    <div class="pass-why-item"><div class="pass-why-icon">📡</div><h4>Работает без интернета</h4><p>Каждый контроллер хранит кэш разрешений. Дверь откроется даже если сервер недоступен.</p></div>
+    <div class="pass-why-item"><div class="pass-why-icon">🧠</div><h4>ML из коробки</h4><p>Биометрия, tailgating-детекция, аномалии доступа, LPR — часть платформы, не надстройка.</p></div>
+    <div class="pass-why-item"><div class="pass-why-icon">🏗️</div><h4>Модульность</h4><p>Начинаете с одной двери. Добавляете модули по мере роста без смены платформы.</p></div>
+    <div class="pass-why-item"><div class="pass-why-icon">⚖️</div><h4>Российское право</h4><p>152-ФЗ, 572-ФЗ, ФСТЭК, ТК РФ — закрыты архитектурно, а не по факту нарушения.</p></div>
+  </div>
+</section>
+
+<!-- HARDWARE -->
+<section class="pass-section">
+  <div class="pass-section-label">Собственные устройства</div>
+  <h2>Семейство DN·Devices</h2>
+  <p class="pass-section-sub">Разработали сами, потому что на рынке не было нужных — клонозащита, работа в перчатках, 10 лет без замены батарей.</p>
+  <div class="pass-dev-family">
+    <a href="/devices/dn-beacon/" class="pass-dev-item" style="text-decoration:none">
+      <div class="pass-dev-icon">📡</div>
+      <div class="pass-dev-name">DN·Beacon</div>
+      <div class="pass-dev-desc">BLE-маяк. AES-128 динамический ID, 70 м, 10 лет, IP67</div>
+    </a>
+    <a href="/devices/dn-lorawan/" class="pass-dev-item" style="text-decoration:none">
+      <div class="pass-dev-icon">🌐</div>
+      <div class="pass-dev-name">DN·LoRaWAN</div>
+      <div class="pass-dev-desc">Датчик дальнего радиуса. 20 км, 10 лет, RU868</div>
+    </a>
+    <a href="/devices/dn-gate/" class="pass-dev-item" style="text-decoration:none">
+      <div class="pass-dev-icon">🚪</div>
+      <div class="pass-dev-name">DN·Gate</div>
+      <div class="pass-dev-desc">BLE-считыватель для ворот и шлагбаумов</div>
+    </a>
+    <a href="/devices/dn-man/" class="pass-dev-item" style="text-decoration:none">
+      <div class="pass-dev-icon">🦺</div>
+      <div class="pass-dev-name">DN·Man</div>
+      <div class="pass-dev-desc">Браслет безопасности. Детекция падения, SOS</div>
+    </a>
+    <a href="/devices/dn-safe/" class="pass-dev-item" style="text-decoration:none">
+      <div class="pass-dev-icon">🚨</div>
+      <div class="pass-dev-name">DN·Safe</div>
+      <div class="pass-dev-desc">Персональная тревожная кнопка с GPS</div>
+    </a>
+    <a href="/devices/dn-evac/" class="pass-dev-item" style="text-decoration:none">
+      <div class="pass-dev-icon">🔦</div>
+      <div class="pass-dev-name">DN·Evac</div>
+      <div class="pass-dev-desc">Маяк эвакуации. Активируется при пожарной тревоге</div>
+    </a>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="pass-cta-section">
+  <h2>Рассчитайте стоимость</h2>
+  <p>Три конфигурации для каждого сегмента. Реальные цены на оборудование и работы.</p>
+  <div class="pass-cta-cards">
+    <a href="/home/#calculator" class="pass-cta-card">🏠<br><strong>Дом</strong><br><small>от 34 000 ₽</small></a>
+    <a href="/cloud/#calculator" class="pass-cta-card">☁️<br><strong>Бизнес</strong><br><small>от 990 ₽/мес</small></a>
+    <a href="/enterprise/#calculator" class="pass-cta-card">🏢<br><strong>Предприятие</strong><br><small>от 460 000 ₽</small></a>
+  </div>
+  <a href="mailto:sayr@inbox.ru?subject=Запрос КП" class="pass-btn pass-btn--cloud" style="margin-top:1.5rem;display:inline-block">
+    📋 Получить коммерческое предложение
+  </a>
+</section>
+
+{{ end }}

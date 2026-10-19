@@ -159,4 +159,4 @@ TenantPass окупается за **5–6 месяцев** по сравнен�
 
 ---
 
-**Обсудить внедрение:** [sayr@inbox.ru](mailto:sayr@inbox.ru?subject=СКУД+СУРВ консультация)
+**Обсудить внедрение:** [sayr@inbox.ru](mailto:sayr@inbox.ru?subject=%D0%A1%D0%9A%D0%A3%D0%94+%D0%A1%D0%A3%D0%A0%D0%92)

@@ -1,4 +1,9 @@
 [[main]]
+  name = "Платформа"
+  url = "/pass/"
+  weight = 5
+
+[[main]]
   name = "Умный дом"
   url = "/home/"
   weight = 10
@@ -12,6 +17,11 @@
   name = "Предприятие"
   url = "/enterprise/"
   weight = 30
+
+[[main]]
+  name = "Устройства"
+  url = "/devices/"
+  weight = 35
 
 [[main]]
   name = "Блог"
