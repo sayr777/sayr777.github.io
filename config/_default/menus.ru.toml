@@ -24,11 +24,6 @@
   weight = 50
 
 [[footer]]
-  name = "GitHub"
-  url = "https://github.com/sayr777/TenantPass"
-  weight = 10
-
-[[footer]]
   name = "Контакт"
   url = "mailto:sayr@inbox.ru"
-  weight = 20
+  weight = 10
