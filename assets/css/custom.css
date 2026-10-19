@@ -217,8 +217,104 @@
 .pass-hero--cloud h1 em { color: var(--pass-cloud); }
 .pass-hero--ent   h1 em { color: var(--pass-ent); }
 
-/* Responsive */
-@media (max-width: 640px) {
-  .pass-stats { gap: 1.2rem; }
+/* ── Responsive ── */
+
+/* Tablet: 768px */
+@media (max-width: 768px) {
+  .pass-hero { padding: 3rem 1rem 2.5rem; }
+  .pass-products {
+    grid-template-columns: 1fr;
+  }
+  .pass-why {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pass-hw {
+    grid-template-columns: 1fr;
+  }
+  .pass-dev-family {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pass-calc-row {
+    gap: .6rem;
+  }
+  .pass-calc-row input[type=range] { max-width: 140px; }
+}
+
+/* Mobile: 480px */
+@media (max-width: 480px) {
+  .pass-hero { padding: 2.5rem .75rem 2rem; }
+  .pass-badge { font-size: .72rem; padding: 3px 10px; }
+
+  .pass-hero h1 {
+    font-size: clamp(1.7rem, 8vw, 2.4rem);
+    letter-spacing: -.5px;
+  }
+  .pass-lead { font-size: .95rem; margin-bottom: 1.5rem; }
+
+  .pass-hero-btns {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .6rem;
+    max-width: 280px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .pass-btn { text-align: center; padding: 13px 20px; font-size: .95rem; }
+
+  .pass-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  .pass-stats strong { font-size: 1.4rem; }
+
+  .pass-section { padding: 2.5rem 0; }
+  .pass-section h2 { font-size: 1.5rem; }
+  .pass-section-sub { font-size: .875rem; }
+
+  .pass-why { grid-template-columns: 1fr; }
+  .pass-dev-family { grid-template-columns: 1fr; }
+
+  .pass-specs { grid-template-columns: 1fr 1fr; }
+
+  /* Calculator mobile: stack label + control vertically */
+  .pass-calc-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .4rem;
+    padding: .9rem 0;
+  }
+  .pass-calc-row label { font-size: .85rem; }
+  .pass-calc-row input[type=range] {
+    width: 100%;
+    max-width: 100%;
+  }
+  .pass-calc-row .val {
+    font-size: .85rem;
+    min-width: auto;
+    text-align: left;
+  }
+  .pass-calc-row select { width: 100%; }
+  .pass-calc-total .total-val { font-size: 1.6rem; }
+
+  .pass-cta-section { padding: 2rem .75rem; border-radius: 12px; }
+  .pass-cta-section h2 { font-size: 1.4rem; }
+  .pass-cta-cards { gap: .6rem; }
+  .pass-cta-card { min-width: 90px; padding: .8rem 1rem; font-size: .82rem; }
+}
+
+/* Tiny screens: 360px */
+@media (max-width: 360px) {
+  .pass-hero h1 { font-size: 1.6rem; }
+  .pass-stats { grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .pass-stats strong { font-size: 1.25rem; }
   .pass-specs { grid-template-columns: 1fr; }
+}
+
+/* Touch: убираем hover-эффекты на устройствах без мыши */
+@media (hover: none) {
+  .pass-btn:hover { transform: none; opacity: 1; }
+  .pass-card:hover { transform: none; border-color: rgba(255,255,255,.08); }
+  .pass-cta-card:hover { transform: none; }
 }
