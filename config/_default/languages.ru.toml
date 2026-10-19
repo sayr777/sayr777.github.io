@@ -1,0 +1,18 @@
+locale = "ru"
+label = "Русский"
+direction = "ltr"
+weight = 1
+
+title = "*Pass Platform"
+
+[params]
+  dateFormat = "2 January 2006"
+  description = "Платформа управления доступом на открытом ПО: умный дом, облачный СКУД для бизнеса, корпоративный СКУД"
+  mainSections = ["blog"]
+
+[params.author]
+  name = "sayr777"
+  links = [
+    { email = "mailto:sayr@inbox.ru" },
+    { github = "https://github.com/sayr777" },
+  ]

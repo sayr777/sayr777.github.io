@@ -1,0 +1,67 @@
+<div class="pass-calc" id="cloud-calc">
+  <div class="pass-calc-row">
+    <label>Количество объектов</label>
+    <input type="range" min="1" max="15" value="1" step="1" oninput="calcCloud()" id="cc-objs">
+    <span class="val" id="cc-objs-val">1</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Сотрудников всего</label>
+    <input type="range" min="5" max="500" value="15" step="5" oninput="calcCloud()" id="cc-staff">
+    <span class="val" id="cc-staff-val">15</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Точек доступа (дверей)</label>
+    <input type="range" min="1" max="20" value="1" step="1" oninput="calcCloud()" id="cc-doors">
+    <span class="val" id="cc-doors-val">1</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Камеры видеонаблюдения</label>
+    <input type="range" min="0" max="20" value="2" step="1" oninput="calcCloud()" id="cc-cams">
+    <span class="val" id="cc-cams-val">2</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Срок подписки</label>
+    <select onchange="calcCloud()" id="cc-months" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 8px;color:inherit;font-size:.85rem;">
+      <option value="6">6 месяцев</option>
+      <option value="12" selected>12 месяцев</option>
+      <option value="24">24 месяца</option>
+    </select>
+    <span class="val" id="cc-plan-val"></span>
+  </div>
+  <div class="pass-calc-total">
+    <div class="total-label">Оборудование (разово) + подписка</div>
+    <div class="total-val" id="cc-total">45 000 ₽</div>
+    <div style="font-size:.75rem;opacity:.5;margin-top:.3rem" id="cc-breakdown"></div>
+  </div>
+</div>
+<script>
+function calcCloud() {
+  var objs   = +document.getElementById('cc-objs').value;
+  var staff  = +document.getElementById('cc-staff').value;
+  var doors  = +document.getElementById('cc-doors').value;
+  var cams   = +document.getElementById('cc-cams').value;
+  var months = +document.getElementById('cc-months').value;
+
+  document.getElementById('cc-objs-val').textContent  = objs;
+  document.getElementById('cc-staff-val').textContent = staff;
+  document.getElementById('cc-doors-val').textContent = doors;
+  document.getElementById('cc-cams-val').textContent  = cams;
+
+  var plan, planName;
+  if (objs <= 1 && staff <= 25)       { plan = 990;  planName = 'Micro'; }
+  else if (objs <= 5 && staff <= 200) { plan = 3900; planName = 'Business'; }
+  else                                 { plan = 9900; planName = 'Scale'; }
+
+  var equip = doors * 11000 + cams * 2500 + objs * 3000;
+  var install = objs * 8000;
+  var sub = plan * months;
+  var total = equip + install + sub;
+
+  document.getElementById('cc-plan-val').textContent = planName + ' ' + plan.toLocaleString('ru-RU') + ' ₽/мес';
+  document.getElementById('cc-total').textContent    = total.toLocaleString('ru-RU') + ' ₽';
+  document.getElementById('cc-breakdown').textContent =
+    'Оборудование ' + equip.toLocaleString('ru-RU') + ' ₽ · Монтаж ' +
+    install.toLocaleString('ru-RU') + ' ₽ · Подписка ' + sub.toLocaleString('ru-RU') + ' ₽';
+}
+calcCloud();
+</script>

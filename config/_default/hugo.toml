@@ -1,0 +1,15 @@
+baseURL = "https://sayr777.github.io/"
+locale = "ru"
+defaultContentLanguage = "ru"
+enableRobotsTXT = true
+paginate = 10
+theme = "congo"
+
+[taxonomies]
+  tag = "tags"
+  category = "categories"
+
+[sitemap]
+  changefreq = "weekly"
+  filename = "sitemap.xml"
+  priority = -1

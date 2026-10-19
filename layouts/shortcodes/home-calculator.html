@@ -1,0 +1,68 @@
+<div class="pass-calc" id="home-calc">
+  <div class="pass-calc-row">
+    <label>Площадь дома (м²)</label>
+    <input type="range" min="60" max="500" value="150" step="10" oninput="calcHome()" id="hc-area">
+    <span class="val" id="hc-area-val">150 м²</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Дополнительные постройки</label>
+    <input type="range" min="0" max="3" value="0" step="1" oninput="calcHome()" id="hc-builds">
+    <span class="val" id="hc-builds-val">0</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Камеры видеонаблюдения</label>
+    <input type="range" min="2" max="16" value="4" step="1" oninput="calcHome()" id="hc-cams">
+    <span class="val" id="hc-cams-val">4 шт</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Умных замков</label>
+    <input type="range" min="1" max="6" value="1" step="1" oninput="calcHome()" id="hc-locks">
+    <span class="val" id="hc-locks-val">1 шт</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Монтаж</label>
+    <select onchange="calcHome()" id="hc-install" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 8px;color:inherit;font-size:.85rem;">
+      <option value="0">DIY (самостоятельно)</option>
+      <option value="1" selected>Под ключ</option>
+    </select>
+    <span class="val" id="hc-install-val"></span>
+  </div>
+  <div class="pass-calc-row">
+    <label>ML-распознавание лиц</label>
+    <input type="checkbox" onchange="calcHome()" id="hc-ml" style="width:18px;height:18px;cursor:pointer;">
+    <span class="val" id="hc-ml-val">—</span>
+  </div>
+  <div class="pass-calc-total">
+    <div class="total-label">Ориентировочная стоимость</div>
+    <div class="total-val" id="hc-total">155 000 ₽</div>
+    <div style="font-size:.75rem;opacity:.5;margin-top:.3rem">Абонентская плата: 0 ₽/мес · Финальная цена после консультации</div>
+  </div>
+</div>
+<script>
+function calcHome() {
+  var area   = +document.getElementById('hc-area').value;
+  var builds = +document.getElementById('hc-builds').value;
+  var cams   = +document.getElementById('hc-cams').value;
+  var locks  = +document.getElementById('hc-locks').value;
+  var install= +document.getElementById('hc-install').value;
+  var ml     = document.getElementById('hc-ml').checked;
+
+  document.getElementById('hc-area-val').textContent   = area + ' м²';
+  document.getElementById('hc-builds-val').textContent = builds;
+  document.getElementById('hc-cams-val').textContent   = cams + ' шт';
+  document.getElementById('hc-locks-val').textContent  = locks + ' шт';
+
+  var base = 15000;
+  base += area * 80;
+  base += builds * 25000;
+  base += cams * 2500;
+  base += locks * 8000;
+  if (ml) base += 35000;
+
+  var total = install === 1 ? Math.round(base * 1.55 / 1000) * 1000 : base;
+
+  document.getElementById('hc-ml-val').textContent = ml ? '+35 000 ₽' : '—';
+  document.getElementById('hc-total').textContent  = total.toLocaleString('ru-RU') + ' ₽';
+}
+calcHome();
+</script>

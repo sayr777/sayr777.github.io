@@ -1,0 +1,83 @@
+<div class="pass-calc" id="ent-calc">
+  <div class="pass-calc-row">
+    <label>Сотрудников / жителей</label>
+    <input type="range" min="50" max="2000" value="150" step="50" oninput="calcEnt()" id="ec-staff">
+    <span class="val" id="ec-staff-val">150</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Точек доступа</label>
+    <input type="range" min="5" max="100" value="15" step="5" oninput="calcEnt()" id="ec-doors">
+    <span class="val" id="ec-doors-val">15</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Камеры</label>
+    <input type="range" min="4" max="80" value="16" step="4" oninput="calcEnt()" id="ec-cams">
+    <span class="val" id="ec-cams-val">16</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Турникеты</label>
+    <input type="range" min="0" max="10" value="1" step="1" oninput="calcEnt()" id="ec-turns">
+    <span class="val" id="ec-turns-val">1</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>Шлагбаумы</label>
+    <input type="range" min="0" max="6" value="0" step="1" oninput="calcEnt()" id="ec-barriers">
+    <span class="val" id="ec-barriers-val">0</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>СУРВ (учёт рабочего времени)</label>
+    <input type="checkbox" onchange="calcEnt()" id="ec-surv" style="width:18px;height:18px;cursor:pointer;">
+    <span class="val" id="ec-surv-val">—</span>
+  </div>
+  <div class="pass-calc-row">
+    <label>ML-пакет (биометрия, LPR)</label>
+    <select onchange="calcEnt()" id="ec-ml" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 8px;color:inherit;font-size:.85rem;">
+      <option value="0">Нет</option>
+      <option value="80000">Стандарт (+80 000 ₽)</option>
+      <option value="250000">Полный (+250 000 ₽)</option>
+    </select>
+    <span class="val" id="ec-ml-val">—</span>
+  </div>
+  <div class="pass-calc-total">
+    <div class="total-label">Ориентировочная стоимость под ключ</div>
+    <div class="total-val" id="ec-total">460 000 ₽</div>
+    <div style="font-size:.75rem;opacity:.5;margin-top:.3rem" id="ec-breakdown"></div>
+    <div style="font-size:.75rem;opacity:.5;margin-top:.2rem">Абонентская плата: 0 ₽/мес · После аудита объекта цена уточняется</div>
+  </div>
+</div>
+<script>
+function calcEnt() {
+  var staff    = +document.getElementById('ec-staff').value;
+  var doors    = +document.getElementById('ec-doors').value;
+  var cams     = +document.getElementById('ec-cams').value;
+  var turns    = +document.getElementById('ec-turns').value;
+  var barriers = +document.getElementById('ec-barriers').value;
+  var surv     = document.getElementById('ec-surv').checked;
+  var ml       = +document.getElementById('ec-ml').value;
+
+  document.getElementById('ec-staff-val').textContent    = staff;
+  document.getElementById('ec-doors-val').textContent    = doors;
+  document.getElementById('ec-cams-val').textContent     = cams;
+  document.getElementById('ec-turns-val').textContent    = turns;
+  document.getElementById('ec-barriers-val').textContent = barriers;
+
+  var server = staff <= 150 ? 25500 : staff <= 500 ? 36000 : 120000;
+  var equip  = server + doors * 7000 + cams * 2500 + turns * 25000 + barriers * 32000;
+  var works  = Math.round(equip * 0.42);
+  var reserve= Math.round((equip + works) * 0.15);
+  var options= (surv ? 80000 : 0) + ml;
+
+  var total = equip + works + reserve + options;
+
+  document.getElementById('ec-surv-val').textContent = surv ? '+80 000 ₽' : '—';
+  var mlOpt = document.getElementById('ec-ml');
+  document.getElementById('ec-ml-val').textContent = mlOpt.value > 0 ? '+' + (+mlOpt.value).toLocaleString('ru-RU') + ' ₽' : '—';
+  document.getElementById('ec-total').textContent = total.toLocaleString('ru-RU') + ' ₽';
+  document.getElementById('ec-breakdown').textContent =
+    'Оборудование ' + equip.toLocaleString('ru-RU') +
+    ' ₽ · Работы ' + works.toLocaleString('ru-RU') +
+    ' ₽ · Запас ' + reserve.toLocaleString('ru-RU') + ' ₽' +
+    (options ? ' · Опции ' + options.toLocaleString('ru-RU') + ' ₽' : '');
+}
+calcEnt();
+</script>
