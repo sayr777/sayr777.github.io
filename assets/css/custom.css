@@ -194,6 +194,24 @@
 .pass-calc-total .total-label { font-size: .8rem; opacity: .6; }
 .pass-calc-total .total-val { font-size: 2rem; font-weight: 800; color: var(--pass-cloud); }
 
+/* Device family grid */
+.pass-dev-family {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+.pass-dev-item {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px; padding: 1.2rem;
+  transition: border-color .2s;
+}
+.pass-dev-item:hover { border-color: rgba(255,255,255,.2); }
+.pass-dev-icon { font-size: 1.6rem; margin-bottom: .5rem; }
+.pass-dev-name { font-size: .95rem; font-weight: 700; margin-bottom: .4rem; }
+.pass-dev-desc { font-size: .8rem; opacity: .6; line-height: 1.45; }
+
 /* Subsite hero variants */
 .pass-hero--home  h1 em { color: var(--pass-home); }
 .pass-hero--cloud h1 em { color: var(--pass-cloud); }
