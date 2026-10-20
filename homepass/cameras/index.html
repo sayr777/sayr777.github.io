@@ -1,0 +1,88 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Видеонаблюдение · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Видеонаблюдение</span></nav><article class=prose><h1>Видеонаблюдение</h1><h1 id=видеонаблюдение>Видеонаблюдение</h1><h2 id=концепция-запись-только-по-событиям>Концепция: запись только по событиям</h2><p>Не пишем непрерывно. Запись только когда:</p><ul><li><strong>Чужой человек</strong> на территории (AI-детекция: незнакомое лицо или просто человек в зоне без хозяина)</li><li><strong>Машина</strong> въехала / выехала</li><li><strong>Аварийная ситуация</strong> — датчик дыма, утечка воды, сигнализация</li><li><strong>Ночное движение</strong> на периметре</li></ul><p>Это экономит место и позволяет быстро найти нужное событие.</p><hr><h2 id=стек>Стек</h2><pre tabindex=0><code>[IP-камеры]  ──RTSP──►  [Frigate NVR]  ──MQTT──►  [Home Assistant]
+                              │
+                         [Google Coral]  ← AI-детекция объектов
+                         (или GPU/NPU)
+</code></pre><p><strong>Frigate</strong> — локальный NVR с нейросетевой детекцией (YOLO). Без облака, без подписок.
+<strong>Google Coral USB</strong> — аппаратный ускоритель для realtime AI ($60), снимает нагрузку с CPU.</p><hr><h2 id=камеры-и-расстановка>Камеры и расстановка</h2><table><thead><tr><th>Позиция</th><th>Тип</th><th>Зачем</th></tr></thead><tbody><tr><td>Ворота (снаружи)</td><td>Уличная, ИК</td><td>Номер машины, лицо у домофона</td></tr><tr><td>Ворота (внутри)</td><td>Уличная, ИК</td><td>Кто въехал</td></tr><tr><td>Калитка</td><td>Уличная, ИК</td><td>Кто вошёл пешком</td></tr><tr><td>Периметр (углы забора)</td><td>Уличная широкий угол</td><td>Движение у забора</td></tr><tr><td>Парковка / двор</td><td>Уличная</td><td>Машины на территории</td></tr><tr><td>Входная дверь дома</td><td>Внутренняя</td><td>Кто входит в дом</td></tr><tr><td>Гараж (внутри)</td><td>Внутренняя</td><td>Движение внутри</td></tr><tr><td>Баня (снаружи)</td><td>Уличная</td><td>Подход к бане</td></tr></tbody></table><p><strong>Рекомендуемые камеры</strong>: TP-Link Tapo / Reolink (хорошее соотношение цена/качество, RTSP без облака). Или Hikvision / Dahua для более высокого качества.</p><hr><h2 id=детекция-объектов-в-frigate>Детекция объектов в Frigate</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Frigate config (пример зоны у калитки)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>cameras</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>gate</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ffmpeg</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inputs</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>rtsp://192.168.1.101:554/stream1</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>roles</span>: [<span style=color:#ae81ff>detect, record]</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>detect</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>width</span>: <span style=color:#ae81ff>1920</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>height</span>: <span style=color:#ae81ff>1080</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>objects</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>track</span>: [<span style=color:#ae81ff>person, car, cat, dog]</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>zones</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entrance_zone</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>coordinates</span>: <span style=color:#ae81ff>100</span>,<span style=color:#ae81ff>200</span>,<span style=color:#ae81ff>800</span>,<span style=color:#ae81ff>200</span>,<span style=color:#ae81ff>800</span>,<span style=color:#ae81ff>900</span>,<span style=color:#ae81ff>100</span>,<span style=color:#ae81ff>900</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>objects</span>: [<span style=color:#ae81ff>person, car]</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>record</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>events</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>required_zones</span>: [<span style=color:#ae81ff>entrance_zone] </span> <span style=color:#75715e># писать только если объект в зоне</span>
+</span></span></code></pre></div><p><strong>Результат</strong>: камера пишет только когда человек или машина вошли в определённую зону. Ветка дерева не триггерит запись.</p><hr><h2 id=умный-архив>Умный архив</h2><pre tabindex=0><code>Структура записей:
+  /frigate/recordings/
+    gate/           ← сегменты по событиям
+    perimeter/
+    garage/
+
+Retention:
+  Событийные клипы (detect): хранить 30 дней
+  Непрерывная запись (если включена): 3 дня rolling
+  Алертные события (тревога, чужой ночью): 90 дней
+</code></pre><p>Место: 2 TB HDD хватает на 30+ дней событийной записи для 8 камер.</p><hr><h2 id=интеграция-с-home-assistant>Интеграция с Home Assistant</h2><h3 id=уведомление-с-фото>Уведомление с фото</h3><pre tabindex=0><code>Триггер: Frigate обнаружил person в gate_zone → MQTT → HA
+
+Действие:
+  Push-уведомление на телефон:
+    Заголовок: &#34;Движение у калитки&#34;
+    Фото: снимок с камеры в момент события
+    Кнопки: [Открыть калитку] [Посмотреть видео] [Ложная тревога]
+</code></pre><h3 id=распознавание-свойчужой>Распознавание «свой/чужой»</h3><p>Интеграция с <strong>Double Take</strong> (локальный face recognition):</p><ul><li>База «своих» лиц: семья, уборщица, регулярные гости</li><li>Если распознан «свой» → не уведомлять (или тихое уведомление)</li><li>Если незнакомый → полное уведомление</li></ul><pre tabindex=0><code>Frigate → Double Take → HA:
+  person: &#34;owner&#34; → уведомление: нет (просто запись)
+  person: &#34;unknown&#34; → уведомление: Push с фото
+</code></pre><hr><h2 id=доступ-аварийных-служб>Доступ аварийных служб</h2><h3 id=временный-удалённый-доступ-к-камерам>Временный удалённый доступ к камерам</h3><p>При вызове пожарных / скорой / полиции хозяин может открыть временный доступ:</p><pre tabindex=0><code>Схема:
+  1. Хозяин в приложении: &#34;Открыть доступ аварийной службе&#34;
+  2. HA генерирует временную ссылку: https://home.local/frigate/emergency?token=abc123
+     действует 2 часа
+  3. Ссылка открывает view только конкретных камер (территория, въезд)
+  4. Хозяин отправляет ссылку диспетчеру / оперативнику
+  5. Через 2 часа ссылка автоматически истекает
+
+Технически: nginx + временный токен в HA → проксирование стрима Frigate
+</code></pre><h3 id=экстренное-открытие-ворот-для-аварийных-служб>Экстренное открытие ворот для аварийных служб</h3><pre tabindex=0><code>Хозяин в приложении: &#34;Открыть для аварийных&#34;
+→ Ворота открываются + остаются открытыми (не закрываются по таймеру)
+→ Push всем членам семьи: &#34;Ворота открыты для аварийных служб&#34;
+→ Закрыть вручную после отъезда служб
+</code></pre><h3 id=автоматика-при-пожарной-сигнализации>Автоматика при пожарной сигнализации</h3><pre tabindex=0><code>Триггер: датчик дыма сработал
+Автоматически:
+  1. Ворота и калитка открываются (доступ для пожарных)
+  2. Все замки дома разблокируются
+  3. Камеры переходят в режим непрерывной записи
+  4. HA создаёт временный токен и отображает ссылку в интерфейсе
+</code></pre><hr><h2 id=ночной-режим-периметра>Ночной режим периметра</h2><pre tabindex=0><code>22:00 → режим &#34;Ночная охрана&#34;:
+  - Детекция только снаружи (не внутри дома — семья ходит)
+  - При любом движении у забора → Push (тихий)
+  - При движении у калитки/ворот ночью → сирена + громкий Push
+  - Включить прожектор на 30 сек (отпугнуть)
+</code></pre><hr><h2 id=приватность>Приватность</h2><ul><li>Камеры внутри дома — <strong>только</strong> в общих зонах (прихожая, гараж), не в спальнях</li><li>Внутренние камеры отключаются при появлении дома хозяина (или вручную)</li><li>Стримы не уходят в облако: всё через WireGuard при удалённом доступе</li></ul><hr><h2 id=связи>Связи</h2><p>← <a href=/home/access/>access</a>
+← <a href=/home/alarm/>alarm</a>
+→ <a href=/home/buildings/gates/>gates</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

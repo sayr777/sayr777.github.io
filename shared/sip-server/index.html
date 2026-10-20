@@ -1,0 +1,264 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>SIP-сервер — развёртывание и настройка · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>SIP-сервер — развёртывание и настройка</span></nav><article class=prose><h1>SIP-сервер — развёртывание и настройка</h1><h1 id=sip-сервер--развёртывание-и-настройка>SIP-сервер — развёртывание и настройка</h1><p><em>Единая IP-АТС для всех проектов: TenantPass, HomePass, EventPass</em></p><hr><h2 id=выбор-платформы>Выбор платформы</h2><table><thead><tr><th>Платформа</th><th>Лицензия</th><th>Подходит для</th><th>Минус</th></tr></thead><tbody><tr><td><strong>Asterisk</strong></td><td>GPLv2</td><td>Любой масштаб, максимальная гибкость</td><td>Сложная настройка</td></tr><tr><td><strong>FreePBX</strong></td><td>GPLv3</td><td>Asterisk + веб-UI, проще для старта</td><td>Overhead веб-панели</td></tr><tr><td><strong>FusionPBX</strong></td><td>MPLv2</td><td>Мультитенантность (TenantPass идеально)</td><td>Сложнее FreePBX</td></tr><tr><td><strong>Kamailio</strong></td><td>GPLv2</td><td>SIP-прокси/роутинг, высокая нагрузка</td><td>Нет звонковой логики</td></tr><tr><td><strong>Yealink IPPBX</strong></td><td>Коммерческая</td><td>Дом/SMB, простота</td><td>Закрытое железо</td></tr></tbody></table><p><strong>Рекомендация:</strong></p><ul><li>HomePass: FreePBX (быстрый старт, веб-UI)</li><li>TenantPass on-premise: Asterisk + FusionPBX (мультитенантность)</li><li>EventPass: Asterisk (скрипты, REST через AMI)</li></ul><hr><h2 id=развёртывание-freepbx-на-docker-homepass--быстрый-старт>Развёртывание: FreePBX на Docker (HomePass / быстрый старт)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>version</span>: <span style=color:#e6db74>&#34;3&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>freepbx</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tiredofit/freepbx:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>freepbx</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>network_mode</span>: <span style=color:#ae81ff>host         </span> <span style=color:#75715e># SIP требует хостовую сеть (RTP-порты)</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>DB_HOST=freepbx-db</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>DB_NAME=asterisk</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>DB_USER=asterisk</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>DB_PASS=strong_password</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>TZ=Europe/Moscow</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./freepbx/data:/data</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./freepbx/certs:/certs</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>unless-stopped</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>freepbx-db</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>mariadb:10.6</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>container_name</span>: <span style=color:#ae81ff>freepbx-db</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MYSQL_ROOT_PASSWORD</span>: <span style=color:#ae81ff>root_pass</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MYSQL_DATABASE</span>: <span style=color:#ae81ff>asterisk</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MYSQL_USER</span>: <span style=color:#ae81ff>asterisk</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MYSQL_PASSWORD</span>: <span style=color:#ae81ff>strong_password</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./freepbx/mysql:/var/lib/mysql</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restart</span>: <span style=color:#ae81ff>unless-stopped</span>
+</span></span></code></pre></div><p><strong>Порты (нужно открыть в файерволле):</strong></p><table><thead><tr><th>Порт</th><th>Протокол</th><th>Назначение</th></tr></thead><tbody><tr><td>5060</td><td>UDP</td><td>SIP сигнализация (незащищённый)</td></tr><tr><td>5061</td><td>TCP/TLS</td><td>SIP TLS (для мобильных клиентов)</td></tr><tr><td>10000–20000</td><td>UDP</td><td>RTP медиапотоки</td></tr><tr><td>80/443</td><td>TCP</td><td>FreePBX web-панель</td></tr><tr><td>8088/8089</td><td>TCP</td><td>Asterisk WebSocket (WebRTC)</td></tr></tbody></table><hr><h2 id=развёртывание-asterisk-standalone-tenantpass-on-premise>Развёртывание: Asterisk standalone (TenantPass on-premise)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Ubuntu 22.04</span>
+</span></span><span style=display:flex><span>apt-get update <span style=color:#f92672>&amp;&amp;</span> apt-get install -y asterisk asterisk-modules
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Основные конфиги</span>
+</span></span><span style=display:flex><span>/etc/asterisk/
+</span></span><span style=display:flex><span>  sip.conf         <span style=color:#75715e># SIP-аккаунты (или pjsip.conf для PJSIP)</span>
+</span></span><span style=display:flex><span>  extensions.conf  <span style=color:#75715e># Dial plan</span>
+</span></span><span style=display:flex><span>  queues.conf      <span style=color:#75715e># Очереди звонков</span>
+</span></span><span style=display:flex><span>  voicemail.conf   <span style=color:#75715e># Голосовая почта</span>
+</span></span><span style=display:flex><span>  cdr.conf         <span style=color:#75715e># Запись истории звонков</span>
+</span></span><span style=display:flex><span>  manager.conf     <span style=color:#75715e># AMI (REST-подобный API)</span>
+</span></span></code></pre></div><hr><h2 id=основная-конфигурация>Основная конфигурация</h2><h3 id=sipconf--pjsipconf--регистрация-устройств>sip.conf / pjsip.conf — регистрация устройств</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/pjsip.conf</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Шаблон транспорта</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[transport-udp]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>transport</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>protocol</span><span style=color:#f92672>=</span><span style=color:#e6db74>udp</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>bind</span><span style=color:#f92672>=</span><span style=color:#e6db74>0.0.0.0:5060</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[transport-tls]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>transport</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>protocol</span><span style=color:#f92672>=</span><span style=color:#e6db74>tls</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>bind</span><span style=color:#f92672>=</span><span style=color:#e6db74>0.0.0.0:5061</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>cert_file</span><span style=color:#f92672>=</span><span style=color:#e6db74>/etc/asterisk/certs/server.crt</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>priv_key_file</span><span style=color:#f92672>=</span><span style=color:#e6db74>/etc/asterisk/certs/server.key</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ===== Домофоны =====</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[wicket-doorbell]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>transport</span><span style=color:#f92672>=</span><span style=color:#e6db74>transport-udp</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>doorbell-context</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>disallow</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>allow</span><span style=color:#f92672>=</span><span style=color:#e6db74>ulaw,alaw,g722</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth</span><span style=color:#f92672>=</span><span style=color:#e6db74>wicket-doorbell-auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>aors</span><span style=color:#f92672>=</span><span style=color:#e6db74>wicket-doorbell-aors</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>callerid</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Калитка&#34; &lt;1001&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[wicket-doorbell-auth]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth_type</span><span style=color:#f92672>=</span><span style=color:#e6db74>userpass</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>username</span><span style=color:#f92672>=</span><span style=color:#e6db74>wicket-doorbell</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>password</span><span style=color:#f92672>=</span><span style=color:#e6db74>SomeStr0ngPass!</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[wicket-doorbell-aors]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>aor</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>max_contacts</span><span style=color:#f92672>=</span><span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ===== PA-усилитель (зона А) =====</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[pa-zone-a]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>pa-context</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>disallow</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>allow</span><span style=color:#f92672>=</span><span style=color:#e6db74>ulaw,alaw</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>callerid</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;PA Зона А&#34; &lt;2001&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ===== Softphone хозяина =====</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[owner-phone]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>internal</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>disallow</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>allow</span><span style=color:#f92672>=</span><span style=color:#e6db74>ulaw,alaw,g722,opus</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth</span><span style=color:#f92672>=</span><span style=color:#e6db74>owner-phone-auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>aors</span><span style=color:#f92672>=</span><span style=color:#e6db74>owner-phone-aors</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>callerid</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Хозяин&#34; &lt;100&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[owner-phone-auth]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth_type</span><span style=color:#f92672>=</span><span style=color:#e6db74>userpass</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>username</span><span style=color:#f92672>=</span><span style=color:#e6db74>owner</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>password</span><span style=color:#f92672>=</span><span style=color:#e6db74>AnotherStr0ng!</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[owner-phone-aors]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>aor</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>max_contacts</span><span style=color:#f92672>=</span><span style=color:#e6db74>3</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>qualify_frequency</span><span style=color:#f92672>=</span><span style=color:#e6db74>30</span>
+</span></span></code></pre></div><hr><h3 id=extensionsconf--логика-звонков>extensions.conf — логика звонков</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/extensions.conf</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ===== Домофон калитки =====</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[doorbell-context]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; s,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Set(CALLERID(name)=Калитка)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Playback(beep)          ; звук вызова</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Dial(PJSIP/owner-phone,30,A(beep))</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,GotoIf($[&#34;${DIALSTATUS}&#34; = &#34;ANSWER&#34;]?answered:noanswer)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n(noanswer),Playback(vm-nobodyavail)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Hangup()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n(answered),Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ===== PA-оповещение (вызов из HA через AMI) =====</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[pa-context]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; announce,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Playback(${ANNOUNCE_FILE})     ; файл готового MP3/WAV</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; tts-announce,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,TTS(${ANNOUNCE_TEXT},ru-RU)    ; live TTS (нужен festival/piper)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ===== Тревога: обзвон всех PA и хозяина =====</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[alarm-broadcast]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; s,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Playback(alarm-signal)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Dial(PJSIP/pa-zone-a&amp;PJSIP/pa-zone-b&amp;PJSIP/owner-phone,60)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Hangup()</span>
+</span></span></code></pre></div><hr><h2 id=ami--управление-из-home-assistant--eventpass>AMI — управление из Home Assistant / EventPass</h2><p>AMI (Asterisk Manager Interface) позволяет вызывать команды Asterisk через TCP.</p><h3 id=managerconf>manager.conf</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/manager.conf</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[general]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>enabled</span><span style=color:#f92672>=</span><span style=color:#e6db74>yes</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>port</span><span style=color:#f92672>=</span><span style=color:#e6db74>5038</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>bindaddr</span><span style=color:#f92672>=</span><span style=color:#e6db74>127.0.0.1    ; только локально (или VPN)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[homeassistant]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>secret</span><span style=color:#f92672>=</span><span style=color:#e6db74>SecretAmIPass!</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>read</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>write</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>permit</span><span style=color:#f92672>=</span><span style=color:#e6db74>127.0.0.1/255.255.255.0</span>
+</span></span></code></pre></div><h3 id=пример-ha-вызывает-pa-через-ami-python>Пример: HA вызывает PA через AMI (Python)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#f92672>import</span> socket
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>asterisk_announce</span>(zone: str, text: str):
+</span></span><span style=display:flex><span>    ami <span style=color:#f92672>=</span> socket<span style=color:#f92672>.</span>socket()
+</span></span><span style=display:flex><span>    ami<span style=color:#f92672>.</span>connect((<span style=color:#e6db74>&#34;127.0.0.1&#34;</span>, <span style=color:#ae81ff>5038</span>))
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Login</span>
+</span></span><span style=display:flex><span>    ami<span style=color:#f92672>.</span>send(
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Action: Login</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Username: homeassistant</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Secret: SecretAmIPass!</span><span style=color:#ae81ff>\r\n\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>.</span>encode()
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Originate — позвонить на PA и воспроизвести TTS</span>
+</span></span><span style=display:flex><span>    ami<span style=color:#f92672>.</span>send(
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Action: Originate</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Channel: PJSIP/pa-</span><span style=color:#e6db74>{</span>zone<span style=color:#e6db74>}</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Context: pa-context</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Exten: tts-announce</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Priority: 1</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Variable: ANNOUNCE_TEXT=</span><span style=color:#e6db74>{</span>text<span style=color:#e6db74>}</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Async: true</span><span style=color:#ae81ff>\r\n\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>.</span>encode()
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    ami<span style=color:#f92672>.</span>close()
+</span></span></code></pre></div><h3 id=home-assistant-sip-интеграция-через-voip-нотификации>Home Assistant: SIP-интеграция через VoIP-нотификации</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># configuration.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>notify</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>asterisk_mbox</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#ae81ff>sip_pa_zone_a</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>host</span>: <span style=color:#ae81ff>127.0.0.1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>port</span>: <span style=color:#ae81ff>5038</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>login</span>: <span style=color:#ae81ff>homeassistant</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>password</span>: <span style=color:#ae81ff>SecretAmIPass!</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Использование в автоматизации:</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.sip_pa_zone_a</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Внимание! Начало рабочей смены.&#34;</span>
+</span></span></code></pre></div><hr><h2 id=tts-движок-для-объявлений>TTS-движок для объявлений</h2><h3 id=вариант-1-piper-локальный-русский-быстрый>Вариант 1: Piper (локальный, русский, быстрый)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>pip install piper-tts
+</span></span><span style=display:flex><span><span style=color:#75715e># Модель: ru_RU-ruslan-medium (430 МБ)</span>
+</span></span><span style=display:flex><span>piper --model ru_RU-ruslan-medium <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>      --output_file /tmp/announce.wav <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>      --input_text <span style=color:#e6db74>&#34;Начало рабочей смены&#34;</span>
+</span></span></code></pre></div><p>Интеграция с Asterisk: <code>fast-agi</code> скрипт или генерация файла заранее.</p><h3 id=вариант-2-yandex-speechkit-облачный>Вариант 2: Yandex SpeechKit (облачный)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#f92672>import</span> requests
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>tts_yandex</span>(text: str, output: str):
+</span></span><span style=display:flex><span>    r <span style=color:#f92672>=</span> requests<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize&#34;</span>,
+</span></span><span style=display:flex><span>        headers<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;Authorization&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Api-Key </span><span style=color:#e6db74>{</span>YANDEX_API_KEY<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>},
+</span></span><span style=display:flex><span>        data<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;text&#34;</span>: text, <span style=color:#e6db74>&#34;lang&#34;</span>: <span style=color:#e6db74>&#34;ru-RU&#34;</span>, <span style=color:#e6db74>&#34;voice&#34;</span>: <span style=color:#e6db74>&#34;filipp&#34;</span>, <span style=color:#e6db74>&#34;format&#34;</span>: <span style=color:#e6db74>&#34;wav&#34;</span>}
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> open(output, <span style=color:#e6db74>&#34;wb&#34;</span>) <span style=color:#66d9ef>as</span> f:
+</span></span><span style=display:flex><span>        f<span style=color:#f92672>.</span>write(r<span style=color:#f92672>.</span>content)
+</span></span></code></pre></div><h3 id=вариант-3-pre-recorded-файлы-стройплощадка--надёжность>Вариант 3: Pre-recorded файлы (стройплощадка / надёжность)</h3><pre tabindex=0><code>/var/lib/asterisk/sounds/ru/
+  shift-start.wav          &#34;Начало рабочей смены&#34;
+  shift-end.wav            &#34;Конец рабочей смены&#34;
+  alarm-evacuate.wav       &#34;Сигнал эвакуации&#34;
+  access-granted.wav       &#34;Доступ разрешён&#34;
+  access-denied.wav        &#34;Доступ запрещён&#34;
+  zone-danger.wav          &#34;Внимание, опасная зона&#34;
+</code></pre><hr><h2 id=sip-домофоны>SIP-домофоны</h2><h3 id=рекомендуемые-модели>Рекомендуемые модели</h3><table><thead><tr><th>Модель</th><th>Применение</th><th>Особенности</th></tr></thead><tbody><tr><td>Hikvision DS-KV6113-WPE1</td><td>HomePass: калитка</td><td>PoE, IP66, встроенная камера</td></tr><tr><td>Grandstream GDS3710</td><td>TenantPass: КПП</td><td>RFID + SIP + камера</td></tr><tr><td>2N Helios IP Verso</td><td>TenantPass Enterprise</td><td>Модульная, RFID/биометрия + SIP</td></tr><tr><td>Beward DS03M</td><td>Стройплощадка</td><td>Вандалозащита IK10, -40°C</td></tr><tr><td>Algo 8201</td><td>EventPass PA</td><td>IP-PA усилитель, PoE</td></tr></tbody></table><h3 id=настройка-hikvision-sip-домофона>Настройка Hikvision SIP-домофона</h3><pre tabindex=0><code>Web-интерфейс домофона → VoIP → SIP Settings:
+  SIP Server:     192.168.1.X (IP сервера Asterisk)
+  SIP Port:       5060
+  Username:       wicket-doorbell
+  Password:       SomeStr0ngPass!
+  Calling Number: 100   (номер телефона хозяина)
+</code></pre><hr><h2 id=безопасность>Безопасность</h2><pre tabindex=0><code>1. SIP внутри LAN — без выхода в интернет
+   Мобильный доступ: только через WireGuard VPN
+
+2. TLS-шифрование SIP (порт 5061) для мобильных клиентов
+
+3. SRTP для медиапотоков (RTP → SRTP)
+   pjsip.conf: media_encryption=sdes
+
+4. Fail2ban от SIP-брута
+   apt-get install fail2ban
+   /etc/fail2ban/jail.d/asterisk.conf:
+     [asterisk]
+     enabled = true
+     filter = asterisk
+     maxretry = 5
+     bantime = 3600
+
+5. Whitelist IP для AMI (только localhost / VPN)
+</code></pre><hr><h2 id=схема-для-homepass>Схема для HomePass</h2><div class=mermaid>graph TD
+subgraph HOME_NET["Домашняя LAN"]
+AST["Asterisk / FreePBX\n192.168.1.X"]
+DOOR_SIP["SIP-домофон\nкалитка / ворота"]
+PA_INDOOR["PA-усилитель\nдом (4 зоны)"]
+PA_OUTDOOR["PA-усилитель\nтерритория"]
+HA["Home Assistant"]
+end
+PHONE["Zoiper / Linphone\nтелефон хозяина\n(WireGuard VPN)"]
+WG["WireGuard VPN"]
+DOOR_SIP <-->|SIP регистрация| AST
+PA_INDOOR & PA_OUTDOOR <-->|SIP регистрация| AST
+HA -->|AMI команды| AST
+PHONE <-->|SIP TLS| WG <-->|VPN tunnel| AST</div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/sip-audio/>sip-audio</a>
+← <a href=/home/alarm/>alarm</a>
+← <a href=/home/voice-assistant/>voice-assistant</a>
+← <a href=/tenantpass/>index</a>
+← <a href=/eventpass/architecture/>architecture</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

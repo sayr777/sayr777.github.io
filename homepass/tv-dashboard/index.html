@@ -1,0 +1,205 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>ТВ-панель: отчёты, видеоинструкции и анализ событий · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>ТВ-панель: отчёты, видеоинструкции и анализ событий</span></nav><article class=prose><h1>ТВ-панель: отчёты, видеоинструкции и анализ событий</h1><h1 id=тв-панель-отчёты-видеоинструкции-и-анализ-событий>ТВ-панель: отчёты, видеоинструкции и анализ событий</h1><h2 id=концепция>Концепция</h2><p>Телевизор — большой экран в гостиной. По голосовой команде или расписанию он становится:</p><ul><li><strong>Панелью отчётов</strong> (кто приходил, что происходило, энергия)</li><li><strong>Центром безопасности</strong> (события с камер, клипы, фото)</li><li><strong>Экраном инструкций</strong> (как что включить, статус систем)</li><li><strong>Дашбордом умного дома</strong> (температура, присутствие, состояние)</li></ul><p>Всё управляется из Home Assistant. Контент генерируется локально.</p><hr><h2 id=архитектура>Архитектура</h2><div class=mermaid>graph TD
+TRIGGER["Голосовая команда\nРасписание · Событие"]
+HA["Home Assistant"]
+GEN["Генератор контента"]
+DASH["HA Dashboard HTML"]
+FRIGATE["Frigate\nклипы и фото"]
+GRAFANA["Grafana\nграфики"]
+OLLAMA["Ollama LLM\nтекст / анализ"]
+TV["media_player.tv"]
+CAST["Chromecast / ATV\nSmart TV · Fire TV"]
+TRIGGER --> HA
+HA --> GEN & TV
+GEN --> DASH & FRIGATE & GRAFANA & OLLAMA
+TV --> CAST</div><hr><h2 id=способы-вывода-на-тв>Способы вывода на ТВ</h2><table><thead><tr><th>Устройство</th><th>Интеграция в HA</th><th>Метод</th></tr></thead><tbody><tr><td>Chromecast / Google TV</td><td>✅ Нативно</td><td>cast dashboard / URL</td></tr><tr><td>Apple TV</td><td>✅ ATV integration</td><td>open app / URL</td></tr><tr><td>Android TV / Fire TV</td><td>✅ ADB / интеграция</td><td>intent / ADB</td></tr><tr><td>Smart TV (Samsung/LG)</td><td>✅ SSDP/WebOS</td><td>open URL / приложение</td></tr><tr><td>HDMI-стик (общий)</td><td>✅ через ADB</td><td>push URL</td></tr></tbody></table><p><strong>Рекомендация</strong>: Chromecast with Google TV ($50) — простая интеграция, стабильная.</p><hr><h2 id=типы-контента>Типы контента</h2><h3 id=1-отчёт-по-событиям-дня>1. Отчёт по событиям дня</h3><pre tabindex=0><code>Голосовая команда: &#34;Покажи кто приходил сегодня&#34;
+
+HA генерирует страницу:
+┌─────────────────────────────────────────────┐
+│  СОБЫТИЯ ЗА СЕГОДНЯ  19 октября             │
+│                                             │
+│  08:47  Анна вышла ← фото с камеры входа   │
+│  10:23  Уборщица Мария вошла                │
+│  ↳  [▶ видеоклип 10 сек]                   │
+│  13:01  Уборщица вышла  (2ч 38мин)          │
+│  14:23  Курьер у ворот ← фото               │
+│  ↳  Хозяин открыл ворота удалённо          │
+│  18:55  Анна вернулась домой                │
+│  22:00  Движение у забора ← фото            │
+│  ↳  [▶ видеоклип] [✓ Ложная тревога]       │
+└─────────────────────────────────────────────┘
+
+ТВ включается автоматически, показывает страницу
+Управление пультом / голосом: листать, смотреть клипы
+</code></pre><h3 id=2-видеоклипы-с-ai-анализом>2. Видеоклипы с AI-анализом</h3><pre tabindex=0><code>Голосовая команда: &#34;Покажи последние события с камер&#34;
+ИЛИ: &#34;Кто звонил в домофон вчера?&#34;
+
+ТВ показывает галерею:
+┌──────────────────────────────────────────────┐
+│  КАМЕРЫ — последние события                  │
+│                                              │
+│  [▶ 02:34] Движение у забора                 │
+│    AI: человек, уходит, 8 сек               │
+│                                              │
+│  [▶ 14:22] Курьер у калитки                  │
+│    AI: человек с пакетом, стоит у калитки   │
+│    Распознан: незнакомый                    │
+│                                              │
+│  [▶ 10:23] Вход уборщицы                     │
+│    AI: Мария (распознана), входит в дом     │
+└──────────────────────────────────────────────┘
+
+Листание: голос (&#34;следующее&#34;) / пульт ТВ
+</code></pre><h3 id=3-энергетический-отчёт>3. Энергетический отчёт</h3><pre tabindex=0><code>Голосовая команда: &#34;Покажи расход энергии за неделю&#34;
+ИЛИ: автоматически каждое воскресенье в 11:00
+
+ТВ показывает:
+┌──────────────────────────────────────────────┐
+│  ЭНЕРГИЯ — неделя 13–19 октября              │
+│                                              │
+│  Электричество: 87 кВт·ч  (+12% к прошлой)  │
+│  Газ (отопление): 23 м³   (-5% к прошлой)   │
+│  Вода: 4.2 м³             (норма)            │
+│                                              │
+│  [ГРАФИК потребления по дням]               │
+│                                              │
+│  Топ потребителей:                           │
+│  1. Котёл — 31 кВт·ч                        │
+│  2. Бойлер ГВС — 18 кВт·ч                   │
+│  3. Холодильник — 9 кВт·ч                   │
+│                                              │
+│  💡 Совет: вторник был самым дорогим —       │
+│     -18°C снаружи, котёл работал 18ч        │
+└──────────────────────────────────────────────┘
+</code></pre><h3 id=4-статус-дома-дашборд>4. Статус дома (дашборд)</h3><pre tabindex=0><code>Голосовая команда: &#34;Покажи статус дома&#34;
+ИЛИ: автоматически при включении ТВ утром
+
+┌──────────────────────────────────────────────┐
+│  ДОМ — 19 октября, 08:30  ☀ -3°C на улице   │
+│                                              │
+│  ТЕМПЕРАТУРА          ПРИСУТСТВИЕ            │
+│  Гостиная:  21°C  ✓   Дома: Анна, Дети      │
+│  Спальня:   18°C      Ушли: нет              │
+│  Детская:   22°C      Гости: нет             │
+│  Баня:      холодная                         │
+│                                              │
+│  СИСТЕМЫ                                     │
+│  Котёл:  ✅ работает, 65°C теплоносителя     │
+│  Вода:   ✅ давление 2.1 бар                 │
+│  Охрана: снята (все дома)                   │
+│  Ворота: закрыты                             │
+│                                              │
+│  ЗАДАЧИ НА СЕГОДНЯ                           │
+│  ⚠ Договор с уборщицей истекает через 7 дней │
+└──────────────────────────────────────────────┘
+</code></pre><hr><h2 id=видеоинструкции>Видеоинструкции</h2><p>Голос просит инструкцию → ТВ показывает пошаговое видео или слайды.</p><h3 id=библиотека-инструкций>Библиотека инструкций</h3><pre tabindex=0><code>Структура: /ha/www/instructions/
+  котёл-розжиг.mp4          ← реальная запись как включить котёл
+  котёл-подпитка.mp4        ← как добавить давление
+  баня-включение.mp4        ← последовательность действий
+  ворота-ручное.mp4         ← как открыть вручную при сбое
+  генератор-запуск.mp4      ← запуск резервного генератора
+  электрощит-схема.jpg      ← схема автоматов
+  трубы-схема.jpg           ← схема водопровода
+</code></pre><h3 id=запрос-инструкции>Запрос инструкции</h3><pre tabindex=0><code>&#34;Как вручную открыть ворота?&#34;
+→ ТВ включается
+→ Показывает видео: ворота-ручное.mp4
+→ Параллельно голос: &#34;Смотрите инструкцию на экране&#34;
+
+&#34;Как подпитать котёл?&#34;
+→ ТВ показывает: котёл-подпитка.mp4
+→ Поверх видео — текущее давление из датчика HA: &#34;Сейчас 0.8 бар, нужно до 1.5&#34;
+
+&#34;Где какой автомат?&#34;
+→ ТВ показывает: электрощит-схема.jpg (интерактивная)
+→ Голос называет нужный автомат по запросу
+</code></pre><h3 id=ai-генерация-инструкций-перспектива>AI-генерация инструкций (перспектива)</h3><pre tabindex=0><code>Для устройств без готового видео:
+  1. LLM генерирует текстовые шаги (Ollama + llama3)
+  2. TTS Piper озвучивает каждый шаг
+  3. Слайд-шоу: текст + фото из документации + состояние датчиков
+
+Пример:
+  &#34;Как включить тёплый пол в ванной?&#34;
+  → HA знает схему подключения (конфиг)
+  → LLM: &#34;Шаг 1: проверьте что термостат ванной установлен на…&#34;
+  → ТВ: слайд с фото термостата + текущая температура сенсора
+</code></pre><hr><h2 id=анализ-видео-и-фото-с-помощью-ai>Анализ видео и фото с помощью AI</h2><h3 id=локальный-vision-анализ-frigate--llm>Локальный vision-анализ (Frigate + LLM)</h3><pre tabindex=0><code>Frigate сохраняет клип и фото при событии
+    ↓
+Home Assistant триггерит автоматизацию
+    ↓
+Ollama (LLaVA / Llava-phi3) — vision-модель анализирует кадр:
+    &#34;Что происходит на этом фото?&#34;
+    → &#34;Мужчина в синей куртке стоит у калитки с посылкой в руках&#34;
+    ↓
+Описание добавляется к событию в журнале
+</code></pre><h3 id=примеры-анализа>Примеры анализа</h3><pre tabindex=0><code>Фото у калитки ночью:
+  AI: &#34;Человек в тёмной одежде, стоит спиной, смотрит на забор, 
+       похоже проверяет замок&#34;
+  → Высокий приоритет уведомления
+
+Фото курьера:
+  AI: &#34;Мужчина в жёлтой куртке Яндекс.Доставки держит коробку&#34;
+  → Низкий приоритет: курьер
+
+Фото движения в гараже:
+  AI: &#34;Кошка на полке&#34;
+  → Ложная тревога, пометить автоматически
+</code></pre><h3 id=еженедельный-ai-дайджест>Еженедельный AI-дайджест</h3><pre tabindex=0><code>Каждое воскресенье в 10:00:
+
+1. HA собирает все события недели
+2. LLM генерирует текстовый отчёт:
+
+   &#34;За неделю 13–19 октября:
+    — Уборщица была 3 раза, суммарно 8 ч 15 мин
+    — Подозрительных событий: 1 (ночью в среду, вероятно ложная тревога)
+    — Энергия: +12% к прошлой неделе (морозы)
+    — Котёл: без ошибок
+    — Рекомендация: пора обслуживать котёл (работает 340 часов с прошлого ТО)&#34;
+
+3. ТВ включается, показывает дайджест
+4. Голосом: краткий пересказ (30 сек)
+</code></pre><hr><h2 id=технические-детали-реализации>Технические детали реализации</h2><h3 id=cast-dashboard-на-тв>Cast dashboard на ТВ</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automation: голос → ТВ</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Голос: показать события&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>conversation</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#e6db74>&#34;покажи кто приходил&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>media_player.turn_on</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>media_player.living_room_tv</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>3s </span> <span style=color:#75715e># ждём включения ТВ</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>cast.show_lovelace_view</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>media_player.living_room_tv</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>dashboard_path</span>: <span style=color:#ae81ff>default_view</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>view_path</span>: <span style=color:#ae81ff>daily-events</span>
+</span></span></code></pre></div><h3 id=воспроизведение-видеоклипа-frigate-на-тв>Воспроизведение видеоклипа Frigate на ТВ</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Воспроизвести клип события</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>service</span>: <span style=color:#ae81ff>media_player.play_media</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>media_player.living_room_tv</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>media_content_type</span>: <span style=color:#ae81ff>video/mp4</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>media_content_id</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      http://192.168.1.100:5000/api/frigate/notifications/
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      {{ trigger.payload_json.after.id }}/clip.mp4</span>
+</span></span></code></pre></div><h3 id=grafana--тв>Grafana → ТВ</h3><pre tabindex=0><code>Grafana (отдельный контейнер) строит красивые графики
+HA открывает нужный dashboard через Kiosk mode
+Chromecast открывает URL: http://192.168.1.100:3000/d/energy/...
+</code></pre><hr><h2 id=расписание-автоматического-вывода>Расписание автоматического вывода</h2><table><thead><tr><th>Время</th><th>Контент</th><th>Условие</th></tr></thead><tbody><tr><td>07:30</td><td>Статус дома + прогноз погоды</td><td>Если кто-то встал (движение)</td></tr><tr><td>11:00 воскресенье</td><td>Недельный дайджест</td><td>Всегда</td></tr><tr><td>При тревоге</td><td>Камеры + событие</td><td>Немедленно</td></tr><tr><td>При звонке в домофон</td><td>Видео с домофона</td><td>Если ТВ включён</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/home/voice-assistant/>voice-assistant</a>
+← <a href=/home/cameras/>cameras</a>
+← <a href=/home/alarm/>alarm</a>
+→ <a href=/home/features/>features</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

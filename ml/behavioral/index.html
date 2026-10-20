@@ -1,0 +1,320 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Behavioral Analytics — поведенческая аналитика · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/ml/>'ML-архитектура платформы *Pass'</a>
+<span class=crumb__sep>/</span>
+<span>Behavioral Analytics — поведенческая аналитика</span></nav><article class=prose><h1>Behavioral Analytics — поведенческая аналитика</h1><h1 id=behavioral-analytics--поведенческая-аналитика>Behavioral Analytics — поведенческая аналитика</h1><p><em>Паттерны движения, риск-скоринг, биометрика поведения</em></p><hr><h2 id=что-такое-поведенческая-аналитика-в-скуд>Что такое поведенческая аналитика в СКУД</h2><p>Традиционный СКУД фиксирует факт: карта X → дверь Y → открыто/закрыто. Поведенческая аналитика задаёт вопрос: <strong>это нормальное поведение для этого человека?</strong></p><div class=mermaid>graph LR
+RAW["Сырые события\nвремя, зона, результат"] -->
+PROFILE["Профиль поведения\n(обучается 2–4 недели)"] -->
+SCORE["Risk Score\n(0.0 – 1.0)"] -->
+ACTION["Действие:\nразрешить / запросить 2FA / тревога"]</div><hr><h2 id=user-behavioral-profiling>User Behavioral Profiling</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/behavioral/user_profile.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> dataclasses <span style=color:#f92672>import</span> dataclass, field
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> collections <span style=color:#f92672>import</span> defaultdict
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@dataclass</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>UserBehaviorProfile</span>:
+</span></span><span style=display:flex><span>    person_id: str
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Типичное время первого входа (час) — распределение</span>
+</span></span><span style=display:flex><span>    usual_arrival_hours: list[float] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>list)
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Типичное время последнего выхода (час)</span>
+</span></span><span style=display:flex><span>    usual_departure_hours: list[float] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>list)
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Зоны которые посещает регулярно</span>
+</span></span><span style=display:flex><span>    frequent_zones: set[str] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>set)
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Зоны которые никогда не посещал</span>
+</span></span><span style=display:flex><span>    never_visited_zones: set[str] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>set)
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Среднее количество проходов в день</span>
+</span></span><span style=display:flex><span>    avg_daily_entries: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Стандартное отклонение</span>
+</span></span><span style=display:flex><span>    std_daily_entries: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Паттерн выходных (работает в выходные?)</span>
+</span></span><span style=display:flex><span>    weekend_entries_avg: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Коллеги: с кем обычно приходит/уходит (±5 мин)</span>
+</span></span><span style=display:flex><span>    usual_companions: list[str] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>list)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>compute_risk_score</span>(event: dict, profile: UserBehaviorProfile) <span style=color:#f92672>-&gt;</span> float:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Вычислить риск-скор события (0.0 = норма, 1.0 = максимальная тревога).
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Комбинация нескольких сигналов.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    scores <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 1. Необычное время</span>
+</span></span><span style=display:flex><span>    hour <span style=color:#f92672>=</span> event[<span style=color:#e6db74>&#34;hour&#34;</span>]
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> profile<span style=color:#f92672>.</span>usual_arrival_hours:
+</span></span><span style=display:flex><span>        mean_arr <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>mean(profile<span style=color:#f92672>.</span>usual_arrival_hours)
+</span></span><span style=display:flex><span>        std_arr <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>std(profile<span style=color:#f92672>.</span>usual_arrival_hours) <span style=color:#f92672>+</span> <span style=color:#ae81ff>0.5</span>
+</span></span><span style=display:flex><span>        time_z <span style=color:#f92672>=</span> abs(hour <span style=color:#f92672>-</span> mean_arr) <span style=color:#f92672>/</span> std_arr
+</span></span><span style=display:flex><span>        scores<span style=color:#f92672>.</span>append(min(time_z <span style=color:#f92672>/</span> <span style=color:#ae81ff>3.0</span>, <span style=color:#ae81ff>1.0</span>))   <span style=color:#75715e># нормализовать [0, 1]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 2. Нетипичная зона</span>
+</span></span><span style=display:flex><span>    zone <span style=color:#f92672>=</span> event[<span style=color:#e6db74>&#34;zone_id&#34;</span>]
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> zone <span style=color:#f92672>in</span> profile<span style=color:#f92672>.</span>never_visited_zones:
+</span></span><span style=display:flex><span>        scores<span style=color:#f92672>.</span>append(<span style=color:#ae81ff>0.9</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>elif</span> zone <span style=color:#f92672>not</span> <span style=color:#f92672>in</span> profile<span style=color:#f92672>.</span>frequent_zones:
+</span></span><span style=display:flex><span>        scores<span style=color:#f92672>.</span>append(<span style=color:#ae81ff>0.4</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>        scores<span style=color:#f92672>.</span>append(<span style=color:#ae81ff>0.0</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 3. Выходной день (если обычно не работает)</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> event[<span style=color:#e6db74>&#34;is_weekend&#34;</span>] <span style=color:#f92672>and</span> profile<span style=color:#f92672>.</span>weekend_entries_avg <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0.1</span>:
+</span></span><span style=display:flex><span>        scores<span style=color:#f92672>.</span>append(<span style=color:#ae81ff>0.7</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 4. Слишком много входов за день</span>
+</span></span><span style=display:flex><span>    daily_entries <span style=color:#f92672>=</span> event[<span style=color:#e6db74>&#34;entries_today&#34;</span>]
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> profile<span style=color:#f92672>.</span>std_daily_entries <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span>:
+</span></span><span style=display:flex><span>        daily_z <span style=color:#f92672>=</span> (daily_entries <span style=color:#f92672>-</span> profile<span style=color:#f92672>.</span>avg_daily_entries) <span style=color:#f92672>/</span> profile<span style=color:#f92672>.</span>std_daily_entries
+</span></span><span style=display:flex><span>        scores<span style=color:#f92672>.</span>append(min(max(daily_z <span style=color:#f92672>/</span> <span style=color:#ae81ff>3.0</span>, <span style=color:#ae81ff>0</span>), <span style=color:#ae81ff>1.0</span>))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 5. Ночное время (00:00 – 05:00)</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&lt;=</span> hour <span style=color:#f92672>&lt;=</span> <span style=color:#ae81ff>5</span>:
+</span></span><span style=display:flex><span>        scores<span style=color:#f92672>.</span>append(<span style=color:#ae81ff>0.8</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> float(np<span style=color:#f92672>.</span>max(scores)) <span style=color:#66d9ef>if</span> scores <span style=color:#66d9ef>else</span> <span style=color:#ae81ff>0.0</span>
+</span></span></code></pre></div><hr><h2 id=graph-based-movement-analysis>Graph-Based Movement Analysis</h2><p>Строим граф переходов между зонами. Нетипичный путь = высокий риск.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/behavioral/movement_graph.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> networkx <span style=color:#66d9ef>as</span> nx
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> collections <span style=color:#f92672>import</span> defaultdict
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>MovementGraphAnalyzer</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Для каждого сотрудника строит ориентированный граф его движений.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Рёбра взвешены: вес = частота перехода.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>build_personal_graph</span>(self, events: list[dict]) <span style=color:#f92672>-&gt;</span> nx<span style=color:#f92672>.</span>DiGraph:
+</span></span><span style=display:flex><span>        G <span style=color:#f92672>=</span> nx<span style=color:#f92672>.</span>DiGraph()
+</span></span><span style=display:flex><span>        transitions <span style=color:#f92672>=</span> defaultdict(int)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(len(events) <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> events[i][<span style=color:#e6db74>&#34;person_id&#34;</span>] <span style=color:#f92672>==</span> events[i<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>][<span style=color:#e6db74>&#34;person_id&#34;</span>]:
+</span></span><span style=display:flex><span>                src <span style=color:#f92672>=</span> events[i][<span style=color:#e6db74>&#34;zone_id&#34;</span>]
+</span></span><span style=display:flex><span>                dst <span style=color:#f92672>=</span> events[i<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>][<span style=color:#e6db74>&#34;zone_id&#34;</span>]
+</span></span><span style=display:flex><span>                transitions[(src, dst)] <span style=color:#f92672>+=</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        total <span style=color:#f92672>=</span> sum(transitions<span style=color:#f92672>.</span>values())
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> (src, dst), count <span style=color:#f92672>in</span> transitions<span style=color:#f92672>.</span>items():
+</span></span><span style=display:flex><span>            G<span style=color:#f92672>.</span>add_edge(src, dst, weight<span style=color:#f92672>=</span>count<span style=color:#f92672>/</span>total, count<span style=color:#f92672>=</span>count)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> G
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>path_probability</span>(self, G: nx<span style=color:#f92672>.</span>DiGraph, path: list[str]) <span style=color:#f92672>-&gt;</span> float:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Вероятность наблюдаемого пути для данного сотрудника&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> len(path) <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>2</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        prob <span style=color:#f92672>=</span> <span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(len(path) <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>):
+</span></span><span style=display:flex><span>            src, dst <span style=color:#f92672>=</span> path[i], path[i<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>]
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> G<span style=color:#f92672>.</span>has_edge(src, dst):
+</span></span><span style=display:flex><span>                prob <span style=color:#f92672>*=</span> G[src][dst][<span style=color:#e6db74>&#34;weight&#34;</span>]
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>                prob <span style=color:#f92672>*=</span> <span style=color:#ae81ff>0.001</span>   <span style=color:#75715e># редкий переход = маловероятен</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> prob
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>detect_unusual_path</span>(self, G: nx<span style=color:#f92672>.</span>DiGraph, path: list[str],
+</span></span><span style=display:flex><span>                             threshold: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.01</span>) <span style=color:#f92672>-&gt;</span> bool:
+</span></span><span style=display:flex><span>        prob <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>path_probability(G, path)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> prob <span style=color:#f92672>&lt;</span> threshold
+</span></span></code></pre></div><hr><h2 id=ble-rssi-fingerprinting-dnbeacon>BLE RSSI Fingerprinting (DN·Beacon)</h2><p>Определить точное местоположение человека по отпечатку RSSI от нескольких считывателей.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/behavioral/ble_localization.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># K-NN indoor localization по RSSI fingerprint</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Каждая точка пространства имеет уникальный вектор RSSI от N считывателей</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> sklearn.neighbors <span style=color:#f92672>import</span> KNeighborsClassifier
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>BLELocationModel</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, n_neighbors: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>5</span>):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model <span style=color:#f92672>=</span> KNeighborsClassifier(n_neighbors<span style=color:#f92672>=</span>n_neighbors,
+</span></span><span style=display:flex><span>                                          metric<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;euclidean&#34;</span>,
+</span></span><span style=display:flex><span>                                          weights<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;distance&#34;</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>scanner_ids: list[str] <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>zone_labels: list[str] <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>collect_fingerprint</span>(self, zone: str,
+</span></span><span style=display:flex><span>                              rssi_by_scanner: dict[str, float]) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Запись обучающей точки. Нужно ~20 замеров на зону.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;zone&#34;</span>: zone, <span style=color:#e6db74>&#34;rssi&#34;</span>: rssi_by_scanner}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fit</span>(self, fingerprints: list[dict]):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>scanner_ids <span style=color:#f92672>=</span> list(set(
+</span></span><span style=display:flex><span>            k <span style=color:#66d9ef>for</span> fp <span style=color:#f92672>in</span> fingerprints <span style=color:#66d9ef>for</span> k <span style=color:#f92672>in</span> fp[<span style=color:#e6db74>&#34;rssi&#34;</span>]
+</span></span><span style=display:flex><span>        ))
+</span></span><span style=display:flex><span>        X <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>        y <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> fp <span style=color:#f92672>in</span> fingerprints:
+</span></span><span style=display:flex><span>            vector <span style=color:#f92672>=</span> [fp[<span style=color:#e6db74>&#34;rssi&#34;</span>]<span style=color:#f92672>.</span>get(sid, <span style=color:#f92672>-</span><span style=color:#ae81ff>100</span>) <span style=color:#66d9ef>for</span> sid <span style=color:#f92672>in</span> self<span style=color:#f92672>.</span>scanner_ids]
+</span></span><span style=display:flex><span>            X<span style=color:#f92672>.</span>append(vector)
+</span></span><span style=display:flex><span>            y<span style=color:#f92672>.</span>append(fp[<span style=color:#e6db74>&#34;zone&#34;</span>])
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>fit(X, y)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>zone_labels <span style=color:#f92672>=</span> list(set(y))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>predict_zone</span>(self, rssi_by_scanner: dict[str, float]) <span style=color:#f92672>-&gt;</span> tuple[str, float]:
+</span></span><span style=display:flex><span>        vector <span style=color:#f92672>=</span> [rssi_by_scanner<span style=color:#f92672>.</span>get(sid, <span style=color:#f92672>-</span><span style=color:#ae81ff>100</span>) <span style=color:#66d9ef>for</span> sid <span style=color:#f92672>in</span> self<span style=color:#f92672>.</span>scanner_ids]
+</span></span><span style=display:flex><span>        zone <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>predict([vector])[<span style=color:#ae81ff>0</span>]
+</span></span><span style=display:flex><span>        probs <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>predict_proba([vector])[<span style=color:#ae81ff>0</span>]
+</span></span><span style=display:flex><span>        confidence <span style=color:#f92672>=</span> float(max(probs))
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> zone, confidence
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Применение:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># DN·Beacon браслет → 3–5 ESP32 считывателей → RSSI вектор →</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># BLELocationModel.predict_zone() → комната с точностью ±1м</span>
+</span></span></code></pre></div><hr><h2 id=continuous-authentication-поведенческая-биометрия>Continuous Authentication (поведенческая биометрия)</h2><p>Не только &ldquo;кто вошёл&rdquo;, но и &ldquo;всё ещё ли это тот человек после входа&rdquo;.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/behavioral/continuous_auth.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Анализ паттерна движения по BLE RSSI во времени</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># &#34;Цифровая подпись&#34; перемещений уникальна для каждого человека</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> sklearn.preprocessing <span style=color:#f92672>import</span> StandardScaler
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> sklearn.svm <span style=color:#f92672>import</span> SVC
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>ContinuousAuthenticator</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Обучается на характерных паттернах движения конкретного человека.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Если наблюдаемый паттерн не совпадает → возможная подмена.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Применение: важные зоны, серверные, кассы.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>classifiers: dict[str, SVC] <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>scalers: dict[str, StandardScaler] <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>extract_movement_features</span>(self,
+</span></span><span style=display:flex><span>                                   rssi_timeseries: list[dict]) <span style=color:#f92672>-&gt;</span> np<span style=color:#f92672>.</span>ndarray:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        rssi_timeseries: последние 30 секунд RSSI замеров
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        Признаки: скорость изменения RSSI, дисперсия, переходы между комнатами
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        features <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> scanner_id <span style=color:#f92672>in</span> self<span style=color:#f92672>.</span>scanner_ids:
+</span></span><span style=display:flex><span>            values <span style=color:#f92672>=</span> [r<span style=color:#f92672>.</span>get(scanner_id, <span style=color:#f92672>-</span><span style=color:#ae81ff>100</span>) <span style=color:#66d9ef>for</span> r <span style=color:#f92672>in</span> rssi_timeseries]
+</span></span><span style=display:flex><span>            features <span style=color:#f92672>+=</span> [
+</span></span><span style=display:flex><span>                np<span style=color:#f92672>.</span>mean(values),
+</span></span><span style=display:flex><span>                np<span style=color:#f92672>.</span>std(values),
+</span></span><span style=display:flex><span>                np<span style=color:#f92672>.</span>max(values) <span style=color:#f92672>-</span> np<span style=color:#f92672>.</span>min(values),     <span style=color:#75715e># range</span>
+</span></span><span style=display:flex><span>                np<span style=color:#f92672>.</span>mean(np<span style=color:#f92672>.</span>diff(values)),             <span style=color:#75715e># mean velocity</span>
+</span></span><span style=display:flex><span>                np<span style=color:#f92672>.</span>std(np<span style=color:#f92672>.</span>diff(values)),              <span style=color:#75715e># velocity variance</span>
+</span></span><span style=display:flex><span>            ]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> np<span style=color:#f92672>.</span>array(features)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fit_person</span>(self, person_id: str,
+</span></span><span style=display:flex><span>                    sessions: list[list[dict]]):
+</span></span><span style=display:flex><span>        X <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>array([self<span style=color:#f92672>.</span>extract_movement_features(s) <span style=color:#66d9ef>for</span> s <span style=color:#f92672>in</span> sessions])
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Positive class: этот человек</span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Negative: случайный шум (генерируем синтетически)</span>
+</span></span><span style=display:flex><span>        noise <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>uniform(<span style=color:#f92672>-</span><span style=color:#ae81ff>100</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>50</span>, X<span style=color:#f92672>.</span>shape)
+</span></span><span style=display:flex><span>        X_train <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>vstack([X, noise])
+</span></span><span style=display:flex><span>        y_train <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1</span>]<span style=color:#f92672>*</span>len(X) <span style=color:#f92672>+</span> [<span style=color:#ae81ff>0</span>]<span style=color:#f92672>*</span>len(noise))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        scaler <span style=color:#f92672>=</span> StandardScaler()
+</span></span><span style=display:flex><span>        X_scaled <span style=color:#f92672>=</span> scaler<span style=color:#f92672>.</span>fit_transform(X_train)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        svm <span style=color:#f92672>=</span> SVC(kernel<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;rbf&#34;</span>, C<span style=color:#f92672>=</span><span style=color:#ae81ff>1.0</span>, probability<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span>        svm<span style=color:#f92672>.</span>fit(X_scaled, y_train)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>classifiers[person_id] <span style=color:#f92672>=</span> svm
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>scalers[person_id] <span style=color:#f92672>=</span> scaler
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>verify</span>(self, person_id: str,
+</span></span><span style=display:flex><span>                recent_rssi: list[dict]) <span style=color:#f92672>-&gt;</span> tuple[bool, float]:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> person_id <span style=color:#f92672>not</span> <span style=color:#f92672>in</span> self<span style=color:#f92672>.</span>classifiers:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>True</span>, <span style=color:#ae81ff>1.0</span>   <span style=color:#75715e># нет профиля — не отклонять</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        features <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>extract_movement_features(recent_rssi)<span style=color:#f92672>.</span>reshape(<span style=color:#ae81ff>1</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>)
+</span></span><span style=display:flex><span>        scaled <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>scalers[person_id]<span style=color:#f92672>.</span>transform(features)
+</span></span><span style=display:flex><span>        prob <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>classifiers[person_id]<span style=color:#f92672>.</span>predict_proba(scaled)[<span style=color:#ae81ff>0</span>][<span style=color:#ae81ff>1</span>]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> prob <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0.6</span>, prob
+</span></span></code></pre></div><hr><h2 id=risk-score-api--итоговый-скор-для-keycloak-pep>Risk Score API — итоговый скор для Keycloak PEP</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/behavioral/risk_api.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># FastAPI-сервис: принимает событие, возвращает risk score</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> fastapi <span style=color:#f92672>import</span> FastAPI
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> pydantic <span style=color:#f92672>import</span> BaseModel
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>app <span style=color:#f92672>=</span> FastAPI()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>AccessEvent</span>(BaseModel):
+</span></span><span style=display:flex><span>    person_id: str
+</span></span><span style=display:flex><span>    zone_id: str
+</span></span><span style=display:flex><span>    door_id: str
+</span></span><span style=display:flex><span>    hour: int
+</span></span><span style=display:flex><span>    day_of_week: int
+</span></span><span style=display:flex><span>    is_weekend: bool
+</span></span><span style=display:flex><span>    entries_today: int
+</span></span><span style=display:flex><span>    rssi_snapshot: dict[str, float] <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@app.post</span>(<span style=color:#e6db74>&#34;/risk_score&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_risk_score</span>(event: AccessEvent) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 1. Поведенческий профиль (Isolation Forest)</span>
+</span></span><span style=display:flex><span>    profile <span style=color:#f92672>=</span> profile_store<span style=color:#f92672>.</span>get(event<span style=color:#f92672>.</span>person_id)
+</span></span><span style=display:flex><span>    behavior_risk <span style=color:#f92672>=</span> compute_risk_score(event<span style=color:#f92672>.</span>dict(), profile) <span style=color:#66d9ef>if</span> profile <span style=color:#66d9ef>else</span> <span style=color:#ae81ff>0.3</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 2. Граф движения (нетипичный путь)</span>
+</span></span><span style=display:flex><span>    today_path <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> get_today_path(event<span style=color:#f92672>.</span>person_id)
+</span></span><span style=display:flex><span>    graph <span style=color:#f92672>=</span> graph_store<span style=color:#f92672>.</span>get(event<span style=color:#f92672>.</span>person_id)
+</span></span><span style=display:flex><span>    path_risk <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.8</span> <span style=color:#66d9ef>if</span> (graph <span style=color:#f92672>and</span>
+</span></span><span style=display:flex><span>                        analyzer<span style=color:#f92672>.</span>detect_unusual_path(graph, today_path <span style=color:#f92672>+</span> [event<span style=color:#f92672>.</span>zone_id])
+</span></span><span style=display:flex><span>                       ) <span style=color:#66d9ef>else</span> <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># 3. RSSI локализация совпадает с запрошенной зоной?</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> event<span style=color:#f92672>.</span>rssi_snapshot:
+</span></span><span style=display:flex><span>        predicted_zone, zone_conf <span style=color:#f92672>=</span> locator<span style=color:#f92672>.</span>predict_zone(event<span style=color:#f92672>.</span>rssi_snapshot)
+</span></span><span style=display:flex><span>        location_risk <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.7</span> <span style=color:#66d9ef>if</span> predicted_zone <span style=color:#f92672>!=</span> event<span style=color:#f92672>.</span>zone_id <span style=color:#66d9ef>else</span> <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>        location_risk <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Агрегация: взвешенный максимум</span>
+</span></span><span style=display:flex><span>    final_score <span style=color:#f92672>=</span> max(behavior_risk <span style=color:#f92672>*</span> <span style=color:#ae81ff>0.5</span>,
+</span></span><span style=display:flex><span>                      path_risk <span style=color:#f92672>*</span> <span style=color:#ae81ff>0.8</span>,
+</span></span><span style=display:flex><span>                      location_risk <span style=color:#f92672>*</span> <span style=color:#ae81ff>0.7</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;person_id&#34;</span>: event<span style=color:#f92672>.</span>person_id,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;risk_score&#34;</span>: round(final_score, <span style=color:#ae81ff>3</span>),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;components&#34;</span>: {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;behavior&#34;</span>: round(behavior_risk, <span style=color:#ae81ff>3</span>),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;path&#34;</span>: round(path_risk, <span style=color:#ae81ff>3</span>),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;location&#34;</span>: round(location_risk, <span style=color:#ae81ff>3</span>),
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;recommendation&#34;</span>: (
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;deny&#34;</span> <span style=color:#66d9ef>if</span> final_score <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0.8</span> <span style=color:#66d9ef>else</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;require_2fa&#34;</span> <span style=color:#66d9ef>if</span> final_score <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0.5</span> <span style=color:#66d9ef>else</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;allow&#34;</span>
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><hr><h2 id=интеграция-с-keycloak-pep>Интеграция с Keycloak PEP</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># tenantpass/pep_agent.py — ML risk score в решении доступа</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>check_access</span>(person_id: str, door_id: str, event: dict) <span style=color:#f92672>-&gt;</span> bool:
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Сначала: базовая проверка прав (Keycloak/кэш)</span>
+</span></span><span style=display:flex><span>    basic_permit <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> check_basic_permit(person_id, door_id)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> basic_permit:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Затем: ML risk score</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>        r <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(<span style=color:#e6db74>&#34;http://ml-risk-api:8000/risk_score&#34;</span>, json<span style=color:#f92672>=</span>event)
+</span></span><span style=display:flex><span>    risk <span style=color:#f92672>=</span> r<span style=color:#f92672>.</span>json()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> risk[<span style=color:#e6db74>&#34;recommendation&#34;</span>] <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;deny&#34;</span>:
+</span></span><span style=display:flex><span>        log<span style=color:#f92672>.</span>warning(<span style=color:#e6db74>&#34;ML deny: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74> at </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>, score=</span><span style=color:#e6db74>%.2f</span><span style=color:#e6db74>&#34;</span>, person_id, door_id, risk[<span style=color:#e6db74>&#34;risk_score&#34;</span>])
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> alert_security(person_id, door_id, risk)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>elif</span> risk[<span style=color:#e6db74>&#34;recommendation&#34;</span>] <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;require_2fa&#34;</span>:
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Запросить дополнительное подтверждение (PIN / биометрия)</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>await</span> request_2fa(person_id, door_id)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>True</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/ml/>index</a>
+← <a href=/ml/anomaly/>anomaly</a>
+← <a href=/shared/dn-beacon/>dn-beacon</a>
+→ <a href=/ml/inference-stack/>inference-stack</a>
+→ <a href=/tenantpass/offline-mode/>offline-mode</a>
+→ <a href=/tenantpass/access-model/>access-model</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

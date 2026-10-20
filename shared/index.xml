@@ -1,0 +1,3027 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>'Shared — общие компоненты и решения' on DN·Pass</title><link>https://sayr777.github.io/shared/</link><description>Recent content in 'Shared — общие компоненты и решения' on DN·Pass</description><generator>Hugo</generator><language>ru-RU</language><atom:link href="https://sayr777.github.io/shared/index.xml" rel="self" type="application/rss+xml"/><item><title>DN·Beacon — BLE-метки в проектах *Pass</title><link>https://sayr777.github.io/shared/dn-beacon/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/dn-beacon/</guid><description>&lt;h1 id="dnbeacon--ble-метки-в-проектах-pass"&gt;DN·Beacon — BLE-метки в проектах *Pass&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Интеграция динамических BLE-меток DN·Beacon в TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="что-такое-dnbeacon"&gt;Что такое DN·Beacon&lt;/h2&gt;
+&lt;p&gt;Промышленная BLE-метка на nRF52832 с &lt;strong&gt;динамическим ID&lt;/strong&gt; (меняется каждые 5 мин, AES-128) — защищена от клонирования на аппаратном уровне. IP67, −55…+85°C, до 10 лет от батареи, дальность до 70 м. REST API с JSON.&lt;/p&gt;
+&lt;p&gt;Ключевые модификации для наших проектов:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Модификация&lt;/th&gt;
+					&lt;th&gt;Назначение&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Gate&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Управление шлагбаумами и турникетами&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Pass&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Личный идентификатор (браслет, брелок)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Pay&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Бесконтактная оплата&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Safe&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Промышленная безопасность (опасные зоны)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Man&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Man-down detection (падение человека)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Staff&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Мониторинг персонала&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Evac&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Эвакуация: учёт людей за &amp;lt; 10 сек&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DN·Tap&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;NFC + BLE гибрид&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="почему-dnbeacon-лучше-существующих-решений"&gt;Почему DN·Beacon лучше существующих решений&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Функция&lt;/th&gt;
+					&lt;th&gt;Текущее решение&lt;/th&gt;
+					&lt;th&gt;DN·Beacon&lt;/th&gt;
+					&lt;th&gt;Выигрыш&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;СКУД-карта (TenantPass)&lt;/td&gt;
+					&lt;td&gt;RFID EM-Marin (клонируется за $10)&lt;/td&gt;
+					&lt;td&gt;DN·Pass (dynamic AES-128)&lt;/td&gt;
+					&lt;td&gt;Нет клонирования&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Присутствие (HomePass)&lt;/td&gt;
+					&lt;td&gt;ESPresense (телефон)&lt;/td&gt;
+					&lt;td&gt;DN·Pass (браслет/брелок)&lt;/td&gt;
+					&lt;td&gt;Не нужен телефон&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Вход на мероприятие (EventPass)&lt;/td&gt;
+					&lt;td&gt;QR-код (можно скопировать)&lt;/td&gt;
+					&lt;td&gt;DN·Gate + DN·Pass&lt;/td&gt;
+					&lt;td&gt;Hands-free, не копируется&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Man-down (стройплощадка)&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;DN·Man&lt;/td&gt;
+					&lt;td&gt;Детекция падения&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Эвакуация (стадион)&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;DN·Evac&lt;/td&gt;
+					&lt;td&gt;Учёт &amp;lt; 10 сек&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура-интеграции"&gt;Архитектура интеграции&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph BEACONS["DN·Beacon устройства"]
+ PASS["DN·Pass\n(браслет/брелок сотрудника)"]
+ GATE_TAG["DN·Gate\n(метка на ТС / стрела шлагбаума)"]
+ SAFE["DN·Safe / DN·Man\n(каска / жилет)"]
+ end
+
+ subgraph READERS["BLE-сканеры (считыватели)"]
+ ESP32_BLE["ESP32 BLE Scanner\n(ESPHome ble_tracker)"]
+ GATEWAY["DN Gateway\n(если есть собственный)"]
+ end
+
+ subgraph BRIDGE["Шлюз"]
+ MQTT["MQTT (Mosquitto)\nтопик: dn/beacon/{id}"]
+ HA["Home Assistant\n(HomePass)"]
+ KC["Keycloak PEP\n(TenantPass/EventPass)"]
+ end
+
+ BEACONS --&gt;|BLE Advertisement| READERS
+ READERS --&gt;|MQTT publish| MQTT
+ MQTT --&gt; HA &amp; KC
+
+ HA --&gt;|Автоматизации| LOCKS["Замки, шлагбаумы"]
+ KC --&gt;|Permit/Deny| TURNSTILE["Турникеты, двери"]&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="esp32-как-ble-сканер-esphome"&gt;ESP32 как BLE-сканер (ESPHome)&lt;/h2&gt;
+&lt;p&gt;ESP32 сканирует BLE-объявления DN·Beacon и публикует в MQTT.&lt;/p&gt;</description></item><item><title>DN·LoRaWAN — IoT-датчики дальнего радиуса</title><link>https://sayr777.github.io/shared/dn-lorawan/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/dn-lorawan/</guid><description>&lt;h1 id="dnlorawan--iot-датчики-дальнего-радиуса"&gt;DN·LoRaWAN — IoT-датчики дальнего радиуса&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Интеграция DN·LoRaWAN в TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="что-такое-dnlorawan"&gt;Что такое DN·LoRaWAN&lt;/h2&gt;
+&lt;p&gt;Промышленные IoT-устройства на &lt;strong&gt;Semtech SX1262 + nRF52840&lt;/strong&gt; (RAK4631). Протокол LoRaWAN 1.1 OTAA, диапазон RU868 (864–870 МГц). Без SIM-карт и абонентских платежей. Дальность до 20 км, батарея до 10 лет, шифрование AES-128.&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Параметр&lt;/th&gt;
+					&lt;th&gt;Значение&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Протокол&lt;/td&gt;
+					&lt;td&gt;LoRaWAN 1.1 OTAA&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Частота&lt;/td&gt;
+					&lt;td&gt;RU868 (864–870 МГц)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Дальность&lt;/td&gt;
+					&lt;td&gt;до 20 км в открытой местности&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Батарея&lt;/td&gt;
+					&lt;td&gt;до 10 лет (ER14505 Li-SOCl₂)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Шифрование&lt;/td&gt;
+					&lt;td&gt;AES-128 (NwkSKey + AppSKey)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Чип&lt;/td&gt;
+					&lt;td&gt;Semtech SX1262 + nRF52840&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="ключевое-преимущество-нет-wifi--нет-проблем"&gt;Ключевое преимущество: нет WiFi — нет проблем&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;WiFi (ESPHome): нужен роутер рядом, ~50 м в помещении
+4G (ESP32+4G): SIM-карта, ~500 ₽/мес абонплата
+LoRaWAN: один гейтвей на 2 км городской застройки
+ покрывает стройплощадку, периметр, удалённые здания
+ без абонплаты, 10 лет батарея
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="lorawan-инфраструктура"&gt;LoRaWAN-инфраструктура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph DEVICES["DN·LoRaWAN устройства"]
+ TRACK["Трекер\n(GPS + LoRa)"]
+ ENV["Датчик среды\n(темп, CO, CO2, пыль)"]
+ ENERGY_LW["Счётчик энергии\n(без WiFi)"]
+ DOOR_LW["Датчик открытия двери\n(удалённый объект)"]
+ FLOOD_LW["Датчик затопления\n(подвал, люк)"]
+ end
+
+ subgraph GW["LoRaWAN Gateway"]
+ RAK7268["RAK7268 (indoor)\nили RAK7244 (outdoor)"]
+ CHIRPSTACK["ChirpStack NS\n(Network Server)"]
+ end
+
+ subgraph BACKEND["Интеграция"]
+ MQTT_LW["MQTT broker\n(ChirpStack → MQTT)"]
+ HA_LW["Home Assistant\n(HomePass)"]
+ TP_API["TenantPass API"]
+ EP_API["EventPass API"]
+ end
+
+ DEVICES --&gt;|LoRa RF| RAK7268 --&gt; CHIRPSTACK
+ CHIRPSTACK --&gt;|MQTT| MQTT_LW
+ MQTT_LW --&gt; HA_LW &amp; TP_API &amp; EP_API&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="chirpstack-open-source-lorawan-network-server"&gt;ChirpStack: open-source LoRaWAN Network Server&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# docker-compose.lorawan.yml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;services&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;chirpstack&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;chirpstack/chirpstack:4&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;environment&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;POSTGRESQL__DSN&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;postgres://chirpstack:secret@postgres/chirpstack&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;REDIS__SERVERS&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;redis:6379&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;NETWORK__NET_ID&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;000000&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;NETWORK__ENABLED_REGIONS&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;ru868&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ports&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#34;8080:8080&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;chirpstack-gateway-bridge&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;chirpstack/chirpstack-gateway-bridge:4&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;environment&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;INTEGRATION__MQTT__EVENT_TOPIC_TEMPLATE&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;eu868/gateway/{{ .GatewayID }}/event/{{ .EventType }}&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ports&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#34;1700:1700/udp&amp;#34;&lt;/span&gt; &lt;span style="color:#75715e"&gt;# UDP от гейтвея (Semtech Packet Forwarder)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# ChirpStack публикует данные в MQTT:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# topic: application/{app_id}/device/{dev_eui}/event/up&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# payload: JSON с decoded data&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="интеграция-chirpstack--home-assistant"&gt;Интеграция ChirpStack → Home Assistant&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# configuration.yaml (HA)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;mqtt&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# DN·LoRaWAN датчик температуры на удалённом объекте&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Теплица: температура (LoRa)&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;state_topic&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;application/1/device/+/event/up&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;value_template&lt;/span&gt;: &amp;gt;&lt;span style="color:#e6db74"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; {% set payload = value_json.object %}
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; {{ payload.temperature }}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;unit_of_measurement&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;°C&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;temperature&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Датчик открытия ворот на дальнем периметре&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Периметр: ворота открыты (LoRa)&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;state_topic&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;application/1/device/abc123def456/event/up&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;value_template&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;{{ value_json.object.door_open }}&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;payload_on&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;true&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;payload_off&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;false&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;door&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# lorawan_bridge.py — универсальный обработчик&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;import&lt;/span&gt; paho.mqtt.client &lt;span style="color:#66d9ef"&gt;as&lt;/span&gt; mqtt
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;import&lt;/span&gt; json
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;def&lt;/span&gt; &lt;span style="color:#a6e22e"&gt;on_message&lt;/span&gt;(client, userdata, msg):
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; payload &lt;span style="color:#f92672"&gt;=&lt;/span&gt; json&lt;span style="color:#f92672"&gt;.&lt;/span&gt;loads(msg&lt;span style="color:#f92672"&gt;.&lt;/span&gt;payload)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; device_eui &lt;span style="color:#f92672"&gt;=&lt;/span&gt; payload[&lt;span style="color:#e6db74"&gt;&amp;#34;deviceInfo&amp;#34;&lt;/span&gt;][&lt;span style="color:#e6db74"&gt;&amp;#34;devEui&amp;#34;&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; data &lt;span style="color:#f92672"&gt;=&lt;/span&gt; payload&lt;span style="color:#f92672"&gt;.&lt;/span&gt;get(&lt;span style="color:#e6db74"&gt;&amp;#34;object&amp;#34;&lt;/span&gt;, {})
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Маршрутизация по типу данных&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;if&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;temperature&amp;#34;&lt;/span&gt; &lt;span style="color:#f92672"&gt;in&lt;/span&gt; data:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ha_client&lt;span style="color:#f92672"&gt;.&lt;/span&gt;set_state(&lt;span style="color:#e6db74"&gt;f&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;sensor.lorawan_&lt;/span&gt;&lt;span style="color:#e6db74"&gt;{&lt;/span&gt;device_eui&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;_temp&amp;#34;&lt;/span&gt;, data[&lt;span style="color:#e6db74"&gt;&amp;#34;temperature&amp;#34;&lt;/span&gt;])
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;if&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;gps&amp;#34;&lt;/span&gt; &lt;span style="color:#f92672"&gt;in&lt;/span&gt; data:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Обновить GPS-координаты в HA / TenantPass&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; lat, lon &lt;span style="color:#f92672"&gt;=&lt;/span&gt; data[&lt;span style="color:#e6db74"&gt;&amp;#34;gps&amp;#34;&lt;/span&gt;][&lt;span style="color:#e6db74"&gt;&amp;#34;latitude&amp;#34;&lt;/span&gt;], data[&lt;span style="color:#e6db74"&gt;&amp;#34;gps&amp;#34;&lt;/span&gt;][&lt;span style="color:#e6db74"&gt;&amp;#34;longitude&amp;#34;&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ha_client&lt;span style="color:#f92672"&gt;.&lt;/span&gt;call_service(&lt;span style="color:#e6db74"&gt;&amp;#34;device_tracker.see&amp;#34;&lt;/span&gt;, {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;dev_id&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;f&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;lorawan_&lt;/span&gt;&lt;span style="color:#e6db74"&gt;{&lt;/span&gt;device_eui&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;gps&amp;#34;&lt;/span&gt;: [lat, lon]
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; })
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;if&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;co_ppm&amp;#34;&lt;/span&gt; &lt;span style="color:#f92672"&gt;in&lt;/span&gt; data &lt;span style="color:#f92672"&gt;and&lt;/span&gt; data[&lt;span style="color:#e6db74"&gt;&amp;#34;co_ppm&amp;#34;&lt;/span&gt;] &lt;span style="color:#f92672"&gt;&amp;gt;&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;50&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Опасный уровень CO → тревога&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ha_client&lt;span style="color:#f92672"&gt;.&lt;/span&gt;call_service(&lt;span style="color:#e6db74"&gt;&amp;#34;notify.all_users&amp;#34;&lt;/span&gt;, {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;title&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;ТРЕВОГА: CO!&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;message&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;f&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;Уровень CO: &lt;/span&gt;&lt;span style="color:#e6db74"&gt;{&lt;/span&gt;data[&lt;span style="color:#e6db74"&gt;&amp;#39;co_ppm&amp;#39;&lt;/span&gt;]&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt; ppm&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; })
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mqtt_client &lt;span style="color:#f92672"&gt;=&lt;/span&gt; mqtt&lt;span style="color:#f92672"&gt;.&lt;/span&gt;Client()
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mqtt_client&lt;span style="color:#f92672"&gt;.&lt;/span&gt;on_message &lt;span style="color:#f92672"&gt;=&lt;/span&gt; on_message
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mqtt_client&lt;span style="color:#f92672"&gt;.&lt;/span&gt;connect(&lt;span style="color:#e6db74"&gt;&amp;#34;192.168.1.100&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mqtt_client&lt;span style="color:#f92672"&gt;.&lt;/span&gt;subscribe(&lt;span style="color:#e6db74"&gt;&amp;#34;application/+/device/+/event/up&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;mqtt_client&lt;span style="color:#f92672"&gt;.&lt;/span&gt;loop_forever()
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="homepass-где-lorawan-лучше-wifi"&gt;HomePass: где LoRaWAN лучше WiFi&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Точка&lt;/th&gt;
+					&lt;th&gt;Проблема WiFi&lt;/th&gt;
+					&lt;th&gt;DN·LoRaWAN решение&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Теплица (50 м от дома)&lt;/td&gt;
+					&lt;td&gt;Нестабильный WiFi&lt;/td&gt;
+					&lt;td&gt;LoRa датчик темп/влажность&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Колодец / скважина&lt;/td&gt;
+					&lt;td&gt;Нет WiFi под землёй&lt;/td&gt;
+					&lt;td&gt;LoRa датчик уровня воды&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Периметр (100+ м)&lt;/td&gt;
+					&lt;td&gt;Нужно несколько AP&lt;/td&gt;
+					&lt;td&gt;LoRa датчик движения/открытия&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Уличная метеостанция&lt;/td&gt;
+					&lt;td&gt;Нужен кабель питания&lt;/td&gt;
+					&lt;td&gt;LoRa + батарея 10 лет&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Дальний хозблок / сарай&lt;/td&gt;
+					&lt;td&gt;WiFi не добивает&lt;/td&gt;
+					&lt;td&gt;LoRa + NB-IoT&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automation: уровень воды в колодце&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Колодец: низкий уровень воды&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;numeric_state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;sensor.lorawan_well_water_level&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;below&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;30&lt;/span&gt; &lt;span style="color:#75715e"&gt;# %&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Колодец: уровень воды {{ states(&amp;#39;sensor.lorawan_well_water_level&amp;#39;) }}%&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.turn_off&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.well_pump &lt;/span&gt; &lt;span style="color:#75715e"&gt;# не качать воздух&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="tenantpass-lorawan-на-объектах-без-сети"&gt;TenantPass: LoRaWAN на объектах без сети&lt;/h2&gt;
+&lt;h3 id="датчики-окружающей-среды-в-серверной--щитовой"&gt;Датчики окружающей среды в серверной / щитовой&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# На объектах без сети (или с ненадёжным интернетом):&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# DN·LoRaWAN датчик → локальный gateway → ChirpStack → MQTT → HA&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Сценарий: пожарная безопасность серверной&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Датчик: CO2 + темп + дым → LoRa → тревога даже при отключении сети&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="gps-трекинг-корпоративного-транспорта"&gt;GPS-трекинг корпоративного транспорта&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# TenantPass: где находится корпоративный автомобиль&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# DN·LoRaWAN трекер → ChirpStack → HA device_tracker → карта&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA: карта с маршрутами (History + map card)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Keycloak: только HR / безопасник видит трекинг&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="стройплощадка-eventpass-без-wifi"&gt;Стройплощадка (EventPass) без WiFi&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Стройка за городом:
+ Нет интернета → 4G на ESP32 дорого (SIM-карты × 20 датчиков)
+ Решение: один LoRaWAN гейтвей RAK7244 (outdoor, IP67) с 4G backhaul
+ + 20+ датчиков DN·LoRaWAN без SIM-карт
+
+ Датчики:
+ Температура бетона: DN·LoRaWAN temp × 8 (в опалубке)
+ Состояние датчика движения: периметр 500 м
+ Уровень топлива генератора: LoRa
+ CO2 в бытовках: LoRa
+ Счётчик энергии в щитках: LoRa
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="сравнение-dnlorawan-vs-альтернативы-для-каждого-use-case"&gt;Сравнение DN·LoRaWAN vs альтернативы для каждого use-case&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Use-case&lt;/th&gt;
+					&lt;th&gt;LoRaWAN&lt;/th&gt;
+					&lt;th&gt;WiFi ESPHome&lt;/th&gt;
+					&lt;th&gt;4G ESP32&lt;/th&gt;
+					&lt;th&gt;Рекомендация&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Датчик в теплице&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;⚠️ нестабильно&lt;/td&gt;
+					&lt;td&gt;❌ дорого&lt;/td&gt;
+					&lt;td&gt;LoRaWAN&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Счётчик энергии в щитке&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;WiFi (проще)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;GPS трекер на ТС&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;❌&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;LoRaWAN (дешевле)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Датчик CO на стройке&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;⚠️ нет WiFi&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;LoRaWAN&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Датчик в серверной&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;WiFi (надёжнее в LAN)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Движение на периметре 200м&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;❌&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;LoRaWAN&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Температура бетона&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;⚠️ нет WiFi&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;LoRaWAN&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="применение-по-проектам-итоговая-матрица"&gt;Применение по проектам: итоговая матрица&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Применение&lt;/th&gt;
+					&lt;th&gt;HomePass&lt;/th&gt;
+					&lt;th&gt;TenantPass&lt;/th&gt;
+					&lt;th&gt;EventPass (стройка)&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Удалённые датчики (100+ м)&lt;/td&gt;
+					&lt;td&gt;✅ теплица, периметр&lt;/td&gt;
+					&lt;td&gt;✅ склады, парковка&lt;/td&gt;
+					&lt;td&gt;✅ весь периметр&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;GPS трекинг ТС&lt;/td&gt;
+					&lt;td&gt;❌&lt;/td&gt;
+					&lt;td&gt;✅ корпоративные авто&lt;/td&gt;
+					&lt;td&gt;✅ строительная техника&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Датчики CO/CO2&lt;/td&gt;
+					&lt;td&gt;✅ подвал&lt;/td&gt;
+					&lt;td&gt;✅ серверная, щитовая&lt;/td&gt;
+					&lt;td&gt;✅ бытовки, котлованы&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Энергоучёт без WiFi&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;⚙️ резерв&lt;/td&gt;
+					&lt;td&gt;✅ щитки без LAN&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Мониторинг опалубки&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;✅ температура бетона&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Уровень воды/топлива&lt;/td&gt;
+					&lt;td&gt;✅ колодец&lt;/td&gt;
+					&lt;td&gt;✅ дизель-генератор&lt;/td&gt;
+					&lt;td&gt;✅ топливо на стройке&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/shared/"&gt;index&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/shared/smart-meter-energy/"&gt;smart-meter-energy&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/shared/smart-meter-temp/"&gt;smart-meter-temp&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/eventpass/construction/"&gt;construction&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/home/buildings/utility/"&gt;utility&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/dn-beacon/"&gt;dn-beacon&lt;/a&gt;&lt;/p&gt;</description></item><item><title>SIP-аудиооповещение — общее решение</title><link>https://sayr777.github.io/shared/sip-audio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/sip-audio/</guid><description>&lt;h1 id="sip-аудиооповещение--общее-решение"&gt;SIP-аудиооповещение — общее решение&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура"&gt;Архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph SIP_CORE["SIP-ядро"]
+ PBX["IP-АТС\nAsterisk / FreePBX"]
+ TTS_SIP["TTS-движок\nPiper / Coqui / Google TTS"]
+ SIP_GW["SIP-шлюз\n(PSTN / GSM мост)"]
+ end
+
+ subgraph ENDPOINTS["SIP-устройства"]
+ DOOR_STA["Дверная станция\nZKTeco / Hikvision SIP"]
+ SPEAKER["IP-громкоговоритель\nPA-система зон"]
+ PHONE["IP-телефон\nComet / Yealink"]
+ ATA["ATA-адаптер\nаналог → SIP"]
+ HA_SIP["Home Assistant\nbaresip / SIP-интеграция"]
+ end
+
+ subgraph TRIGGERS["Триггеры"]
+ ACS["СКУД / EventPass\nсобытие входа"]
+ ALARM["Сигнализация\nтревога"]
+ SCHED["Расписание\nперемена / смена"]
+ MANUAL["Ручной запуск\nоператор / автоматизация"]
+ end
+
+ TRIGGERS --&gt; PBX
+ PBX --&gt; TTS_SIP
+ PBX --&gt; SIP_GW
+ TTS_SIP --&gt; SPEAKER &amp; PHONE &amp; DOOR_STA
+ PBX &lt;--&gt; DOOR_STA &amp; SPEAKER &amp; PHONE &amp; ATA &amp; HA_SIP&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="применение-по-проектам"&gt;Применение по проектам&lt;/h2&gt;
+&lt;h3 id="tenantpass-корпоративный-объект"&gt;TenantPass (корпоративный объект)&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Сценарий&lt;/th&gt;
+					&lt;th&gt;Реализация&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Объявление о начале / конце смены&lt;/td&gt;
+					&lt;td&gt;Asterisk dial plan → SIP PA в зонах&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Вызов через домофон&lt;/td&gt;
+					&lt;td&gt;Дверная SIP-станция → телефон охраны / менеджера&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Тревога&lt;/td&gt;
+					&lt;td&gt;Asterisk: обзвон ответственных + PA &amp;ldquo;Внимание, тревога&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Приглашение в переговорную&lt;/td&gt;
+					&lt;td&gt;HA automation → TTS → SIP PA&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Объявление для зоны&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;zone_id&lt;/code&gt; → группа SIP-адресов PA в этой зоне&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h4 id="dial-plan-asterisk-extensionsconf"&gt;Dial plan (Asterisk extensions.conf)&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[announce-shift-start]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _X.,1,Answer()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;same&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; n,Set(ZONE=${ARG1})&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;same&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; n,Playback(shift-start-chime)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;same&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; n,TTS(Начало рабочей смены. Просьба пройти регистрацию на КПП.,ru)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;same&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; n,Hangup()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[alarm-all-zones]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _X.,1,Answer()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;same&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; n,Playback(alarm-signal)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;same&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; n,TTS(Внимание! Тревога. Немедленно покиньте здание через ближайший выход.,ru)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;same&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; n,Hangup()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h4 id="home-assistant--sip-оповещение"&gt;Home Assistant → SIP-оповещение&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# automation: объявление начала смены&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Объявление начала смены&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;time&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;at&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;08:00:00&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.sip_pa_zone_a&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Начало рабочей смены. Просьба пройти регистрацию на КПП.&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h3 id="homepass-частный-дом"&gt;HomePass (частный дом)&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Сценарий&lt;/th&gt;
+					&lt;th&gt;Реализация&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Домофон → телефон хозяина&lt;/td&gt;
+					&lt;td&gt;SIP-домофон → Zoiper / Linphone на смартфоне&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Голосовое приветствие на калитке&lt;/td&gt;
+					&lt;td&gt;При открытии: PA у калитки → &amp;ldquo;Добрый день&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Тревога через динамики&lt;/td&gt;
+					&lt;td&gt;Сирена + TTS через все PA-точки дома&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Оповещение в баню / гараж&lt;/td&gt;
+					&lt;td&gt;&amp;ldquo;Обед готов&amp;rdquo; / &amp;ldquo;Ворота открыты&amp;rdquo; через SIP-PA&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Двусторонняя связь&lt;/td&gt;
+					&lt;td&gt;SIP-интерком HA ↔ комната гостей / гараж&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h4 id="оборудование-дома"&gt;Оборудование дома&lt;/h4&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Дом:
+ Asterisk на том же сервере (Home Assistant / TrueNAS)
+ SIP-домофон у калитки (Hikvision DS-KV6113)
+ SIP PA-усилитель + потолочные динамики (4 зоны)
+ Zoiper на телефонах хозяина (iOS / Android)
+
+Связь:
+ Локальная LAN (SIP не уходит в интернет)
+ Для удалённого звонка: WireGuard VPN → домашний Asterisk
+&lt;/code&gt;&lt;/pre&gt;&lt;h4 id="автоматизация-гость-позвонил-в-калитку"&gt;Автоматизация: гость позвонил в калитку&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Домофон: звонок в калитку&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;binary_sensor.wicket_doorbell&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;to&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;on&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Звонок в калитку&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;actions&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;action&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;OPEN_WICKET&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;title&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Открыть калитку&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;action&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;SIP_CALL&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;title&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Позвонить&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;tts.speak&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;media_player.entrance_speaker&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подождите, хозяин ответит&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h3 id="eventpass-мероприятие"&gt;EventPass (мероприятие)&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Сценарий&lt;/th&gt;
+					&lt;th&gt;Реализация&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Объявление об открытии зоны&lt;/td&gt;
+					&lt;td&gt;PA по секторам: &amp;ldquo;VIP-зона открыта&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Предупреждение об очереди&lt;/td&gt;
+					&lt;td&gt;&amp;ldquo;Рекомендуем вход С3 — там нет очереди&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Экстренное объявление&lt;/td&gt;
+					&lt;td&gt;Все зоны: &amp;ldquo;Внимание, мероприятие завершается&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Стройплощадка: начало работ&lt;/td&gt;
+					&lt;td&gt;07:45 PA: &amp;ldquo;Начало рабочей смены&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Стройплощадка: эвакуация&lt;/td&gt;
+					&lt;td&gt;Все PA: &amp;ldquo;Сигнал эвакуации. Покиньте территорию&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h4 id="мобильный-pa-для-мероприятия"&gt;Мобильный PA для мероприятия&lt;/h4&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Мини-Asterisk на ноутбуке организатора:
+ Подключены: WiFi IP-PA колонки (на батареях)
+ Управление: веб-панель EventPass → REST → Asterisk AMI
+
+REST API EventPass:
+ POST /api/v1/events/{event_id}/announce
+ {
+ &amp;#34;zones&amp;#34;: [&amp;#34;sector_a&amp;#34;, &amp;#34;vip_lounge&amp;#34;],
+ &amp;#34;text&amp;#34;: &amp;#34;Уважаемые гости, шоу начинается через 5 минут&amp;#34;,
+ &amp;#34;language&amp;#34;: &amp;#34;ru&amp;#34;,
+ &amp;#34;priority&amp;#34;: &amp;#34;normal&amp;#34;
+ }
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="стек-технологий"&gt;Стек технологий&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Open-source&lt;/th&gt;
+					&lt;th&gt;Коммерческий&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;IP-АТС&lt;/td&gt;
+					&lt;td&gt;Asterisk / FreePBX&lt;/td&gt;
+					&lt;td&gt;3CX / Cisco CUCM&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;SIP-домофон&lt;/td&gt;
+					&lt;td&gt;Grandstream GDS3710&lt;/td&gt;
+					&lt;td&gt;Hikvision DS-KV / 2N Helios&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;IP-PA колонки&lt;/td&gt;
+					&lt;td&gt;Algo 8188 / SIP-PA generic&lt;/td&gt;
+					&lt;td&gt;TOA / Bosch&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;TTS для объявлений&lt;/td&gt;
+					&lt;td&gt;Piper (rus) / Coqui&lt;/td&gt;
+					&lt;td&gt;Yandex SpeechKit&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Softphone (мобильный)&lt;/td&gt;
+					&lt;td&gt;Zoiper / Linphone&lt;/td&gt;
+					&lt;td&gt;Yealink W-серия&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;HA интеграция&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;asterisk_mbox&lt;/code&gt; / baresip&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="интеграция-со-скуд-tenantpass--eventpass"&gt;Интеграция со СКУД (TenantPass / EventPass)&lt;/h2&gt;
+&lt;div class="mermaid"&gt;sequenceDiagram
+ participant ACS as Агент СКУД
+ participant API as EventPass / TenantPass API
+ participant AST as Asterisk
+ participant PA as PA-система зоны
+
+ ACS-&gt;&gt;API: событие входа (user_id, zone_id)
+ API-&gt;&gt;AST: AMI Action: Originate channel=PA/{zone_id}
+ note over AST: TTS: "Добрый день, Иван!\nДоступ открыт"
+ AST-&gt;&gt;PA: SIP INVITE → announce
+ PA--&gt;&gt;AST: 200 OK
+ AST-&gt;&gt;PA: audio stream (TTS)&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="интеграция-с-сигнализацией-homepass"&gt;Интеграция с сигнализацией (HomePass)&lt;/h2&gt;
+&lt;div class="mermaid"&gt;sequenceDiagram
+ participant SENSOR as Датчик тревоги
+ participant HA as Home Assistant
+ participant AST as Asterisk
+ participant PA_ALL as Все PA-динамики
+ participant PHONE as Телефон хозяина
+
+ SENSOR-&gt;&gt;HA: binary_sensor: on
+ HA-&gt;&gt;HA: alarm_control_panel → triggered
+ HA-&gt;&gt;AST: AMI: broadcast alarm to all zones
+ AST-&gt;&gt;PA_ALL: SIP INVITE (multicast / group dial)
+ PA_ALL--&gt;&gt;AST: audio: сирена + TTS
+ HA-&gt;&gt;AST: AMI: call owner phone
+ AST-&gt;&gt;PHONE: SIP INVITE
+ PHONE--&gt;&gt;AST: owner ответил
+ AST-&gt;&gt;PHONE: "Сработала сигнализация. Для отмены введите код."&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="важно-для-соответствия-фз"&gt;Важно для соответствия (ФЗ)&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Оповещение через SIP — не передача ПДн → нет особых требований 152-ФЗ&lt;/li&gt;
+&lt;li&gt;Запись SIP-звонков (если включена) — хранить локально, как переговоры&lt;/li&gt;
+&lt;li&gt;Для объектов КИИ: весь SIP-трафик только в периметре (не через интернет)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/tenantpass/"&gt;index&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/home/alarm/"&gt;alarm&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/home/voice-assistant/"&gt;voice-assistant&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/eventpass/architecture/"&gt;architecture&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/video-surveillance/"&gt;video-surveillance&lt;/a&gt;&lt;/p&gt;</description></item><item><title>SIP-сервер — развёртывание и настройка</title><link>https://sayr777.github.io/shared/sip-server/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/sip-server/</guid><description>&lt;h1 id="sip-сервер--развёртывание-и-настройка"&gt;SIP-сервер — развёртывание и настройка&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Единая IP-АТС для всех проектов: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="выбор-платформы"&gt;Выбор платформы&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Платформа&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Подходит для&lt;/th&gt;
+					&lt;th&gt;Минус&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Asterisk&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPLv2&lt;/td&gt;
+					&lt;td&gt;Любой масштаб, максимальная гибкость&lt;/td&gt;
+					&lt;td&gt;Сложная настройка&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;FreePBX&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPLv3&lt;/td&gt;
+					&lt;td&gt;Asterisk + веб-UI, проще для старта&lt;/td&gt;
+					&lt;td&gt;Overhead веб-панели&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;FusionPBX&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MPLv2&lt;/td&gt;
+					&lt;td&gt;Мультитенантность (TenantPass идеально)&lt;/td&gt;
+					&lt;td&gt;Сложнее FreePBX&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Kamailio&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPLv2&lt;/td&gt;
+					&lt;td&gt;SIP-прокси/роутинг, высокая нагрузка&lt;/td&gt;
+					&lt;td&gt;Нет звонковой логики&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Yealink IPPBX&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Коммерческая&lt;/td&gt;
+					&lt;td&gt;Дом/SMB, простота&lt;/td&gt;
+					&lt;td&gt;Закрытое железо&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Рекомендация:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;HomePass: FreePBX (быстрый старт, веб-UI)&lt;/li&gt;
+&lt;li&gt;TenantPass on-premise: Asterisk + FusionPBX (мультитенантность)&lt;/li&gt;
+&lt;li&gt;EventPass: Asterisk (скрипты, REST через AMI)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="развёртывание-freepbx-на-docker-homepass--быстрый-старт"&gt;Развёртывание: FreePBX на Docker (HomePass / быстрый старт)&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# docker-compose.yml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;version&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;3&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;services&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;freepbx&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;tiredofit/freepbx:latest&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;container_name&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;freepbx&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;network_mode&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;host &lt;/span&gt; &lt;span style="color:#75715e"&gt;# SIP требует хостовую сеть (RTP-порты)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;environment&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;DB_HOST=freepbx-db&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;DB_NAME=asterisk&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;DB_USER=asterisk&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;DB_PASS=strong_password&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;TZ=Europe/Moscow&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;volumes&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;./freepbx/data:/data&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;./freepbx/certs:/certs&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;restart&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;unless-stopped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;freepbx-db&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;mariadb:10.6&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;container_name&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;freepbx-db&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;environment&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;MYSQL_ROOT_PASSWORD&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;root_pass&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;MYSQL_DATABASE&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;asterisk&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;MYSQL_USER&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;asterisk&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;MYSQL_PASSWORD&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;strong_password&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;volumes&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;./freepbx/mysql:/var/lib/mysql&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;restart&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;unless-stopped&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;strong&gt;Порты (нужно открыть в файерволле):&lt;/strong&gt;&lt;/p&gt;</description></item><item><title>Аппаратный стек — выбор технологий</title><link>https://sayr777.github.io/shared/hardware-stack/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/hardware-stack/</guid><description>&lt;h1 id="аппаратный-стек--выбор-технологий"&gt;Аппаратный стек — выбор технологий&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Фиксированный стек для всех проектов&lt;/em&gt;&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Технология&lt;/th&gt;
+					&lt;th&gt;Почему&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;IP-камеры&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;OpenIPC&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Open-source прошивка, дешёвое железо, RTSP → Frigate&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Аудио-колонки&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Asterisk SIP&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;PA по зонам, TTS, централизованное управление&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Телефония&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Asterisk&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;IP-АТС, домофоны, интерком, запись&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Микрофоны зонального мониторинга&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Asterisk&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;SIP-микрофоны, silent monitoring, запись&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;WiFi / роутеры&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;OpenWrt&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;VLAN, 802.1X, Captive Portal, полный контроль&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="openipc--прошивка-для-ip-камер"&gt;OpenIPC — прошивка для IP-камер&lt;/h2&gt;
+&lt;h3 id="что-такое-openipc"&gt;Что такое OpenIPC&lt;/h3&gt;
+&lt;p&gt;OpenIPC — open-source Linux-прошивка для дешёвых IP-камер на чипсетах Hi3518/Hi3516/GK7205/SSC335. Заменяет закрытую OEM-прошивку на управляемую, предсказуемую, без backdoor&amp;rsquo;ов.&lt;/p&gt;</description></item><item><title>Безопасность Asterisk: изоляция контекстов (замечание 12)</title><link>https://sayr777.github.io/shared/asterisk-security/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/asterisk-security/</guid><description>&lt;h1 id="безопасность-asterisk-изоляция-контекстов-замечание-12"&gt;Безопасность Asterisk: изоляция контекстов (замечание 12)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Разделение PA / телефонии / скрытых микрофонов&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="проблема"&gt;Проблема&lt;/h2&gt;
+&lt;p&gt;Один Asterisk для трёх use-case:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;PA-оповещения (публичные объявления)&lt;/li&gt;
+&lt;li&gt;Телефония (внутренняя АТС)&lt;/li&gt;
+&lt;li&gt;Скрытые микрофоны (ChanSpy/MixMonitor — прослушивание зон)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Если злоумышленник получает SIP-учётку PA-спикера → может через &lt;code&gt;ChanSpy&lt;/code&gt; прослушать любой канал.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="решение-изолированные-контексты--отдельные-credentials"&gt;Решение: изолированные контексты + отдельные credentials&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph PA_CTX["Контекст: pa-only"]
+ PA_EP["PA-колонки\n(sip: pa-zone-1..N)"]
+ PA_DIAL["Только исходящий\nDialPlan → PA group"]
+ end
+
+ subgraph PHONE_CTX["Контекст: internal-phones"]
+ PHONE_EP["Телефоны сотрудников\n(sip: phone-XXX)"]
+ DOOR_EP["Домофоны\n(sip: door-XXX)"]
+ end
+
+ subgraph MIC_CTX["Контекст: zone-monitors (МАКСИМУМ ОГРАНИЧЕНИЙ)"]
+ MIC_EP["Скрытые микрофоны\n(sip: mic-zone-XXX)"]
+ CHANSPY["ChanSpy / MixMonitor\nТолько для авторизованных"]
+ end
+
+ subgraph AMI_CTX["AMI: разные учётки"]
+ AMI_PA["ami-pa-user\nТолько: Originate в PA"]
+ AMI_MONITOR["ami-monitor-user\nТолько: Monitor, не ChanSpy"]
+ AMI_ADMIN["ami-admin\nПолный доступ (только localhost)"]
+ end
+
+ PA_CTX -.-&gt;|NO CROSS-CONTEXT| PHONE_CTX
+ PHONE_CTX -.-&gt;|NO CROSS-CONTEXT| MIC_CTX&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="extensionsconf--строгая-изоляция"&gt;extensions.conf — строгая изоляция&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; /etc/asterisk/extensions.conf&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === PA КОНТЕКСТ ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; PA-колонки могут только принять вызов, не могут звонить наружу&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[pa-only]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Входящий вызов от AMI → проиграть аудио&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _pa-*,1,Answer()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _pa-*,n,Playback(${ARG1})&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _pa-*,n,Hangup()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; PA-колонка не может инициировать исходящий → контекст не содержит таких правил&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Попытка позвонить → invalid extension → Hangup&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === ТЕЛЕФОНИЯ КОНТЕКСТ ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[internal-phones]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Внутренние звонки&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _1XX,1,Dial(PJSIP/${EXTEN},30)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _1XX,n,Hangup()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Домофон → звонок охраннику / владельцу&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; door-entrance,1,Dial(PJSIP/guard&amp;amp;PJSIP/mobile,30)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; door-entrance,n,Hangup()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Явно запрещаем ChanSpy из этого контекста&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; (нет extension → Asterisk не найдёт и отклонит)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === КОНТЕКСТ МОНИТОРИНГА ЗОН ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[zone-monitors]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Микрофон зоны регистрируется здесь и немедленно начинает запись&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _mic-*,1,Answer()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _mic-*,n,Set(ZONE_ID=${EXTEN})&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _mic-*,n,MixMonitor(/var/spool/asterisk/monitor/${ZONE_ID}-${STRFTIME(%Y%m%d_%H%M%S,UTC,)}.wav)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _mic-*,n,Wait(86400) ; ждём 24ч (автоматическая ротация)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; _mic-*,n,Hangup()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; ChanSpy только через явный protected extension&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Доступен ТОЛЬКО из AMI ami-monitor-user (не из SIP)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; spy-authorized,1,ChanSpy(PJSIP/mic-${ARG1},qE(beep))&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;exten&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;gt; spy-authorized,n,Hangup()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="pjsipconf--разные-пароли-и-контексты"&gt;pjsip.conf — разные пароли и контексты&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; /etc/asterisk/pjsip.conf&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === PA КОЛОНКИ ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[pa-zone-1]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;type&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;endpoint&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;context&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;pa-only ; ← изолированный контекст&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;auth&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;pa-zone-1-auth&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;aors&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;pa-zone-1-aor&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;disallow&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;all&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;allow&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;ulaw,alaw&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[pa-zone-1-auth]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;type&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;auth&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;auth_type&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;userpass&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;username&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;pa-zone-1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;password&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;Xk9mP2qL8nRv ; уникальный длинный пароль&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === ТЕЛЕФОНЫ ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[phone-101]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;type&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;endpoint&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;context&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;internal-phones ; ← отдельный контекст&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;auth&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;phone-101-auth&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;aors&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;phone-101-aor&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === МИКРОФОНЫ ЗОН ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[mic-zone-lobby]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;type&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;endpoint&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;context&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;zone-monitors ; ← отдельный контекст&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;auth&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;mic-zone-lobby-auth&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;aors&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;mic-zone-lobby-aor&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; ДОПОЛНИТЕЛЬНО: только с конкретного IP (сам микрофон)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[mic-zone-lobby-auth]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;type&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;auth&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;auth_type&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;userpass&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;username&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;mic-zone-lobby&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;password&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;Yt7vQ3sN6wXm ; отдельный пароль, не совпадает с PA&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="managerconf--ограниченные-ami-учётки"&gt;manager.conf — ограниченные AMI-учётки&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; /etc/asterisk/manager.conf&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[general]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;enabled&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;yes&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;bindaddr&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;127.0.0.1 ; только localhost! Никакого 0.0.0.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === AMI для PA-системы (HA/автоматизация) ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[ami-pa-user]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;secret&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;pa-ami-secret-long&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;deny&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;0.0.0.0/0.0.0.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;permit&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;127.0.0.1/255.255.255.255&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;permit&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;192.168.1.100/255.255.255.255 ; только HA-сервер&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;read&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;system,call&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;write&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;originate ; ТОЛЬКО Originate — ничего другого&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === AMI для мониторинга ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[ami-monitor-user]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;secret&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;monitor-ami-secret-long&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;deny&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;0.0.0.0/0.0.0.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;permit&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;127.0.0.1/255.255.255.255&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;read&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;system,call&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;write&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;; только чтение! Никакого write&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; Monitor через AMI-действие Monitor → разрешено через read=call&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; === AMI для администрирования ===&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[ami-admin]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;secret&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;admin-ami-very-long-secret&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;deny&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;0.0.0.0/0.0.0.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;permit&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;127.0.0.1/255.255.255.255 ; только localhost&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;read&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;all&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;write&lt;/span&gt;&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#e6db74"&gt;all&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="fail2ban-для-asterisk-sip"&gt;Fail2ban для Asterisk SIP&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-ini" data-lang="ini"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; /etc/fail2ban/jail.local&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[asterisk]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;enabled&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;port&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;5060,5061&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;filter&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;asterisk&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;logpath&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;/var/log/asterisk/full&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;maxretry&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;5&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;bantime&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;3600&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;findtime&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;300&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;; /etc/fail2ban/filter.d/asterisk.conf&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;[Definition]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#a6e22e"&gt;failregex&lt;/span&gt; &lt;span style="color:#f92672"&gt;=&lt;/span&gt; &lt;span style="color:#e6db74"&gt;NOTICE.* &amp;lt;HOST&amp;gt; failed to authenticate
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; NOTICE.* Registration from .* failed for &amp;lt;HOST&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; NOTICE.* &amp;lt;HOST&amp;gt;.* No matching peer found&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="проверка-изоляции"&gt;Проверка изоляции&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Тест: PA-колонка не может позвонить на внутренний телефон&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# (должна получить отбой, не соединение)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;asterisk -rx &lt;span style="color:#e6db74"&gt;&amp;#34;channel originate PJSIP/pa-zone-1 extension 101@internal-phones&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Ожидаемый результат: INVALID EXTENSION или BUSY&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Тест: телефон не может инициировать ChanSpy&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# (контекст internal-phones не содержит ChanSpy extensions)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;asterisk -rx &lt;span style="color:#e6db74"&gt;&amp;#34;channel originate PJSIP/phone-101 extension spy-authorized@internal-phones&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Ожидаемый результат: INVALID EXTENSION&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/shared/sip-server/"&gt;sip-server&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/shared/sip-audio/"&gt;sip-audio&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/shared/hardware-stack/"&gt;hardware-stack&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/backup-strategy/"&gt;backup-strategy&lt;/a&gt;&lt;/p&gt;</description></item><item><title>Биллинг — общая система</title><link>https://sayr777.github.io/shared/billing/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/billing/</guid><description>&lt;h1 id="биллинг--общая-система"&gt;Биллинг — общая система&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Тарификация, подписки, SIP CDR, эквайринг, фискализация&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек--всё-бесплатное-по"&gt;Стек — всё бесплатное ПО&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Решение&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Стоимость&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Биллинговый движок&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Lago&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AGPL-3.0 (self-hosted)&lt;/td&gt;
+					&lt;td&gt;0 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Инвойсинг / счета&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;InvoiceNinja&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AAL (self-hosted)&lt;/td&gt;
+					&lt;td&gt;0 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;SIP CDR биллинг&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;CGRateS&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;0 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Эквайринг (комиссия)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;YooKassa&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;0 ₽/мес + % с транзакции&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Эквайринг (комиссия)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Robokassa&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;0 ₽/мес + % с транзакции&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Фискализация&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;АТОЛ Онлайн&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;~1 200 ₽/мес (ОФД)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Учёт&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;1С:Бухгалтерия&lt;/strong&gt; / &lt;strong&gt;GnuCash&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;— / GPL&lt;/td&gt;
+					&lt;td&gt;платная / 0 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Метрики&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;VictoriaMetrics&lt;/strong&gt; + Grafana&lt;/td&gt;
+					&lt;td&gt;Apache-2.0&lt;/td&gt;
+					&lt;td&gt;0 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Все биллинговые сервисы разворачиваются self-hosted Docker-контейнерами рядом с остальным стеком. Платишь только за транзакции и ОФД — ПО бесплатное.&lt;/p&gt;</description></item><item><title>Биллинг: лицензионный комплаенс (замечание 10)</title><link>https://sayr777.github.io/shared/billing-compliance/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/billing-compliance/</guid><description>&lt;h1 id="биллинг-лицензионный-комплаенс-замечание-10"&gt;Биллинг: лицензионный комплаенс (замечание 10)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Lago AGPL + коммерческое использование SaaS&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="проблема"&gt;Проблема&lt;/h2&gt;
+&lt;p&gt;Lago — AGPL-3.0. При использовании в SaaS (TenantPass/EventPass продаётся клиентам через сеть) &lt;strong&gt;AGPL обязывает открыть исходники&lt;/strong&gt; всего приложения, которое взаимодействует с Lago через сеть.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="три-варианта-решения"&gt;Три варианта решения&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ PROBLEM["Lago AGPL в SaaS — риск открытия исходников"]
+
+ PROBLEM --&gt; OPT1["Вариант 1: Lago Cloud\nКоммерческая лицензия\n~$500/мес"]
+ PROBLEM --&gt; OPT2["Вариант 2: Изоляция Lago\nОтдельный сервис с API-границей\nISOLATED: нет связи с бизнес-кодом"]
+ PROBLEM --&gt; OPT3["Вариант 3: Замена на Apache 2.0\nOpenMeter / custom"]
+
+ OPT1 --&gt;|рекомендуется для Enterprise| DONE1["✅ Нет рисков"]
+ OPT2 --&gt;|рекомендуется для MVP| DONE2["✅ AGPL распространяется только на изолированный сервис"]
+ OPT3 --&gt;|для self-hosted| DONE3["✅ Полная свобода"]&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="вариант-2-изоляция-lago-рекомендуется-для-старта"&gt;Вариант 2: Изоляция Lago (рекомендуется для старта)&lt;/h2&gt;
+&lt;p&gt;AGPL требует открыть исходники &lt;strong&gt;программы&lt;/strong&gt;, которая включает или линкует AGPL-код. Если Lago — это отдельный сервис, с которым взаимодействуете только через REST API, то ваш код не является производным произведением.&lt;/p&gt;</description></item><item><title>Датчики движения и присутствия</title><link>https://sayr777.github.io/shared/smart-motion/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/smart-motion/</guid><description>&lt;h1 id="датчики-движения-и-присутствия"&gt;Датчики движения и присутствия&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек"&gt;Стек&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Сенсор&lt;/th&gt;
+					&lt;th&gt;Принцип&lt;/th&gt;
+					&lt;th&gt;Применение&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;HC-SR501 (PIR)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;ИК пассивный&lt;/td&gt;
+					&lt;td&gt;Освещение, охрана&lt;/td&gt;
+					&lt;td&gt;~50 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;AM312 (мини-PIR)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;ИК пассивный&lt;/td&gt;
+					&lt;td&gt;В подрозетник, скрытая установка&lt;/td&gt;
+					&lt;td&gt;~70 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;HLK-LD2410 (mmWave)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;24 ГГц радар&lt;/td&gt;
+					&lt;td&gt;Присутствие (неподвижный человек)&lt;/td&gt;
+					&lt;td&gt;~300 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;HLK-LD2450 (mmWave)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;24 ГГц радар&lt;/td&gt;
+					&lt;td&gt;Счёт людей, направление движения&lt;/td&gt;
+					&lt;td&gt;~500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Aqara FP1 (mmWave)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;60 ГГц радар&lt;/td&gt;
+					&lt;td&gt;Зоны в комнате, падение, дыхание&lt;/td&gt;
+					&lt;td&gt;~4 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Aqara P1 (Zigbee PIR)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;ИК&lt;/td&gt;
+					&lt;td&gt;Готовое Zigbee-устройство&lt;/td&gt;
+					&lt;td&gt;~900 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;SONOFF SNZB-03 (Zigbee)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;ИК&lt;/td&gt;
+					&lt;td&gt;Дешёвый Zigbee&lt;/td&gt;
+					&lt;td&gt;~500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Frigate (видео)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AI-детекция&lt;/td&gt;
+					&lt;td&gt;Камера → зона человека&lt;/td&gt;
+					&lt;td&gt;0 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ESPresense (BLE)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Bluetooth-маяк&lt;/td&gt;
+					&lt;td&gt;Определение конкретного человека&lt;/td&gt;
+					&lt;td&gt;~300 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура"&gt;Архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph SENSORS["Датчики"]
+ PIR["PIR (HC-SR501)\nдвижение / нет"]
+ MM["mmWave (HLK-LD2410)\nприсутствие + дистанция"]
+ ZB_PIR["Zigbee PIR\n(Aqara / SONOFF)"]
+ CAM["Камера + Frigate\nAI-зоны"]
+ BLE["ESPresense\nкто именно в комнате"]
+ end
+
+ subgraph BRIDGE["Шлюз"]
+ ESPH["ESP32 + ESPHome\n(PIR + mmWave)"]
+ ZB2M["Zigbee2MQTT"]
+ FRIGATE["Frigate NVR\nMQTT events"]
+ end
+
+ subgraph HA["Home Assistant"]
+ PRESENCE["Определение присутствия\nperson.X в комнате Y"]
+ AUTOMATION["Автоматизации\nсвет, климат, безопасность"]
+ ANALYTICS["Аналитика\nTraffic counting (TenantPass)"]
+ end
+
+ PIR &amp; MM --&gt; ESPH --&gt; HA
+ ZB_PIR --&gt; ZB2M --&gt; HA
+ CAM --&gt; FRIGATE --&gt; HA
+ BLE --&gt; ESPH --&gt; HA
+ HA --&gt; PRESENCE &amp; AUTOMATION &amp; ANALYTICS&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="esphome--pir-hc-sr501"&gt;ESPHome — PIR (HC-SR501)&lt;/h2&gt;
+&lt;p&gt;Простейший и самый дешёвый вариант. Не фиксирует неподвижного человека.&lt;/p&gt;</description></item><item><title>Лицензионный аудит компонентов</title><link>https://sayr777.github.io/shared/license-audit/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/license-audit/</guid><description>&lt;h1 id="лицензионный-аудит-компонентов"&gt;Лицензионный аудит компонентов&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Все используемые open-source компоненты, лицензии, ограничения&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="легенда"&gt;Легенда&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Символ&lt;/th&gt;
+					&lt;th&gt;Значение&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Свободно для коммерческого использования, без ограничений&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Требует внимания при коммерческом SaaS&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;❌&lt;/td&gt;
+					&lt;td&gt;Нельзя использовать в SaaS без раскрытия кода или платной лицензии&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;🔧&lt;/td&gt;
+					&lt;td&gt;Требует специального решения (изоляция, коммерческая лицензия)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="core-infrastructure"&gt;Core Infrastructure&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Коммерческий SaaS&lt;/th&gt;
+					&lt;th&gt;Примечание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;PostgreSQL&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;PostgreSQL License (MIT-style)&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Полная свобода&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Redis&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;BSD 3-Clause (v7.2+: RSALv2)&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Redis 7.4+ — SSPL, использовать Redis 7.2 или &lt;strong&gt;Valkey&lt;/strong&gt; (Apache 2.0)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Nginx&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;BSD 2-Clause&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Docker / containerd&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Keycloak&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;FastAPI&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Pydantic&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;SQLAlchemy&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Alembic&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ClickHouse&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Grafana&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AGPL-3.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Grafana в SaaS — AGPL. Нужна изоляция или Grafana Enterprise&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Prometheus&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="iot--automation"&gt;IoT / Automation&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Коммерческий SaaS&lt;/th&gt;
+					&lt;th&gt;Примечание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Home Assistant&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ESPHome&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT / Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Компоненты: MIT&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Zigbee2MQTT&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-3.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Отдельный сервис → OK если не линкуется&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Mosquitto (MQTT)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;EPL-2.0 / EDL-1.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Tasmota&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-3.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Прошивка устройства, не ваш код → OK&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;OpenIPC&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Прошивка камеры → OK если не модифицируете&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Frigate NVR&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Zigbee2MQTT&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-3.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Запускается отдельно → нет contamination&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="видеонаблюдение-и-ai"&gt;Видеонаблюдение и AI&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Коммерческий SaaS&lt;/th&gt;
+					&lt;th&gt;Примечание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Frigate&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Double Take&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;CompreFace&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DeepStack&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Commercial free tier&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Бесплатно до 5 камер, платно выше&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Ollama&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;LLaVA&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;LLaMA 2 Community License&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Коммерческое использование → нужно принять лицензию Meta&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Whisper (OpenAI)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Piper TTS&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="телефония-и-аудио"&gt;Телефония и аудио&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Коммерческий SaaS&lt;/th&gt;
+					&lt;th&gt;Примечание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Asterisk&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Asterisk PBX → отдельный сервис, нет contamination. Если модифицируете → GPL&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;FreePBX&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Аналогично Asterisk&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Icecast2&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Аудио-сервер, отдельный процесс → OK&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Liquidsoap&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Аудио-скрипты, отдельный процесс → OK&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Snapcast&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-3.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Аудио-клиент/сервер, отдельный → OK&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="биллинг"&gt;Биллинг&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Коммерческий SaaS&lt;/th&gt;
+					&lt;th&gt;Примечание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Lago&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AGPL-3.0&lt;/td&gt;
+					&lt;td&gt;🔧&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;SaaS риск!&lt;/strong&gt; Изолировать через API или купить Lago Cloud&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;OpenMeter&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Альтернатива Lago без рисков&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;CGRateS&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;InvoiceNinja&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Elastic License 2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;v5+ Elastic License — нельзя перепродавать как SaaS. Использовать v4 (AAL) или self-hosted&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;YooKassa SDK&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="сетевая-инфраструктура"&gt;Сетевая инфраструктура&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Коммерческий SaaS&lt;/th&gt;
+					&lt;th&gt;Примечание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;OpenWrt&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Прошивка роутера → OK если не модифицируете дистрибутив&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;FreeRADIUS&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Отдельный сервис → OK&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;WireGuard&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0 (kernel), MIT (tools)&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;nodogsplash&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;Captive portal → отдельный процесс → OK&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Redpanda (Kafka-compatible)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;BSL 1.1&lt;/td&gt;
+					&lt;td&gt;⚠️&lt;/td&gt;
+					&lt;td&gt;BSL: нельзя продавать как managed Kafka. Self-hosted OK&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Debezium&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;MinIO&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AGPL-3.0&lt;/td&gt;
+					&lt;td&gt;🔧&lt;/td&gt;
+					&lt;td&gt;Как Lago — изолировать. Альтернатива: SeaweedFS (Apache 2.0)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="аналитика-и-bi"&gt;Аналитика и BI&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+					&lt;th&gt;Коммерческий SaaS&lt;/th&gt;
+					&lt;th&gt;Примечание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Grafana&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AGPL-3.0&lt;/td&gt;
+					&lt;td&gt;🔧&lt;/td&gt;
+					&lt;td&gt;Встроить в свой продукт → AGPL. Использовать как внутренний дашборд → OK&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Metabase&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;AGPL-3.0 (CE) / Commercial&lt;/td&gt;
+					&lt;td&gt;🔧&lt;/td&gt;
+					&lt;td&gt;Аналогично Grafana&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Apache Superset&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Альтернатива Metabase без AGPL&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="итоговая-таблица-рисков"&gt;Итоговая таблица рисков&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Риск&lt;/th&gt;
+					&lt;th&gt;Компоненты&lt;/th&gt;
+					&lt;th&gt;Решение&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;AGPL SaaS риск&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Lago, MinIO, Grafana, Metabase&lt;/td&gt;
+					&lt;td&gt;Изолировать через HTTP API. Не линковать.&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Lago AGPL&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Lago&lt;/td&gt;
+					&lt;td&gt;Заменить на OpenMeter (Apache 2.0) или купить Lago Cloud&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;InvoiceNinja v5 Elastic&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;InvoiceNinja&lt;/td&gt;
+					&lt;td&gt;Использовать v4 (AGPLv3 acceptable) или Crater (MIT)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Redis SSPL v7.4+&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Redis&lt;/td&gt;
+					&lt;td&gt;Использовать Redis 7.2 (BSD) или Valkey (Apache 2.0, Redis fork)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;GPL сервисы (Asterisk, FreeRADIUS)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Asterisk, FreeRADIUS, Icecast&lt;/td&gt;
+					&lt;td&gt;Запускать как отдельные процессы → нет contamination кода&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DeepStack commercial&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;DeepStack&lt;/td&gt;
+					&lt;td&gt;Перейти на CompreFace (Apache 2.0)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;LLaVA / LLaMA&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;LLaVA&lt;/td&gt;
+					&lt;td&gt;Принять Meta Community License при регистрации&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Redpanda BSL&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Redpanda&lt;/td&gt;
+					&lt;td&gt;Self-hosted OK. Не перепродавать как managed service&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="рекомендованные-замены"&gt;Рекомендованные замены&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Заменить&lt;/th&gt;
+					&lt;th&gt;На&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Lago (AGPL)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;OpenMeter&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Redis 7.4+&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Valkey&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;InvoiceNinja v5&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Crater&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MIT&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;MinIO (AGPL)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;SeaweedFS&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Grafana (AGPL) в продукте&lt;/td&gt;
+					&lt;td&gt;Встроенный &lt;strong&gt;Apache ECharts&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;DeepStack&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;CompreFace&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Metabase (AGPL)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Apache Superset&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Apache 2.0&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="правило-agpl-firewall"&gt;Правило &amp;ldquo;AGPL firewall&amp;rdquo;&lt;/h2&gt;
+&lt;p&gt;Любой AGPL-компонент, используемый в SaaS, должен быть изолирован:&lt;/p&gt;</description></item><item><title>Объектовая музыка — фоновое аудиовещание</title><link>https://sayr777.github.io/shared/background-music/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/background-music/</guid><description>&lt;h1 id="объектовая-музыка--фоновое-аудиовещание"&gt;Объектовая музыка — фоновое аудиовещание&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек-всё-бесплатное"&gt;Стек (всё бесплатное)&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Роль&lt;/th&gt;
+					&lt;th&gt;Лицензия&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Liquidsoap&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Планировщик и микшер потоков&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Icecast2&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Стриминг-сервер (HTTP audio stream)&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Snapcast&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Синхронное мультизональное воспроизведение&lt;/td&gt;
+					&lt;td&gt;GPL-3.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;MPD&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Плеер на зональном клиенте&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Mopidy&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;MPD + Spotify/Яндекс.Музыка плагины&lt;/td&gt;
+					&lt;td&gt;Apache-2.0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Asterisk MOH&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Прерывание музыки объявлением&lt;/td&gt;
+					&lt;td&gt;GPL-2.0&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура"&gt;Архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph SOURCES["Источники музыки"]
+ LOCAL["Локальные файлы\n/var/music/ (MP3/FLAC/OGG)"]
+ RADIO["Интернет-радио\nIcecast / Shoutcast URL"]
+ MOPIDY["Mopidy\nYandex Music / Last.fm"]
+ end
+
+ subgraph ENGINE["Движок (Liquidsoap)"]
+ SCHED["Планировщик\nпо времени / зоне / событию"]
+ DUCK["Audio Ducking\nприглушение при объявлении"]
+ MIX["Миксер\nJingle + Music + PA"]
+ end
+
+ subgraph STREAM["Раздача (Icecast2)"]
+ ZONE_A["Поток /zone-a\n128 kbps MP3"]
+ ZONE_B["Поток /zone-b"]
+ ZONE_LOBBY["Поток /lobby"]
+ ZONE_OUTDOOR["Поток /outdoor"]
+ end
+
+ subgraph ENDPOINTS["Клиенты (воспроизведение)"]
+ SNAP_CLIENT["Snapcast client\n(Raspberry Pi / ESP32-A1S)"]
+ SIP_PA["SIP PA-усилитель\n(Asterisk MOH channel)"]
+ AMP_IP["IP-усилитель\n(Algo / DIY)"]
+ BROWSER["Веб-браузер\n(для мониторинга)"]
+ end
+
+ subgraph PA["Приоритетные прерывания"]
+ AST["Asterisk\nобъявление / тревога"]
+ HA_PA["Home Assistant\nTTS-оповещение"]
+ end
+
+ SOURCES --&gt; ENGINE
+ PA --&gt;|DUCK сигнал| DUCK
+ ENGINE --&gt; STREAM
+ STREAM --&gt; SNAP_CLIENT &amp; SIP_PA &amp; AMP_IP &amp; BROWSER&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="liquidsoap--планировщик-потоков"&gt;Liquidsoap — планировщик потоков&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Liquidsoap&lt;/strong&gt; — язык программирования и рантайм для управления аудиопотоками. Всё что угодно: расписание, jingle&amp;rsquo;ы, кроссфейды, ducking при объявлениях.&lt;/p&gt;</description></item><item><title>Сетевой контроль доступа (NAC)</title><link>https://sayr777.github.io/shared/network-access/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/network-access/</guid><description>&lt;h1 id="сетевой-контроль-доступа-nac"&gt;Сетевой контроль доступа (NAC)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Пользователь подключается к WiFi или проводному порту → система идентифицирует его → автоматически помещает в нужный VLAN с соответствующими правами доступа к внутренним ресурсам и/или интернету.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="общая-архитектура"&gt;Общая архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph DEVICES["Устройства"]
+ PC["Ноутбук / ПК\n802.1X supplicant"]
+ PHONE["Телефон\nWPA2-Enterprise"]
+ GUEST_DEV["Гостевой девайс\nCapt. Portal / PSK"]
+ IOT["IoT-устройство\nMAC auth"]
+ end
+
+ subgraph NETWORK["Сетевая инфраструктура"]
+ SW["Managed Switch\nCisco / MikroTik / UniFi"]
+ AP["WiFi AP\nWPA2/3-Enterprise"]
+ FW["Firewall / Router\npfSense / OPNsense"]
+ end
+
+ subgraph AUTH["Аутентификация"]
+ RADIUS["FreeRADIUS\n802.1X + Dynamic VLAN"]
+ KC["Keycloak / LDAP\nпользователи и роли"]
+ CP["Captive Portal\nгостевая регистрация"]
+ end
+
+ subgraph VLANS["VLAN-сегменты"]
+ V_CORP["VLAN Corporate\nвнутренние ресурсы + интернет"]
+ V_MEDIA["VLAN Media\nтолько медиа-серверы"]
+ V_GUEST["VLAN Guest\nтолько интернет"]
+ V_IOT["VLAN IoT\nизолирован"]
+ V_MGMT["VLAN Management\nадмин"]
+ end
+
+ PC &amp; PHONE --&gt;|802.1X EAP| SW &amp; AP
+ GUEST_DEV --&gt;|Captive Portal| CP
+ IOT --&gt;|MAC auth| SW
+
+ SW &amp; AP --&gt;|RADIUS Access-Request| RADIUS
+ RADIUS --&gt;|LDAP / REST| KC
+ RADIUS --&gt;|Access-Accept + VLAN-ID| SW &amp; AP
+
+ SW &amp; AP --&gt; V_CORP &amp; V_MEDIA &amp; V_GUEST &amp; V_IOT &amp; V_MGMT
+ V_CORP &amp; V_MEDIA &amp; V_GUEST --&gt; FW
+ CP --&gt; V_GUEST&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="протокол-8021x--как-работает"&gt;Протокол 802.1X — как работает&lt;/h2&gt;
+&lt;div class="mermaid"&gt;sequenceDiagram
+ participant DEV as Устройство (supplicant)
+ participant SW as Коммутатор (authenticator)
+ participant RAD as FreeRADIUS
+ participant KC as Keycloak / LDAP
+
+ DEV-&gt;&gt;SW: EAPOL-Start
+ SW-&gt;&gt;DEV: EAP-Request/Identity
+ DEV-&gt;&gt;SW: EAP-Response/Identity (логин)
+ SW-&gt;&gt;RAD: RADIUS Access-Request (EAP)
+ RAD-&gt;&gt;KC: LDAP Bind / REST check
+ KC--&gt;&gt;RAD: пользователь валиден, роль=employee
+ RAD--&gt;&gt;SW: Access-Accept\n+ Tunnel-Type=VLAN\n+ Tunnel-Private-Group-Id=20
+ SW-&gt;&gt;DEV: EAP-Success
+ SW-&gt;&gt;SW: Port → VLAN 20 (Corporate)
+ DEV-&gt;&gt;SW: DHCP Request
+ SW--&gt;&gt;DEV: IP из пула VLAN 20&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="vlan-дизайн-по-проектам"&gt;VLAN-дизайн по проектам&lt;/h2&gt;
+&lt;h3 id="tenantpass-корпоративный-объект"&gt;TenantPass (корпоративный объект)&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;VLAN&lt;/th&gt;
+					&lt;th&gt;ID&lt;/th&gt;
+					&lt;th&gt;Доступ&lt;/th&gt;
+					&lt;th&gt;Кому&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Management&lt;/td&gt;
+					&lt;td&gt;10&lt;/td&gt;
+					&lt;td&gt;Только сетевое оборудование&lt;/td&gt;
+					&lt;td&gt;Только admin&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Corporate&lt;/td&gt;
+					&lt;td&gt;20&lt;/td&gt;
+					&lt;td&gt;Внутренние сервисы + интернет&lt;/td&gt;
+					&lt;td&gt;Сотрудники&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Business&lt;/td&gt;
+					&lt;td&gt;30&lt;/td&gt;
+					&lt;td&gt;Только бизнес-системы (без интернета)&lt;/td&gt;
+					&lt;td&gt;Ограниченные роли&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Contractor&lt;/td&gt;
+					&lt;td&gt;40&lt;/td&gt;
+					&lt;td&gt;Только нужные сервисы (whitelist)&lt;/td&gt;
+					&lt;td&gt;Подрядчики&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Guest&lt;/td&gt;
+					&lt;td&gt;50&lt;/td&gt;
+					&lt;td&gt;Только интернет, изолирован&lt;/td&gt;
+					&lt;td&gt;Посетители&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;IoT&lt;/td&gt;
+					&lt;td&gt;60&lt;/td&gt;
+					&lt;td&gt;Только Keycloak + СКУД-сервер&lt;/td&gt;
+					&lt;td&gt;Терминалы, камеры&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Quarantine&lt;/td&gt;
+					&lt;td&gt;99&lt;/td&gt;
+					&lt;td&gt;Captive Portal + страница &amp;ldquo;обратитесь к IT&amp;rdquo;&lt;/td&gt;
+					&lt;td&gt;Неизвестные устройства&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="homepass-частный-дом"&gt;HomePass (частный дом)&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;VLAN&lt;/th&gt;
+					&lt;th&gt;ID&lt;/th&gt;
+					&lt;th&gt;Доступ&lt;/th&gt;
+					&lt;th&gt;Кому&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Trusted&lt;/td&gt;
+					&lt;td&gt;10&lt;/td&gt;
+					&lt;td&gt;Всё (NAS, HA, Plex, интернет)&lt;/td&gt;
+					&lt;td&gt;Семья&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;IoT&lt;/td&gt;
+					&lt;td&gt;20&lt;/td&gt;
+					&lt;td&gt;Только Home Assistant (нет интернета)&lt;/td&gt;
+					&lt;td&gt;Камеры, датчики, ESP32&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Guest&lt;/td&gt;
+					&lt;td&gt;30&lt;/td&gt;
+					&lt;td&gt;Только интернет (нет NAS, нет HA)&lt;/td&gt;
+					&lt;td&gt;Гости, уборщица&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Contractor&lt;/td&gt;
+					&lt;td&gt;40&lt;/td&gt;
+					&lt;td&gt;Интернет + конкретный сервис&lt;/td&gt;
+					&lt;td&gt;Подрядчики&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Management&lt;/td&gt;
+					&lt;td&gt;99&lt;/td&gt;
+					&lt;td&gt;Весь стек&lt;/td&gt;
+					&lt;td&gt;Хозяин (отдельный SSID)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="eventpass-мероприятие"&gt;EventPass (мероприятие)&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;VLAN&lt;/th&gt;
+					&lt;th&gt;ID&lt;/th&gt;
+					&lt;th&gt;Доступ&lt;/th&gt;
+					&lt;th&gt;Кому&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Staff&lt;/td&gt;
+					&lt;td&gt;10&lt;/td&gt;
+					&lt;td&gt;EventPass API + PA + камеры&lt;/td&gt;
+					&lt;td&gt;Организаторы, охрана&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;AV/Tech&lt;/td&gt;
+					&lt;td&gt;20&lt;/td&gt;
+					&lt;td&gt;PA, дисплеи, стриминг (без интернета)&lt;/td&gt;
+					&lt;td&gt;Тех. персонал&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Payments&lt;/td&gt;
+					&lt;td&gt;30&lt;/td&gt;
+					&lt;td&gt;Только PCI-DSS эквайринг (изолирован)&lt;/td&gt;
+					&lt;td&gt;Кассы&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Attendees&lt;/td&gt;
+					&lt;td&gt;40&lt;/td&gt;
+					&lt;td&gt;Только интернет, 5 Мбит/чел&lt;/td&gt;
+					&lt;td&gt;Гости (Captive Portal)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Cameras&lt;/td&gt;
+					&lt;td&gt;50&lt;/td&gt;
+					&lt;td&gt;Только NVR&lt;/td&gt;
+					&lt;td&gt;Камеры&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="freeradius--конфигурация"&gt;FreeRADIUS — конфигурация&lt;/h2&gt;
+&lt;h3 id="установка"&gt;Установка&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Ubuntu 22.04&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;apt-get install freeradius freeradius-ldap freeradius-rest
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Конфиги&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;/etc/freeradius/3.0/
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; clients.conf &lt;span style="color:#75715e"&gt;# коммутаторы/AP (shared secret)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; users &lt;span style="color:#75715e"&gt;# статические пользователи (тест)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; mods-enabled/
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ldap &lt;span style="color:#75715e"&gt;# интеграция с Keycloak/LDAP&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; rest &lt;span style="color:#75715e"&gt;# интеграция с REST API&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; sites-enabled/
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; default &lt;span style="color:#75715e"&gt;# основной virtual server&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; inner-tunnel &lt;span style="color:#75715e"&gt;# для PEAP/TTLS&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="clientsconf--регистрация-коммутаторов-и-ap"&gt;clients.conf — регистрация коммутаторов и AP&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;# /etc/freeradius/3.0/clients.conf
+
+# Managed switch (Cisco / MikroTik / UniFi)
+client switch-floor1 {
+ ipaddr = 192.168.1.10
+ secret = VeryStr0ngSharedSecret!
+ shortname = switch-floor1
+ nas_type = cisco
+}
+
+client unifi-ap-office {
+ ipaddr = 192.168.1.11
+ secret = VeryStr0ngSharedSecret!
+ shortname = ap-office
+}
+
+# Подсеть для всех UniFi AP
+client unifi-subnet {
+ ipaddr = 192.168.1.0/24
+ secret = VeryStr0ngSharedSecret!
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="интеграция-с-keycloak-через-ldap"&gt;Интеграция с Keycloak через LDAP&lt;/h3&gt;
+&lt;p&gt;Keycloak умеет выступать LDAP-провайдером для FreeRADIUS.&lt;/p&gt;</description></item><item><title>Система видеонаблюдения — общее решение</title><link>https://sayr777.github.io/shared/video-surveillance/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/video-surveillance/</guid><description>&lt;h1 id="система-видеонаблюдения--общее-решение"&gt;Система видеонаблюдения — общее решение&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектурные-уровни"&gt;Архитектурные уровни&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph EDGE["Edge — камеры"]
+ CAM_IP["IP-камера\nRTSP stream"]
+ CAM_ESP["ESP32-CAM\n(бюджет)"]
+ DOOR_CAM["Домофонная камера\nDahua / Hikvision"]
+ end
+
+ subgraph NVR["NVR — запись и детекция"]
+ FRIGATE["Frigate NVR\n(open-source)"]
+ CORAL["Google Coral TPU\nAI-ускорение"]
+ STORE[("Хранилище\nHDD / SSD / NAS")]
+ end
+
+ subgraph ANALYTICS["Аналитика и распознавание"]
+ DOUBLE_TAKE["Double Take\nраспознавание лиц"]
+ LLAVA["LLaVA / Ollama\nvision-анализ событий"]
+ CLIP_GEN["Генератор описаний\nдля журнала"]
+ end
+
+ subgraph CONSUMER["Потребители"]
+ HA["Home Assistant\nавтоматизации"]
+ WEB["Веб-интерфейс\nFrigate UI"]
+ TV["ТВ-дашборд\nкасты клипов"]
+ ALERTS["Push-уведомления\nна телефон"]
+ ACS["СКУД / EventPass\nфото к событию входа"]
+ end
+
+ CAM_IP &amp; CAM_ESP &amp; DOOR_CAM --&gt;|RTSP| FRIGATE
+ FRIGATE --&gt; CORAL
+ FRIGATE --&gt; STORE
+ FRIGATE --&gt;|события + клипы| HA
+ HA --&gt; TV &amp; ALERTS &amp; ACS
+ FRIGATE --&gt; DOUBLE_TAKE --&gt; HA
+ FRIGATE --&gt; LLAVA --&gt; CLIP_GEN --&gt; HA
+ FRIGATE --&gt; WEB&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="frigate-nvr--ядро-системы"&gt;Frigate NVR — ядро системы&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Frigate&lt;/strong&gt; — open-source NVR с встроенным AI-детектором объектов (YOLO).&lt;/p&gt;</description></item><item><title>Стратегия резервного копирования и DR (замечание 13)</title><link>https://sayr777.github.io/shared/backup-strategy/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/backup-strategy/</guid><description>&lt;h1 id="стратегия-резервного-копирования-и-dr-замечание-13"&gt;Стратегия резервного копирования и DR (замечание 13)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Backup &amp;amp; Disaster Recovery для всех проектов&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="матрица-компонентов-и-требований"&gt;Матрица компонентов и требований&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Проект&lt;/th&gt;
+					&lt;th&gt;Срок хранения&lt;/th&gt;
+					&lt;th&gt;RPO&lt;/th&gt;
+					&lt;th&gt;RTO&lt;/th&gt;
+					&lt;th&gt;Метод&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;PostgreSQL (config)&lt;/td&gt;
+					&lt;td&gt;TP/EP&lt;/td&gt;
+					&lt;td&gt;1 год&lt;/td&gt;
+					&lt;td&gt;1 ч&lt;/td&gt;
+					&lt;td&gt;4 ч&lt;/td&gt;
+					&lt;td&gt;pg_dump + WAL&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;PostgreSQL (audit)&lt;/td&gt;
+					&lt;td&gt;TP/EP&lt;/td&gt;
+					&lt;td&gt;5 лет&lt;/td&gt;
+					&lt;td&gt;1 ч&lt;/td&gt;
+					&lt;td&gt;8 ч&lt;/td&gt;
+					&lt;td&gt;pg_dump + WAL&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Keycloak (realm)&lt;/td&gt;
+					&lt;td&gt;TP/EP&lt;/td&gt;
+					&lt;td&gt;1 год&lt;/td&gt;
+					&lt;td&gt;4 ч&lt;/td&gt;
+					&lt;td&gt;4 ч&lt;/td&gt;
+					&lt;td&gt;KC export + DB dump&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Home Assistant&lt;/td&gt;
+					&lt;td&gt;HP&lt;/td&gt;
+					&lt;td&gt;6 мес&lt;/td&gt;
+					&lt;td&gt;24 ч&lt;/td&gt;
+					&lt;td&gt;2 ч&lt;/td&gt;
+					&lt;td&gt;HA built-in backup&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Frigate NVR видео&lt;/td&gt;
+					&lt;td&gt;Все&lt;/td&gt;
+					&lt;td&gt;30 дней&lt;/td&gt;
+					&lt;td&gt;0 ч&lt;/td&gt;
+					&lt;td&gt;0 ч&lt;/td&gt;
+					&lt;td&gt;RAID1 / NAS&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ESPHome конфиги&lt;/td&gt;
+					&lt;td&gt;HP&lt;/td&gt;
+					&lt;td&gt;Бессрочно&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;15 мин&lt;/td&gt;
+					&lt;td&gt;Git&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ClickHouse&lt;/td&gt;
+					&lt;td&gt;EP&lt;/td&gt;
+					&lt;td&gt;2 года&lt;/td&gt;
+					&lt;td&gt;6 ч&lt;/td&gt;
+					&lt;td&gt;24 ч&lt;/td&gt;
+					&lt;td&gt;ch-backup&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;em&gt;RPO = Recovery Point Objective (максимальная потеря данных), RTO = Recovery Time Objective (время восстановления)&lt;/em&gt;&lt;/p&gt;</description></item><item><title>Топология Keycloak (замечание 14)</title><link>https://sayr777.github.io/shared/keycloak-topology/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/keycloak-topology/</guid><description>&lt;h1 id="топология-keycloak-замечание-14"&gt;Топология Keycloak (замечание 14)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Shared vs отдельный Keycloak для каждого проекта&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="решение-отдельные-реалмы-один-кластер"&gt;Решение: отдельные реалмы, один кластер&lt;/h2&gt;
+&lt;p&gt;Один кластер Keycloak, три изолированных realm:&lt;/p&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph KC["Keycloak Cluster (2 ноды HA)"]
+ REALM_TP["Realm: tenantpass\nОрганизации = арендаторы\nUsers = сотрудники"]
+ REALM_EP["Realm: eventpass\nОрганизации = мероприятия\nUsers = участники/организаторы"]
+ REALM_MASTER["Realm: master\nТолько admin-операции\nне используется для auth"]
+ DB_KC["PostgreSQL\nKeycloak DB\n(отдельная от app БД)"]
+ end
+
+ TP_API["TenantPass API"] --&gt; REALM_TP
+ EP_API["EventPass API"] --&gt; REALM_EP
+ ADMIN["Keycloak Admin"] --&gt; REALM_MASTER
+
+ KC --- DB_KC&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="почему-один-кластер-а-не-три-инстанса"&gt;Почему один кластер, а не три инстанса&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Критерий&lt;/th&gt;
+					&lt;th&gt;Три инстанса&lt;/th&gt;
+					&lt;th&gt;Один кластер, три realm&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Изоляция данных&lt;/td&gt;
+					&lt;td&gt;Полная&lt;/td&gt;
+					&lt;td&gt;Полная (realm = изолировано)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Ресурсы&lt;/td&gt;
+					&lt;td&gt;3×RAM (3×512 МБ min)&lt;/td&gt;
+					&lt;td&gt;1×RAM (1–2 ГБ)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Обновления&lt;/td&gt;
+					&lt;td&gt;3 отдельных деплоя&lt;/td&gt;
+					&lt;td&gt;Один деплой&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Мониторинг&lt;/td&gt;
+					&lt;td&gt;3 набора метрик&lt;/td&gt;
+					&lt;td&gt;Один набор&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;SPOF&lt;/td&gt;
+					&lt;td&gt;Три SPOF вместо одного&lt;/td&gt;
+					&lt;td&gt;Один SPOF → решить через HA&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Рекомендация&lt;/td&gt;
+					&lt;td&gt;Enterprise с разными физическими зонами&lt;/td&gt;
+					&lt;td&gt;✅ Для стартапа/MVP&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="высокая-доступность-keycloak-2-ноды"&gt;Высокая доступность Keycloak (2 ноды)&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# docker-compose.keycloak-ha.yml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;services&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;keycloak-1&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;quay.io/keycloak/keycloak:23.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;environment&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_DB&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;postgres&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_DB_URL&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;jdbc:postgresql://postgres:5432/keycloak&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_DB_USERNAME&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;keycloak&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_DB_PASSWORD&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;secret&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_HOSTNAME&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;auth.tenantpass.ru&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_HTTP_ENABLED&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;true&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_PROXY&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;edge&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_CACHE&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;ispn &lt;/span&gt; &lt;span style="color:#75715e"&gt;# Infinispan distributed cache&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;KC_CACHE_STACK&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;kubernetes &lt;/span&gt; &lt;span style="color:#75715e"&gt;# или &amp;#39;tcp&amp;#39; для Docker&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;JGROUPS_DISCOVERY_PROTOCOL&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;TCPPING&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;JGROUPS_DISCOVERY_INITIAL_HOSTS&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;keycloak-1[7600],keycloak-2[7600]&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;command&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;start&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ports&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#34;8080&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;networks&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;keycloak_net&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;keycloak-2&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;quay.io/keycloak/keycloak:23.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;environment&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Те же переменные что и keycloak-1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;JGROUPS_DISCOVERY_INITIAL_HOSTS&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;keycloak-1[7600],keycloak-2[7600]&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;command&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;start&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ports&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#34;8080&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;networks&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;keycloak_net&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;nginx-lb&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;nginx:alpine&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;volumes&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;./nginx-kc.conf:/etc/nginx/conf.d/default.conf&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ports&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#e6db74"&gt;&amp;#34;443:443&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;depends_on&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;keycloak-1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#ae81ff"&gt;keycloak-2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;postgres&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;image&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;postgres:15&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;environment&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;POSTGRES_DB&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;keycloak&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;POSTGRES_USER&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;keycloak&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;POSTGRES_PASSWORD&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;secret&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;networks&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;keycloak_net&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-nginx" data-lang="nginx"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# nginx-kc.conf — балансировка между двумя нодами
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;upstream&lt;/span&gt; &lt;span style="color:#e6db74"&gt;keycloak&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;least_conn&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;server&lt;/span&gt; keycloak-1:&lt;span style="color:#ae81ff"&gt;8080&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;server&lt;/span&gt; keycloak-2:&lt;span style="color:#ae81ff"&gt;8080&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;keepalive&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;32&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;server&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;listen&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;443&lt;/span&gt; &lt;span style="color:#e6db74"&gt;ssl&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;server_name&lt;/span&gt; &lt;span style="color:#e6db74"&gt;auth.tenantpass.ru&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ssl_certificate&lt;/span&gt; &lt;span style="color:#e6db74"&gt;/etc/ssl/certs/tenantpass.crt&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ssl_certificate_key&lt;/span&gt; &lt;span style="color:#e6db74"&gt;/etc/ssl/private/tenantpass.key&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;location&lt;/span&gt; &lt;span style="color:#e6db74"&gt;/&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;proxy_pass&lt;/span&gt; &lt;span style="color:#e6db74"&gt;http://keycloak&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;proxy_set_header&lt;/span&gt; &lt;span style="color:#e6db74"&gt;X-Forwarded-For&lt;/span&gt; $remote_addr;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;proxy_set_header&lt;/span&gt; &lt;span style="color:#e6db74"&gt;X-Forwarded-Proto&lt;/span&gt; &lt;span style="color:#e6db74"&gt;https&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;proxy_set_header&lt;/span&gt; &lt;span style="color:#e6db74"&gt;Host&lt;/span&gt; $host;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; }
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="realm-конфигурация"&gt;Realm-конфигурация&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Создание realm через Keycloak Admin CLI&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# TenantPass realm&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;kcadm.sh create realms -s realm&lt;span style="color:#f92672"&gt;=&lt;/span&gt;tenantpass -s enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;true &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -s ssoSessionMaxLifespan&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;28800&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -s accessTokenLifespan&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;300&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -s organizations&lt;span style="color:#f92672"&gt;=&lt;/span&gt;true &lt;span style="color:#75715e"&gt;# включить Organizations (multi-tenancy)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# EventPass realm&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;kcadm.sh create realms -s realm&lt;span style="color:#f92672"&gt;=&lt;/span&gt;eventpass -s enabled&lt;span style="color:#f92672"&gt;=&lt;/span&gt;true &lt;span style="color:#ae81ff"&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -s ssoSessionMaxLifespan&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;86400&lt;/span&gt; &lt;span style="color:#ae81ff"&gt;\ &lt;/span&gt; &lt;span style="color:#75715e"&gt;# билет на сутки&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; -s accessTokenLifespan&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;600&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="homepass-отдельный-keycloak-не-нужен"&gt;HomePass: отдельный Keycloak не нужен&lt;/h2&gt;
+&lt;p&gt;HomePass использует &lt;strong&gt;Home Assistant&lt;/strong&gt; как единственный IdP:&lt;/p&gt;</description></item><item><title>Умная розетка</title><link>https://sayr777.github.io/shared/smart-plug/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/smart-plug/</guid><description>&lt;h1 id="умная-розетка"&gt;Умная розетка&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек"&gt;Стек&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Устройство&lt;/th&gt;
+					&lt;th&gt;Мощность&lt;/th&gt;
+					&lt;th&gt;Мониторинг&lt;/th&gt;
+					&lt;th&gt;Протокол&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Shelly Plug S&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;2.5 кВт&lt;/td&gt;
+					&lt;td&gt;✅ Вт + кВт·ч&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~1 800 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Sonoff S26R2&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;2.3 кВт&lt;/td&gt;
+					&lt;td&gt;❌&lt;/td&gt;
+					&lt;td&gt;WiFi → Tasmota&lt;/td&gt;
+					&lt;td&gt;~500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Sonoff S31&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;2.3 кВт&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;WiFi → Tasmota&lt;/td&gt;
+					&lt;td&gt;~700 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Xiaomi Mijia (Zigbee)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;2.2 кВт&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Zigbee&lt;/td&gt;
+					&lt;td&gt;~800 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Gosund EP25&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;3.5 кВт&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;WiFi → Tasmota&lt;/td&gt;
+					&lt;td&gt;~700 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ESP-01S + реле DIY&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;До 16А&lt;/td&gt;
+					&lt;td&gt;❌ (только реле)&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~250 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DIN-рейка: Shelly Pro 4PM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;4 × 16А&lt;/td&gt;
+					&lt;td&gt;✅ × 4&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~5 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="tasmota-на-sonoff-s26--s31"&gt;Tasmota на Sonoff S26 / S31&lt;/h2&gt;
+&lt;p&gt;Sonoff выпускает устройства на ESP8266 — прошиваются Tasmota без пайки.&lt;/p&gt;</description></item><item><title>Умный выключатель / реле</title><link>https://sayr777.github.io/shared/smart-switch/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/smart-switch/</guid><description>&lt;h1 id="умный-выключатель--реле"&gt;Умный выключатель / реле&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек"&gt;Стек&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Устройство&lt;/th&gt;
+					&lt;th&gt;Тип&lt;/th&gt;
+					&lt;th&gt;Протокол&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Shelly 1PM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;DIN-рейка / в подрозетник&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~1 500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Shelly 2.5&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;2 канала + контроль тока&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~2 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Sonoff ZBMINIL2&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;В подрозетник без нейтрали&lt;/td&gt;
+					&lt;td&gt;Zigbee&lt;/td&gt;
+					&lt;td&gt;~700 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Sonoff BASICR4&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Общего назначения&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ESP32 + реле&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;DIY, любой формат&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~300 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ESP32 + SSR&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;DIY, симисторный (без шума, AC)&lt;/td&gt;
+					&lt;td&gt;WiFi&lt;/td&gt;
+					&lt;td&gt;~400 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;MeanWell + Wago&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Din-рейка, промышленный&lt;/td&gt;
+					&lt;td&gt;Modbus&lt;/td&gt;
+					&lt;td&gt;~1 500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура"&gt;Архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph SWITCHES["Выключатели"]
+ SHELLY["Shelly 1PM\nWiFi + Tasmota"]
+ SONOFF_ZB["Sonoff ZBMINIL2\nZigbee (без нейтрали)"]
+ ESP_RELAY["ESP32 + реле\nESPHome DIY"]
+ SSR["SSR (симистор)\nтихое переключение AC"]
+ end
+
+ subgraph PROTOCOL["Протокол"]
+ MQTT["MQTT\n(Mosquitto broker)"]
+ ZB2M["Zigbee2MQTT"]
+ NATIVE["ESPHome native API"]
+ end
+
+ subgraph HA["Home Assistant"]
+ LIGHT["light entity\nвыключатель освещения"]
+ SWITCH_E["switch entity\nобщее назначение"]
+ CLIMATE_SW["Управление климатом\nчерез реле"]
+ end
+
+ SHELLY --&gt;|MQTT / native| MQTT &amp; NATIVE --&gt; HA
+ SONOFF_ZB --&gt; ZB2M --&gt; HA
+ ESP_RELAY --&gt; NATIVE --&gt; HA&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="esphome--diy-реле-esp32--1-канал"&gt;ESPHome — DIY реле (ESP32 + 1 канал)&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/relay-single.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;esphome&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay-boiler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;ESP32&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;board&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;esp32dev&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;wifi&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ssid&lt;/span&gt;: !&lt;span style="color:#ae81ff"&gt;secret wifi_ssid&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;password&lt;/span&gt;: !&lt;span style="color:#ae81ff"&gt;secret wifi_password&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;api&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;encryption&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;key&lt;/span&gt;: !&lt;span style="color:#ae81ff"&gt;secret api_key&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;switch&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Котёл — питание&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;number&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO26&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;inverted&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;false&lt;/span&gt; &lt;span style="color:#75715e"&gt;# HIGH = включено (для большинства реле-модулей)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;restore_mode&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;RESTORE_DEFAULT_OFF &lt;/span&gt; &lt;span style="color:#75715e"&gt;# при перезагрузке выключить&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Физическая кнопка управления (опционально)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;binary_sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;number&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;mode&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;INPUT_PULLUP&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;inverted&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Кнопка котёл&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;on_press&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.toggle&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_boiler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="esphome--8-канальный-щиток"&gt;ESPHome — 8-канальный щиток&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/relay-8ch.yaml — силовой щит 8 каналов&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;switch&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Свет: гостиная&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO32&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Свет: кухня&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO33&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_3&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подогрев труб: гараж&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO25&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_4&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Насос: полив&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO26&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_5&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Вентилятор: серверная&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO27&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_6&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Бойлер ГВС&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO14&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_7&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Тёплый пол: ванная&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO12&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;relay_8&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Резерв&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO13&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="shelly-1pm--в-подрозетник-с-мониторингом-мощности"&gt;Shelly 1PM — в подрозетник с мониторингом мощности&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Home Assistant: Shelly 1PM автоматически создаёт:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# switch.shelly_1pm_boiler — управление&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# sensor.shelly_1pm_boiler_power — мощность (Вт)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# sensor.shelly_1pm_boiler_energy — потребление (кВт·ч)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Удобно для:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - Отслеживания когда именно работает котёл&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - Биллинга по потреблению котла&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - Защиты от перегрева (мощность резко выросла → выключить)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="sonoff-zbminil2--zigbee-без-нейтрали"&gt;Sonoff ZBMINIL2 — Zigbee без нейтрали&lt;/h2&gt;
+&lt;p&gt;Важная особенность: работает в двухпроводной цепи (без нейтрального провода). Идеально для переделки старой проводки.&lt;/p&gt;</description></item><item><title>Умный датчик температуры и влажности</title><link>https://sayr777.github.io/shared/smart-meter-temp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/smart-meter-temp/</guid><description>&lt;h1 id="умный-датчик-температуры-и-влажности"&gt;Умный датчик температуры и влажности&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек"&gt;Стек&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Сенсор&lt;/th&gt;
+					&lt;th&gt;Применение&lt;/th&gt;
+					&lt;th&gt;Точность&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DS18B20&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Трубы, котёл, баня, уличный&lt;/td&gt;
+					&lt;td&gt;±0.5°C&lt;/td&gt;
+					&lt;td&gt;~80 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DHT22 / AM2302&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Помещения: темп + влажность&lt;/td&gt;
+					&lt;td&gt;±0.5°C / ±2%&lt;/td&gt;
+					&lt;td&gt;~120 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;BME280&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Помещения: темп + влажн + давление&lt;/td&gt;
+					&lt;td&gt;±1°C / ±3%&lt;/td&gt;
+					&lt;td&gt;~150 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;BME680&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Качество воздуха + VOC&lt;/td&gt;
+					&lt;td&gt;±1°C&lt;/td&gt;
+					&lt;td&gt;~400 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;SHT31&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Точные измерения (I2C)&lt;/td&gt;
+					&lt;td&gt;±0.3°C / ±2%&lt;/td&gt;
+					&lt;td&gt;~300 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;MAX6675 / MAX31855&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Высокая температура: баня, котёл (до 1024°C)&lt;/td&gt;
+					&lt;td&gt;±2°C&lt;/td&gt;
+					&lt;td&gt;~200 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;NTC 10кОм&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Тёплый пол, котёл, холодильник&lt;/td&gt;
+					&lt;td&gt;±1°C&lt;/td&gt;
+					&lt;td&gt;~30 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Aqara WSDCGQ11LM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Zigbee, готовое устройство&lt;/td&gt;
+					&lt;td&gt;±0.3°C&lt;/td&gt;
+					&lt;td&gt;~900 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;SONOFF SNZB-02&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Zigbee, дёшево&lt;/td&gt;
+					&lt;td&gt;±0.5°C&lt;/td&gt;
+					&lt;td&gt;~400 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура"&gt;Архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph SENSORS["Датчики"]
+ DS18["DS18B20\nOneWire / шина"]
+ DHT["DHT22\nGPIO"]
+ BME["BME280/680\nI2C"]
+ ZB["Zigbee-датчик\nAqara / SONOFF"]
+ MAX["MAX6675\nSPI (высокая t°)"]
+ end
+
+ subgraph BRIDGE["Шлюз"]
+ ESPH["ESP32 + ESPHome\nWiFi → HA"]
+ ZB2M["Zigbee2MQTT\n(Zigbee-координатор)"]
+ end
+
+ subgraph HA["Home Assistant"]
+ CLIMATE["Climate entities\nтермостаты"]
+ ALERT["Автоматизации\nморозозащита / перегрев"]
+ ENERGY_CORR["Корреляция с энергией\n'котёл работает когда -15°C'"]
+ end
+
+ DS18 &amp; DHT &amp; BME &amp; MAX --&gt; ESPH --&gt; HA
+ ZB --&gt; ZB2M --&gt; HA
+ HA --&gt; CLIMATE &amp; ALERT &amp; ENERGY_CORR&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="esphome--однопроводная-шина-ds18b20"&gt;ESPHome — однопроводная шина DS18B20&lt;/h2&gt;
+&lt;p&gt;DS18B20 — самый универсальный: водозащищённый корпус, работает в диапазоне −55…+125°C, несколько датчиков на одном проводе.&lt;/p&gt;</description></item><item><title>Умный счётчик электроэнергии</title><link>https://sayr777.github.io/shared/smart-meter-energy/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/smart-meter-energy/</guid><description>&lt;h1 id="умный-счётчик-электроэнергии"&gt;Умный счётчик электроэнергии&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек-всё-бесплатное--дешёвое-железо"&gt;Стек (всё бесплатное / дешёвое железо)&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Роль&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;PZEM-004T v3&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Однофазный счётчик, UART/Modbus&lt;/td&gt;
+					&lt;td&gt;~400 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;PZEM-017&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;DC-счётчик (АКБ / солнечные панели)&lt;/td&gt;
+					&lt;td&gt;~500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;SDM120-Modbus&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;DIN-рейка, однофазный, профессиональный&lt;/td&gt;
+					&lt;td&gt;~1 500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;SDM630-Modbus&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;DIN-рейка, трёхфазный&lt;/td&gt;
+					&lt;td&gt;~3 500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Меркурий 206 / 230&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Российский счётчик, RS-485&lt;/td&gt;
+					&lt;td&gt;~3 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ESP32 + ESPHome&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Мост Modbus/UART → WiFi → HA&lt;/td&gt;
+					&lt;td&gt;~300 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Shelly EM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Готовый WiFi, CT-клещи&lt;/td&gt;
+					&lt;td&gt;~2 500 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Home Assistant&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Хранение, аналитика, автоматизации&lt;/td&gt;
+					&lt;td&gt;0 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура"&gt;Архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph METERS["Счётчики / сенсоры"]
+ PZEM["PZEM-004T v3\nUART/Modbus"]
+ SDM["SDM630\n3-фазный Modbus"]
+ MERCURY["Меркурий 230\nRS-485"]
+ SHELLY["Shelly EM\nCT-клещи WiFi"]
+ PZEM_DC["PZEM-017\nDC (АКБ/солнце)"]
+ end
+
+ subgraph BRIDGE["Шлюз"]
+ ESP_MOD["ESP32 + ESPHome\nModbus RTU → WiFi"]
+ RS485["MAX485 / TTL→RS485\nпреобразователь"]
+ end
+
+ subgraph HA["Home Assistant"]
+ ENERGY["Energy Dashboard\nнативный дашборд"]
+ STATS["Statistics\nкВт·ч по периодам"]
+ ALERT["Автоматизации\nалерты / управление"]
+ end
+
+ subgraph BILLING["Биллинг"]
+ LAGO["Lago\nUsage Events"]
+ C1["1С:Бухгалтерия"]
+ end
+
+ PZEM &amp; PZEM_DC --&gt;|UART| ESP_MOD
+ SDM &amp; MERCURY --&gt;|RS-485| RS485 --&gt; ESP_MOD
+ ESP_MOD --&gt;|ESPHome native API| HA
+ SHELLY --&gt;|WiFi / MQTT| HA
+ HA --&gt; BILLING&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="pzem-004t-v3--самый-дешёвый-вариант"&gt;PZEM-004T v3 — самый дешёвый вариант&lt;/h2&gt;
+&lt;p&gt;Модуль измеряет: напряжение, ток, мощность, энергию, частоту, cos φ. Точность ±0.5%.&lt;/p&gt;</description></item><item><title>Шлагбаумы и турникеты</title><link>https://sayr777.github.io/shared/smart-barriers/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/smart-barriers/</guid><description>&lt;h1 id="шлагбаумы-и-турникеты"&gt;Шлагбаумы и турникеты&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="типы-заградительных-устройств"&gt;Типы заградительных устройств&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph VEHICLE["Для автомобилей"]
+ BOOM["Шлагбаум (boom gate)\nCAME, NICE, FAAC, DoorHan"]
+ BOLLARD["Выдвижной боллард\nгидравлический/электрический"]
+ SPIKE["Шипы-антивозврат\nдля въезда/выезда в одном направлении"]
+ end
+
+ subgraph PEDESTRIAN["Для пешеходов"]
+ TURNSTILE_FULL["Полноростовой турникет\n(антипаника: складывается при пожаре)"]
+ TURNSTILE_WAIST["Поясной турникет\n(трипод)"]
+ SPEED_GATE["Speed gate\n(раздвижные лопасти)"]
+ SWING_GATE["Калитка с доводчиком\n(для инвалидов, велосипедов)"]
+ end
+
+ subgraph CTRL["Управление"]
+ ESP32["ESP32\n(dry contact / Wiegand)"]
+ CTRL_HW["Встроенный контроллер\nCAME ZL180N / ZBX7"]
+ HA["Home Assistant\n(автоматизация)"]
+ end
+
+ VEHICLE --&gt; CTRL
+ PEDESTRIAN --&gt; CTRL&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="шлагбаумы-популярные-модели"&gt;Шлагбаумы: популярные модели&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Модель&lt;/th&gt;
+					&lt;th&gt;Длина стрелы&lt;/th&gt;
+					&lt;th&gt;Время&lt;/th&gt;
+					&lt;th&gt;Интерфейс&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DoorHan Barrier 4000&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;4 м&lt;/td&gt;
+					&lt;td&gt;4 сек&lt;/td&gt;
+					&lt;td&gt;Dry contact&lt;/td&gt;
+					&lt;td&gt;~25 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;DoorHan Barrier 6000&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;6 м&lt;/td&gt;
+					&lt;td&gt;6 сек&lt;/td&gt;
+					&lt;td&gt;Dry contact&lt;/td&gt;
+					&lt;td&gt;~35 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;CAME GARD 4&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;4 м&lt;/td&gt;
+					&lt;td&gt;3 сек&lt;/td&gt;
+					&lt;td&gt;CAN / dry contact&lt;/td&gt;
+					&lt;td&gt;~40 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;NICE PST6B&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;6 м&lt;/td&gt;
+					&lt;td&gt;6 сек&lt;/td&gt;
+					&lt;td&gt;Dry contact&lt;/td&gt;
+					&lt;td&gt;~45 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;CAME GARD 8&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;8 м&lt;/td&gt;
+					&lt;td&gt;8 сек&lt;/td&gt;
+					&lt;td&gt;CAN&lt;/td&gt;
+					&lt;td&gt;~55 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="турникеты"&gt;Турникеты&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Тип&lt;/th&gt;
+					&lt;th&gt;Модель&lt;/th&gt;
+					&lt;th&gt;Применение&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Трипод&lt;/td&gt;
+					&lt;td&gt;PERCo TTR-08&lt;/td&gt;
+					&lt;td&gt;КПП офис&lt;/td&gt;
+					&lt;td&gt;~25 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Трипод дешёвый&lt;/td&gt;
+					&lt;td&gt;Вектор ТRIOD-110&lt;/td&gt;
+					&lt;td&gt;Стройплощадка&lt;/td&gt;
+					&lt;td&gt;~18 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Полноростовой&lt;/td&gt;
+					&lt;td&gt;PERCo RTD-15&lt;/td&gt;
+					&lt;td&gt;Стадион, завод&lt;/td&gt;
+					&lt;td&gt;~60 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Speed gate&lt;/td&gt;
+					&lt;td&gt;CARDDEX STR-04M&lt;/td&gt;
+					&lt;td&gt;Бизнес-центр&lt;/td&gt;
+					&lt;td&gt;~120 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Раздвижная калитка&lt;/td&gt;
+					&lt;td&gt;CAME FERNI&lt;/td&gt;
+					&lt;td&gt;Для инвалидов рядом с турникетом&lt;/td&gt;
+					&lt;td&gt;~30 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="управление-шлагбаумом-через-esp32"&gt;Управление шлагбаумом через ESP32&lt;/h2&gt;
+&lt;p&gt;Большинство шлагбаумов управляются &lt;strong&gt;dry contact&lt;/strong&gt; (сухой контакт реле):&lt;/p&gt;</description></item><item><title>Электромеханические замки</title><link>https://sayr777.github.io/shared/smart-locks/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/shared/smart-locks/</guid><description>&lt;h1 id="электромеханические-замки"&gt;Электромеханические замки&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Применяется во всех проектах: TenantPass, HomePass, EventPass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="типы-замков"&gt;Типы замков&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph ELECTRIC["По принципу работы"]
+ ELMAGNET["Электромагнитный\n(удерживающий)"]
+ ELSTRIKE["Электрозащёлка\n(электромеханический ответник)"]
+ MOTOR["Моторный замок\n(электронный замок)"]
+ SOLENOID["Соленоидный\n(засов с приводом)"]
+ DEADBOLT["Умный дедболт\n(retrofit на стандартный замок)"]
+ end
+
+ subgraph FAIL["Режим при отключении питания"]
+ FO["Fail-Open\n(нормально открыт)\nэвакуация"]
+ FC["Fail-Closed\n(нормально закрыт)\nбезопасность"]
+ end
+
+ ELMAGNET --&gt;|при подаче тока: закрыт| FC
+ ELMAGNET --&gt;|при отключении: открывается| FO
+ ELSTRIKE --&gt; FO
+ MOTOR --&gt; FC
+ SOLENOID --&gt; FC
+ DEADBOLT --&gt; FC&lt;/div&gt;
+
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Тип&lt;/th&gt;
+					&lt;th&gt;Fail-safe&lt;/th&gt;
+					&lt;th&gt;Применение&lt;/th&gt;
+					&lt;th&gt;Цена&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Электромагнитный&lt;/td&gt;
+					&lt;td&gt;Fail-Open&lt;/td&gt;
+					&lt;td&gt;Эвакуационные двери, офис&lt;/td&gt;
+					&lt;td&gt;~1 500–5 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Электрозащёлка&lt;/td&gt;
+					&lt;td&gt;Fail-Open&lt;/td&gt;
+					&lt;td&gt;Калитка, входная дверь&lt;/td&gt;
+					&lt;td&gt;~800–3 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Моторный (ABLOY, CISA)&lt;/td&gt;
+					&lt;td&gt;Fail-Closed&lt;/td&gt;
+					&lt;td&gt;Основная дверь, сейф-зоны&lt;/td&gt;
+					&lt;td&gt;~5 000–30 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Соленоидный засов&lt;/td&gt;
+					&lt;td&gt;Fail-Closed&lt;/td&gt;
+					&lt;td&gt;Ворота, гараж&lt;/td&gt;
+					&lt;td&gt;~2 000–6 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Smart deadbolt (Nuki, Yale)&lt;/td&gt;
+					&lt;td&gt;Fail-Closed&lt;/td&gt;
+					&lt;td&gt;Дом, офис (retrofit)&lt;/td&gt;
+					&lt;td&gt;~8 000–20 000 ₽&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура-управления"&gt;Архитектура управления&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph ID["Идентификация"]
+ RFID["RFID-считыватель\nWiegand 26/34"]
+ KEYPAD["Кодовая панель\nKeypad Wiegand"]
+ BLE["BLE-маяк\nESPresense"]
+ QR_SCAN["QR-сканер\nEventPass"]
+ BUTTON["Кнопка выхода\nизнутри"]
+ end
+
+ subgraph CTRL["Контроллер"]
+ ESP32["ESP32 + ESPHome\nWiegand decoder"]
+ WIEGAND_HW["Готовый контроллер\nZKTeco / Hikvision"]
+ end
+
+ subgraph LOCK["Исполнитель"]
+ RELAY["Реле / MOSFET\n12V/24V"]
+ LOCK_HW["Замок / защёлка / магнит"]
+ DOOR_SENSOR["Геркон\n(дверь открыта/закрыта)"]
+ end
+
+ subgraph ACS["Решение"]
+ KC["Keycloak\nTenantPass / EventPass"]
+ HA["Home Assistant\nHomePass"]
+ end
+
+ ID --&gt; CTRL
+ CTRL --&gt;|permit/deny| RELAY --&gt; LOCK_HW
+ DOOR_SENSOR --&gt; CTRL
+ CTRL &lt;--&gt;|API / MQTT| ACS&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="esphome--wiegand--реле--геркон"&gt;ESPHome — Wiegand + реле + геркон&lt;/h2&gt;
+&lt;p&gt;Универсальный контроллер для любого замка с Wiegand-считывателем.&lt;/p&gt;</description></item></channel></rss>

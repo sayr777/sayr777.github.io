@@ -1,0 +1,296 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Inference Stack — сервинг ML-моделей · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/ml/>'ML-архитектура платформы *Pass'</a>
+<span class=crumb__sep>/</span>
+<span>Inference Stack — сервинг ML-моделей</span></nav><article class=prose><h1>Inference Stack — сервинг ML-моделей</h1><h1 id=inference-stack--сервинг-ml-моделей>Inference Stack — сервинг ML-моделей</h1><p><em>Triton, ONNX Runtime, Ollama, MLflow — производственный стек</em></p><hr><h2 id=архитектура-сервинга>Архитектура сервинга</h2><div class=mermaid>graph TD
+subgraph TRAINING["Обучение (offline / ночью)"]
+DATA_SRC["ClickHouse + PostgreSQL\nисторические данные"]
+PREFECT["Prefect\n(оркестрация пайплайнов)"]
+TRAIN["Training Code\n(PyTorch / sklearn / XGBoost)"]
+MLFLOW["MLflow\n(эксперименты + registry)"]
+end
+subgraph SERVING["Сервинг (online, 24/7)"]
+TRITON["NVIDIA Triton\nInference Server\n(ONNX / TorchScript / TF)"]
+OLLAMA["Ollama\n(LLaVA, Llama 3, Whisper)"]
+RISK_API["Risk Score API\n(FastAPI)\nOrchestrates models"]
+FEATURE_STORE["Feature Store\n(Redis)\nReal-time features"]
+end
+subgraph CONSUMERS["Потребители"]
+PEP["PEP Agent\n(СКУД)"]
+FRIGATE_C["Frigate\n(видео)"]
+HA_C["Home Assistant\n(автоматизации)"]
+EP_API["EventPass API\n(fraud, crowd)"]
+end
+DATA_SRC --> PREFECT --> TRAIN --> MLFLOW
+MLFLOW -->|promote model| TRITON
+FRIGATE_C -->|frames| TRITON
+PEP --> RISK_API
+RISK_API --> TRITON & FEATURE_STORE
+OLLAMA --> HA_C
+TRITON --> PEP & EP_API</div><hr><h2 id=docker-compose-ml-инфраструктура>Docker Compose: ML инфраструктура</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.ml.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># === TRITON INFERENCE SERVER ===</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>triton</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>nvcr.io/nvidia/tritonserver:24.01-py3</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>tritonserver --model-repository=/models --log-verbose=0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./ml/model_repository:/models</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8000:8000&#34;</span>   <span style=color:#75715e># HTTP</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8001:8001&#34;</span>   <span style=color:#75715e># gRPC</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8002:8002&#34;</span>   <span style=color:#75715e># metrics</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>deploy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>resources</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>reservations</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>devices</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>driver</span>: <span style=color:#ae81ff>nvidia</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>count</span>: <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>capabilities</span>: [<span style=color:#ae81ff>gpu]</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Без GPU: убрать deploy.resources, Triton работает и на CPU</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># === OLLAMA (LLM/Vision LLM) ===</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ollama</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>ollama/ollama:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>ollama_data:/root/.ollama</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;11434:11434&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>OLLAMA_NUM_PARALLEL</span>: <span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>OLLAMA_MAX_LOADED_MODELS</span>: <span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># === MLFLOW (эксперименты + registry) ===</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>mlflow</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>ghcr.io/mlflow/mlflow:v2.11.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      mlflow server
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      --backend-store-uri postgresql://mlflow:secret@postgres/mlflow
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      --default-artifact-root s3://tenantpass-mlflow/artifacts
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      --host 0.0.0.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>AWS_ACCESS_KEY_ID</span>: <span style=color:#ae81ff>minioadmin</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>AWS_SECRET_ACCESS_KEY</span>: <span style=color:#ae81ff>minioadmin</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MLFLOW_S3_ENDPOINT_URL</span>: <span style=color:#ae81ff>http://minio:9000</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;5001:5000&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># === RISK SCORE API ===</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ml-risk-api</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>build</span>: <span style=color:#ae81ff>./ml/risk_api</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>TRITON_URL</span>: <span style=color:#ae81ff>triton:8000</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>REDIS_URL</span>: <span style=color:#ae81ff>redis:6379</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MLFLOW_TRACKING_URI</span>: <span style=color:#ae81ff>http://mlflow:5000</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8010:8000&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># === FEATURE STORE (Redis Streams) ===</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>redis</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>redis:7.2-alpine</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># === PREFECT (scheduler для переобучения) ===</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>prefect</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>prefecthq/prefect:2-latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>prefect server start --host 0.0.0.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;4200:4200&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ollama_data</span>:
+</span></span></code></pre></div><hr><h2 id=triton-организация-model-repository>Triton: организация model repository</h2><pre tabindex=0><code>ml/model_repository/
+├── yolov8_scud/           ← YOLO v8 для СКУД
+│   ├── config.pbtxt
+│   └── 1/
+│       └── model.onnx
+├── face_arcface/          ← Face embedding
+│   ├── config.pbtxt
+│   └── 1/
+│       └── model.onnx
+├── access_anomaly/        ← Isolation Forest СКУД
+│   ├── config.pbtxt
+│   └── 1/
+│       └── model.onnx
+├── energy_lstm_ae/        ← LSTM Autoencoder энергия
+│   ├── config.pbtxt
+│   └── 1/
+│       └── model.pt
+└── fraud_xgb/             ← XGBoost fraud EventPass
+    ├── config.pbtxt
+    └── 1/
+        └── model.json
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-protobuf data-lang=protobuf><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>#</span> ml<span style=color:#f92672>/</span>model_repository<span style=color:#f92672>/</span>yolov8_scud<span style=color:#f92672>/</span>config.pbtxt<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>name<span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;yolov8_scud&#34;</span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>platform<span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;onnxruntime_onnx&#34;</span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>max_batch_size<span style=color:#f92672>:</span> <span style=color:#ae81ff>8</span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>input [{<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  name<span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;images&#34;</span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  data_type<span style=color:#f92672>:</span> TYPE_FP32<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  dims<span style=color:#f92672>:</span> [<span style=color:#ae81ff>3</span>, <span style=color:#ae81ff>640</span>, <span style=color:#ae81ff>640</span>]<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>}]<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>output [{<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  name<span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;output0&#34;</span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  data_type<span style=color:#f92672>:</span> TYPE_FP32<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  dims<span style=color:#f92672>:</span> [<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>84</span>]    <span style=color:#960050;background-color:#1e0010>#</span> <span style=color:#ae81ff>4</span> bbox <span style=color:#f92672>+</span> <span style=color:#ae81ff>80</span> classes (YOLO v8)<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>}]<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>dynamic_batching {<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  preferred_batch_size<span style=color:#f92672>:</span> [<span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>8</span>]<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  max_queue_delay_microseconds<span style=color:#f92672>:</span> <span style=color:#ae81ff>50000</span>   <span style=color:#960050;background-color:#1e0010>#</span> <span style=color:#ae81ff>50</span><span style=color:#960050;background-color:#1e0010>мс</span> <span style=color:#960050;background-color:#1e0010>ожидание</span> <span style=color:#960050;background-color:#1e0010>для</span> batching<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>}<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>instance_group [{<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  count<span style=color:#f92672>:</span> <span style=color:#ae81ff>2</span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>  kind<span style=color:#f92672>:</span> KIND_GPU<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>}]<span style=color:#960050;background-color:#1e0010>
+</span></span></span></code></pre></div><hr><h2 id=feature-store-redis-streams>Feature Store (Redis Streams)</h2><p>Real-time признаки для онлайн-inference.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/features/feature_store.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> redis
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> json
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> datetime
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>FeatureStore</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, redis_url: str):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>r <span style=color:#f92672>=</span> redis<span style=color:#f92672>.</span>from_url(redis_url)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>update_person_features</span>(self, person_id: str, features: dict):
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Обновить признаки пользователя (вызывается при каждом событии)&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        key <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;features:person:</span><span style=color:#e6db74>{</span>person_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>r<span style=color:#f92672>.</span>hset(key, mapping<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>            k: json<span style=color:#f92672>.</span>dumps(v) <span style=color:#66d9ef>for</span> k, v <span style=color:#f92672>in</span> features<span style=color:#f92672>.</span>items()
+</span></span><span style=display:flex><span>        })
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>r<span style=color:#f92672>.</span>expire(key, <span style=color:#ae81ff>86400</span>)   <span style=color:#75715e># 24ч TTL</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_person_features</span>(self, person_id: str) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>        key <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;features:person:</span><span style=color:#e6db74>{</span>person_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        raw <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>r<span style=color:#f92672>.</span>hgetall(key)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {k<span style=color:#f92672>.</span>decode(): json<span style=color:#f92672>.</span>loads(v) <span style=color:#66d9ef>for</span> k, v <span style=color:#f92672>in</span> raw<span style=color:#f92672>.</span>items()}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>push_event</span>(self, stream: str, event: dict):
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Добавить событие в Redis Stream для real-time обработки&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>r<span style=color:#f92672>.</span>xadd(stream, event, maxlen<span style=color:#f92672>=</span><span style=color:#ae81ff>10000</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_recent_events</span>(self, person_id: str,
+</span></span><span style=display:flex><span>                           minutes: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>60</span>) <span style=color:#f92672>-&gt;</span> list[dict]:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;События пользователя за последние N минут&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        start_ms <span style=color:#f92672>=</span> int((datetime<span style=color:#f92672>.</span>now()<span style=color:#f92672>.</span>timestamp() <span style=color:#f92672>-</span> minutes <span style=color:#f92672>*</span> <span style=color:#ae81ff>60</span>) <span style=color:#f92672>*</span> <span style=color:#ae81ff>1000</span>)
+</span></span><span style=display:flex><span>        events <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>r<span style=color:#f92672>.</span>xrange(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;events:</span><span style=color:#e6db74>{</span>person_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>                               min<span style=color:#f92672>=</span><span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>start_ms<span style=color:#e6db74>}</span><span style=color:#e6db74>-0&#34;</span>, max<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;+&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> [e[<span style=color:#ae81ff>1</span>] <span style=color:#66d9ef>for</span> e <span style=color:#f92672>in</span> events]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Признаки которые обновляются в реальном времени:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># person:entries_today        → инкремент при каждом входе</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># person:last_seen_zone       → обновляется каждый проход</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># person:rssi_snapshot        → обновляется каждые 30 сек от BLE</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># person:current_risk_score   → пересчитывается каждую минуту</span>
+</span></span></code></pre></div><hr><h2 id=mlflow-трекинг-экспериментов-и-деплой>MLflow: трекинг экспериментов и деплой</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/training/track_experiment.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> mlflow
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> mlflow.sklearn
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>mlflow<span style=color:#f92672>.</span>set_tracking_uri(<span style=color:#e6db74>&#34;http://mlflow:5001&#34;</span>)
+</span></span><span style=display:flex><span>mlflow<span style=color:#f92672>.</span>set_experiment(<span style=color:#e6db74>&#34;access_anomaly_detection&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>with</span> mlflow<span style=color:#f92672>.</span>start_run(run_name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;isolation_forest_v3&#34;</span>):
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Логировать параметры</span>
+</span></span><span style=display:flex><span>    mlflow<span style=color:#f92672>.</span>log_params({
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;n_estimators&#34;</span>: <span style=color:#ae81ff>200</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;contamination&#34;</span>: <span style=color:#ae81ff>0.01</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;training_days&#34;</span>: <span style=color:#ae81ff>90</span>
+</span></span><span style=display:flex><span>    })
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Обучить модель</span>
+</span></span><span style=display:flex><span>    detector <span style=color:#f92672>=</span> AccessAnomalyDetector()
+</span></span><span style=display:flex><span>    detector<span style=color:#f92672>.</span>fit(events)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Метрики</span>
+</span></span><span style=display:flex><span>    precision, recall, f1 <span style=color:#f92672>=</span> evaluate_model(detector, test_events)
+</span></span><span style=display:flex><span>    mlflow<span style=color:#f92672>.</span>log_metrics({<span style=color:#e6db74>&#34;precision&#34;</span>: precision, <span style=color:#e6db74>&#34;recall&#34;</span>: recall, <span style=color:#e6db74>&#34;f1&#34;</span>: f1})
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Сохранить модель в registry</span>
+</span></span><span style=display:flex><span>    mlflow<span style=color:#f92672>.</span>sklearn<span style=color:#f92672>.</span>log_model(
+</span></span><span style=display:flex><span>        detector<span style=color:#f92672>.</span>model,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;isolation_forest&#34;</span>,
+</span></span><span style=display:flex><span>        registered_model_name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;access_anomaly_detector&#34;</span>
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Продвинуть модель в production</span>
+</span></span><span style=display:flex><span>client <span style=color:#f92672>=</span> mlflow<span style=color:#f92672>.</span>MlflowClient()
+</span></span><span style=display:flex><span>client<span style=color:#f92672>.</span>transition_model_version_stage(
+</span></span><span style=display:flex><span>    name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;access_anomaly_detector&#34;</span>,
+</span></span><span style=display:flex><span>    version<span style=color:#f92672>=</span><span style=color:#ae81ff>3</span>,
+</span></span><span style=display:flex><span>    stage<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Production&#34;</span>
+</span></span><span style=display:flex><span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Triton подхватывает новую версию автоматически через:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ml/deploy/sync_models.py — скрипт синхронизации MLflow → model_repository</span>
+</span></span></code></pre></div><hr><h2 id=мониторинг-ml-моделей-data-drift>Мониторинг ML-моделей (Data Drift)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/monitoring/drift_detector.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Обнаружить дрейф данных: модель устарела, нужно переобучение</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> scipy.stats <span style=color:#f92672>import</span> ks_2samp
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>detect_feature_drift</span>(reference: np<span style=color:#f92672>.</span>ndarray,
+</span></span><span style=display:flex><span>                          current: np<span style=color:#f92672>.</span>ndarray,
+</span></span><span style=display:flex><span>                          threshold: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.05</span>) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Kolmogorov-Smirnov тест для каждого признака.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    p-value &lt; threshold → дрейф обнаружен → нужно переобучение.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    results <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(reference<span style=color:#f92672>.</span>shape[<span style=color:#ae81ff>1</span>]):
+</span></span><span style=display:flex><span>        stat, p_value <span style=color:#f92672>=</span> ks_2samp(reference[:, i], current[:, i])
+</span></span><span style=display:flex><span>        results[<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;feature_</span><span style=color:#e6db74>{</span>i<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>] <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;ks_statistic&#34;</span>: float(stat),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;p_value&#34;</span>: float(p_value),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;drift_detected&#34;</span>: p_value <span style=color:#f92672>&lt;</span> threshold
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> results
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>check_prediction_drift</span>(model_predictions_last_week: list[float],
+</span></span><span style=display:flex><span>                            model_predictions_this_week: list[float]) <span style=color:#f92672>-&gt;</span> bool:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;PSI (Population Stability Index) для мониторинга предсказаний&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># PSI &gt; 0.2 → значительный дрейф → переобучить</span>
+</span></span><span style=display:flex><span>    hist_ref, bins <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>histogram(model_predictions_last_week, bins<span style=color:#f92672>=</span><span style=color:#ae81ff>10</span>)
+</span></span><span style=display:flex><span>    hist_cur, _ <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>histogram(model_predictions_this_week, bins<span style=color:#f92672>=</span>bins)
+</span></span><span style=display:flex><span>    hist_ref <span style=color:#f92672>=</span> (hist_ref <span style=color:#f92672>+</span> <span style=color:#ae81ff>1e-8</span>) <span style=color:#f92672>/</span> len(model_predictions_last_week)
+</span></span><span style=display:flex><span>    hist_cur <span style=color:#f92672>=</span> (hist_cur <span style=color:#f92672>+</span> <span style=color:#ae81ff>1e-8</span>) <span style=color:#f92672>/</span> len(model_predictions_this_week)
+</span></span><span style=display:flex><span>    psi <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>sum((hist_ref <span style=color:#f92672>-</span> hist_cur) <span style=color:#f92672>*</span> np<span style=color:#f92672>.</span>log(hist_ref <span style=color:#f92672>/</span> hist_cur))
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> psi <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0.2</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Prefect: запускать мониторинг ежедневно</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># При drift_detected → запустить переобучение → MLflow → Triton</span>
+</span></span></code></pre></div><hr><h2 id=аппаратные-требования>Аппаратные требования</h2><table><thead><tr><th>Конфигурация</th><th>CPU</th><th>RAM</th><th>GPU</th><th>Для чего</th></tr></thead><tbody><tr><td>Минимальная (HomePass)</td><td>RPi 5</td><td>8 ГБ</td><td>—</td><td>Whisper tiny, ONNX anomaly</td></tr><tr><td>Стандартная (TenantPass объект)</td><td>i5/Ryzen5</td><td>16 ГБ</td><td>—</td><td>Все ONNX модели, YOLO nano</td></tr><tr><td>Производительная (TenantPass облако)</td><td>8 cores</td><td>32 ГБ</td><td>RTX 3060</td><td>YOLO large, LLaVA 7B</td></tr><tr><td>Максимальная (EventPass стадион)</td><td>16 cores</td><td>64 ГБ</td><td>RTX 4080</td><td>YOLO + Face + Crowd + LLaVA</td></tr></tbody></table><hr><h2 id=edge-onnx-runtime-на-raspberry-pi>Edge: ONNX Runtime на Raspberry Pi</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># Запуск ONNX модели прямо на RPi (без Triton)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Для: offline EventPass сканер, HomePass локальный inference</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> onnxruntime <span style=color:#66d9ef>as</span> ort
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>session <span style=color:#f92672>=</span> ort<span style=color:#f92672>.</span>InferenceSession(
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;models/access_anomaly.onnx&#34;</span>,
+</span></span><span style=display:flex><span>    providers<span style=color:#f92672>=</span>[<span style=color:#e6db74>&#34;CPUExecutionProvider&#34;</span>]
+</span></span><span style=display:flex><span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>predict_anomaly_edge</span>(features: np<span style=color:#f92672>.</span>ndarray) <span style=color:#f92672>-&gt;</span> float:
+</span></span><span style=display:flex><span>    input_name <span style=color:#f92672>=</span> session<span style=color:#f92672>.</span>get_inputs()[<span style=color:#ae81ff>0</span>]<span style=color:#f92672>.</span>name
+</span></span><span style=display:flex><span>    result <span style=color:#f92672>=</span> session<span style=color:#f92672>.</span>run(<span style=color:#66d9ef>None</span>, {input_name: features<span style=color:#f92672>.</span>reshape(<span style=color:#ae81ff>1</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>)<span style=color:#f92672>.</span>astype(np<span style=color:#f92672>.</span>float32)})
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> float(result[<span style=color:#ae81ff>0</span>][<span style=color:#ae81ff>0</span>])   <span style=color:#75715e># anomaly score</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Модель 1.2 МБ (Isolation Forest → ONNX) → работает на RPi за 2 мс</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/ml/>index</a>
+← <a href=/ml/anomaly/>anomaly</a>
+← <a href=/ml/behavioral/>behavioral</a>
+→ <a href=/eventpass/analytics-pipeline/>analytics-pipeline</a>
+→ <a href=/shared/backup-strategy/>backup-strategy</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

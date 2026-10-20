@@ -1,0 +1,139 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>EventPass для спортивного события · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=ep><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep nav__lnk--active">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/eventpass/>EventPass</a>
+<span class=crumb__sep>/</span>
+<span>EventPass для спортивного события</span></nav><article class=prose><h1>EventPass для спортивного события</h1><h1 id=eventpass-для-спортивного-события>EventPass для спортивного события</h1><h2 id=задача>Задача</h2><p>Спортивное мероприятие: футбольный матч, хоккей, боевые искусства, марафон, соревнования по единоборствам. Тысячи зрителей, строгое разделение на секторы, несколько категорий участников (атлеты, судьи, медики, пресса, VIP, фанаты).</p><p><strong>Главная боль</strong>: поддельные билеты в VIP-секторе, фанаты с билетами другого сектора, атлеты не могут войти в технические зоны без долгих согласований.</p><hr><h2 id=категории-участников>Категории участников</h2><pre tabindex=0><code>Зрители:
+  fan_standard    — обычный болельщик, конкретный сектор
+  fan_vip         — VIP-зона / бизнес-трибуна
+  fan_away        — гостевые фанаты (отдельный сектор, отдельный вход)
+  
+Официальные лица:
+  athlete         — спортсмен, доступ к раздевалкам, полю
+  coach           — тренер / тренерский штаб
+  referee         — судья / арбитр
+  medic           — медицинский персонал + поле
+  
+Медиа:
+  press           — пресса, трибуна прессы
+  photographer    — фотограф, зона press_pit у поля
+  tv_crew         — телевизионная съёмочная группа
+  
+Персонал:
+  staff_security  — охрана стадиона
+  staff_steward   — стюарды (организаторы движения зрителей)
+  staff_technical — технические службы
+  vip_host        — хост VIP-зоны
+</code></pre><hr><h2 id=зоны>Зоны</h2><pre tabindex=0><code>Стандартный стадион:
+
+  public_entrance    — вход в периметр стадиона (все)
+  sector_north       — северная трибуна
+  sector_south       — южная трибуна (гостевые фанаты)
+  sector_east        — восточная трибуна
+  sector_west        — западная трибуна + VIP
+  vip_lounge         — VIP-лаунж (бар, трансляция)
+  press_tribune      — пресс-трибуна
+  press_pit          — зона съёмки у поля
+  mixed_zone         — зона общения атлетов с прессой
+  tunnel_players     — тоннель игроков
+  locker_room_home   — раздевалка хозяев
+  locker_room_away   — раздевалка гостей
+  field              — поле (атлеты + медики + судьи)
+  technical_rooms    — технические помещения
+</code></pre><hr><h2 id=ключевые-сценарии>Ключевые сценарии</h2><h3 id=сценарий-1-управление-потоками-зрителей>Сценарий 1: Управление потоками зрителей</h3><pre tabindex=0><code>40 000 болельщиков, 12 входов:
+
+EventPass отображает в реальном времени:
+  Вход С1: 3 400 чел/час  ✅ зелёный
+  Вход С2: 2 100 чел/час  ✅ зелёный
+  Вход С3: 4 800 чел/час  🟡 жёлтый (&gt;80% мощности)
+  Вход Ю1: 5 200 чел/час  🔴 красный — очередь
+
+Менеджер мероприятия:
+  → Перенаправляет зрителей с ЮГА на СЕВЕР через Telegram-бот
+  → Отправляет SMS держателям билетов Ю1-500: &#34;Рекомендуем вход С3&#34;
+</code></pre><h3 id=сценарий-2-раздельный-вход-гостевых-фанатов>Сценарий 2: Раздельный вход гостевых фанатов</h3><pre tabindex=0><code>Гостевые фанаты:
+  QR-код с меткой: sector=south, entrance=south_only
+
+На северном входе:
+  Болельщик &#34;Спартака&#34; пытается войти в северный вход
+  → EventPass: ❌ deny — используйте южный вход
+  → Экран: &#34;Ваш вход: ЮЖНЫЕ ВОРОТА&#34;
+  → Охрана не спорит
+
+Важно: физическое разделение потоков предотвращает конфликты.
+</code></pre><h3 id=сценарий-3-аккредитация-атлетов>Сценарий 3: Аккредитация атлетов</h3><pre tabindex=0><code>За сутки до матча:
+  Команда передаёт список игроков (25 чел) через API
+  Каждый получает цифровой пасс
+
+На КПП команды:
+  Автобус команды → охрана сканирует пассы
+  → Все 25 игроков + 10 тренерского штаба
+  → mixed_zone, locker_room_home, tunnel, field — открыты
+
+За 2 часа до матча: атлет уходит за покупками:
+  → Повторный вход по тому же пассу — работает
+</code></pre><h3 id=сценарий-4-экстренный-медицинский-доступ>Сценарий 4: Экстренный медицинский доступ</h3><pre tabindex=0><code>Игрок получил травму на поле.
+
+Медик с браслетом или QR-пассом:
+  → Уже аккредитован: field, locker_room, tunnel → всегда работает
+
+Внешняя бригада скорой:
+  → Охрана при входе в режиме &#34;Экстренный доступ&#34; (один нажим)
+  → Все ворота, ведущие к полю, разблокируются для бригады
+  → Лог: &#34;Emergency access granted, 14:23:07&#34;
+</code></pre><h3 id=сценарий-5-марафон--забег>Сценарий 5: Марафон / забег</h3><pre tabindex=0><code>Другой формат: 2 000 участников, старт-финиш, промежуточные пункты
+
+Участники:
+  → QR-код или RFID-чип на номере
+  → На старте: отметка в системе
+  → На промежуточных КП: автоматическая отметка (считыватель у ворот)
+  → На финише: время финиша, место, диплом
+
+Организатор видит в реальном времени:
+  Стартовало: 1 987 / 2 000
+  На трассе: 1 412
+  Финишировало: 575
+  Сошли: 12 (отметились на КП выхода)
+  Не финишировали и не сошли: 3 (поиск)
+</code></pre><hr><h2 id=интеграция-с-скуд-стадиона>Интеграция с СКУД стадиона</h2><pre tabindex=0><code>Крупные стадионы имеют собственные турникеты (Perco, HID, Lenel).
+
+EventPass как слой поверх:
+  Вариант А: EventPass → API стадионного СКУД (push разрешений)
+    Плюс: используют своё железо
+    Минус: зависимость от API стадиона
+
+  Вариант Б: EventPass считыватели параллельно (overlay)
+    Турникет стадиона остаётся
+    EventPass-планшет рядом — только для проверки (без управления замком)
+    Плюс: никакой интеграции
+    Минус: двойная проверка (неудобно)
+
+  Вариант В: Замена на EventPass-совместимые считыватели
+    Долгосрочно для стадиона-партнёра
+    Полный контроль
+</code></pre><hr><h2 id=аналитика-для-организатора>Аналитика для организатора</h2><pre tabindex=0><code>После матча:
+  Явка по секторам: факт vs план (% заполнения)
+  Динамика прихода: за 2 часа до, за 1 час, опоздавшие
+  Средняя скорость сканирования по входам
+  Инциденты (неверные зоны, поддельные билеты): N случаев
+  VIP-явка: 95%, fan_away: 87%, press: 62%
+
+Для безопасности:
+  Топ-3 входа по нарушениям
+  Время пиковой нагрузки
+  Время полного заполнения стадиона
+</code></pre><hr><h2 id=связи>Связи</h2><p>← <a href=/eventpass/>index</a>
+← <a href=/eventpass/architecture/>architecture</a>
+← <a href=/eventpass/mass-event/>mass-event</a>
+← <a href=/eventpass/corporate/>corporate</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

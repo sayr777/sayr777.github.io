@@ -1,0 +1,118 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>API между агентами и Keycloak · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=tp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp nav__lnk--active">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/tenantpass/>TenantPass</a>
+<span class=crumb__sep>/</span>
+<span>API между агентами и Keycloak</span></nav><article class=prose><h1>API между агентами и Keycloak</h1><h1 id=api-между-агентами-и-keycloak>API между агентами и Keycloak</h1><h2 id=паттерн-pep--pdp>Паттерн PEP / PDP</h2><div class=mermaid>sequenceDiagram
+participant T as Терминал/считыватель
+participant A as Агент-контроллер (PEP)
+participant K as Keycloak (PDP)
+participant D as Физическое устройство
+T->>A: 1. идентификация пользователя
+A->>K: 2. запрос решения (uma-ticket)
+K-->>A: 3. permit / deny
+A->>D: 4. исполнение — открыть замок / заблокировать</div><p>Агент никогда не принимает решение самостоятельно. Он только запрашивает и исполняет.</p><hr><h2 id=endpointы-keycloak-которые-использует-система>Endpoint&rsquo;ы Keycloak, которые использует система</h2><h3 id=1-token-endpoint--получить-токен-пользователя>1. Token endpoint — получить токен пользователя</h3><pre tabindex=0><code>POST /realms/{realm}/protocol/openid-connect/token
+</code></pre><p>Используется: мобильное приложение / веб-UI при логине.</p><p>Flows:</p><ul><li><strong>Authorization Code + PKCE</strong> — для браузера/приложения (рекомендуется)</li><li><strong>Device Authorization Grant</strong> — для терминалов без браузера</li><li><strong>Token Exchange</strong> — агент обменивает внешнее подтверждение (NFC/BLE) на токен Keycloak</li></ul><hr><h3 id=2-entitlement-api--запрос-разрешений-на-ресурс>2. Entitlement API — запрос разрешений на ресурс</h3><pre tabindex=0><code>POST /realms/{realm}/protocol/openid-connect/token
+
+Body:
+  grant_type=urn:ietf:params:oauth:grant-type:uma-ticket
+  audience={resource_server_client_id}
+  permission={resource}#{scope}
+  subject_token={user_access_token}
+</code></pre><p>Возвращает <strong>RPT (Requesting Party Token)</strong> — токен с вложенными разрешениями.</p><p>Агент двери использует именно этот endpoint: «пользователь X хочет scope <code>enter</code> на ресурс <code>door:room-215</code>».</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-json data-lang=json><span style=display:flex><span><span style=color:#75715e>// Тело ответа при permit
+</span></span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;access_token&#34;</span>: <span style=color:#e6db74>&#34;&lt;RPT&gt;&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;authorization&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;permissions&#34;</span>: [
+</span></span><span style=display:flex><span>      {
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&#34;rsid&#34;</span>: <span style=color:#e6db74>&#34;door-room-215&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&#34;rsname&#34;</span>: <span style=color:#e6db74>&#34;door:room-215&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&#34;scopes&#34;</span>: [<span style=color:#e6db74>&#34;enter&#34;</span>]
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>    ]
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>При deny — <code>403 Forbidden</code> с <code>error: access_denied</code>.</p><hr><h3 id=3-token-introspection--проверить-валидность-токена>3. Token Introspection — проверить валидность токена</h3><pre tabindex=0><code>POST /realms/{realm}/protocol/openid-connect/token/introspect
+
+Body:
+  token={RPT}
+  token_type_hint=requesting_party_token
+</code></pre><p>Агент может локально кэшировать RPT и периодически проверять через introspection вместо нового запроса. Полезно для уменьшения нагрузки при повторных проходах.</p><hr><h3 id=4-resource-registration-api--регистрация-ресурсов>4. Resource Registration API — регистрация ресурсов</h3><pre tabindex=0><code>POST /realms/{realm}/authz/protection/resource_set
+
+Body:
+{
+  &#34;name&#34;: &#34;door:room-215&#34;,
+  &#34;type&#34;: &#34;physical-access:door&#34;,
+  &#34;resource_scopes&#34;: [&#34;enter&#34;, &#34;exit&#34;],
+  &#34;attributes&#34;: {
+    &#34;site_id&#34;: &#34;building-A&#34;,
+    &#34;tenant_id&#34;: &#34;tenant-xyz&#34;,
+    &#34;floor&#34;: &#34;3&#34;
+  }
+}
+</code></pre><p>Каждая дверь, лифт, рабочая станция регистрируется как ресурс с атрибутами. Именно по этим атрибутам Keycloak оценивает ABAC-политики.</p><hr><h3 id=5-admin-rest-api--управление-пользователями-и-организациями>5. Admin REST API — управление пользователями и организациями</h3><pre tabindex=0><code># Создать пользователя
+POST /admin/realms/{realm}/users
+
+# Добавить в организацию
+POST /admin/realms/{realm}/organizations/{org-id}/members
+
+# Назначить атрибуты
+PUT /admin/realms/{realm}/users/{user-id}
+Body: { &#34;attributes&#34;: { &#34;site_id&#34;: [&#34;building-A&#34;], &#34;tenant_id&#34;: [&#34;tenant-xyz&#34;] } }
+</code></pre><p>Используется: сервис управления (onboarding сотрудников, смена объекта).</p><p><strong>Admin API — только из защищённого управляющего сегмента сети. Никогда не из пользовательского контура.</strong></p><hr><h2 id=сценарий-агент-двери-открывает-замок>Сценарий: агент двери открывает замок</h2><pre tabindex=0><code>1. Считыватель определяет пользователя (BLE RSSI / NFC tap / passkey)
+   └─► идентификатор устройства + user_token (из приложения или локального кэша)
+
+2. Агент-контроллер:
+   POST /realms/tenantpass/protocol/openid-connect/token
+     grant_type=uma-ticket
+     audience=door-controller-client
+     permission=door:room-215#enter
+     subject_token=&lt;user_access_token&gt;
+
+3. Keycloak оценивает политики:
+   - user.role == &#34;employee&#34; ✓
+   - user.site_id == door.site_id ✓
+   - time.in(work_hours) ✓
+   - amr contains &#34;fido2&#34; ✓
+   → permit
+
+4. Агент получает RPT → замыкает реле → дверь открывается
+
+5. Агент пишет событие в журнал:
+   { user_id, door_id, timestamp, decision: &#34;permit&#34;, amr: &#34;fido2&#34; }
+</code></pre><hr><h2 id=сценарий-агент-пк-разблокирует-сессию>Сценарий: агент ПК разблокирует сессию</h2><p>Два варианта:</p><p><strong>A. Kerberos / SPNEGO (если домен)</strong></p><pre tabindex=0><code>ПК → браузер/агент передаёт Negotiate-токен → Keycloak валидирует → SSO
+</code></pre><p><strong>B. Агент с запросом к Keycloak</strong></p><pre tabindex=0><code>Агент на ПК (при приближении пользователя по BLE):
+  1. Получает user_token из корпоративного приложения
+  2. POST uma-ticket для ресурса workstation:pc-42 scope:unlock
+  3. При permit → разблокирует сессию ОС
+</code></pre><hr><h2 id=кэширование-решений-на-агенте>Кэширование решений на агенте</h2><p>Сетевой вызов к Keycloak занимает 20–100 мс. Для двери это заметно.</p><p>Стратегия:</p><pre tabindex=0><code>if cached_decision.valid and cached_decision.age &lt; 45s:
+    use cached_decision          # не ходим в Keycloak
+else:
+    fetch new RPT from Keycloak  # обновляем кэш
+    cached_decision = new RPT
+
+# При отзыве доступа (увольнение):
+# Keycloak ставит not-before → следующий запрос получит 403
+# Максимальная задержка = TTL кэша (45 сек)
+</code></pre><p><strong>Важно</strong>: из-за CVE-2026-18218 (not-before policy может молча игнорироваться) — при критичных отзывах (увольнение, инцидент) агент должен принудительно сбросить кэш и запросить свежее решение.</p><hr><h2 id=режим-автономности-keycloak-недоступен>Режим автономности (Keycloak недоступен)</h2><pre tabindex=0><code>if keycloak.unreachable:
+    last_known = load_from_local_cache()   # последние известные разрешения
+    if last_known.age &lt; MAX_OFFLINE_TTL:   # например, 4 часа
+        use last_known                     # ограниченный доступ
+    else:
+        deny_all_except_emergency_list     # только экстренный список
+    log_offline_event(user, door, reason)
+</code></pre><p>При восстановлении связи — принудительная синхронизация.</p><hr><h2 id=типы-клиентов-keycloak-в-системе>Типы клиентов Keycloak в системе</h2><table><thead><tr><th>Клиент</th><th>Тип</th><th>Назначение</th></tr></thead><tbody><tr><td><code>mobile-app</code></td><td>public, PKCE</td><td>Приложение сотрудника</td></tr><tr><td><code>web-ui</code></td><td>confidential</td><td>Веб-панель менеджера/HR</td></tr><tr><td><code>door-controller</code></td><td>confidential</td><td>Агент дверей (Resource Server)</td></tr><tr><td><code>workstation-agent</code></td><td>confidential</td><td>Агент ПК</td></tr><tr><td><code>management-service</code></td><td>confidential</td><td>Onboarding, Admin API</td></tr><tr><td><code>timetracking-service</code></td><td>confidential</td><td>Сервис учёта времени</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/access-model/>access-model</a>
+← <a href=/tenantpass/keycloak/>keycloak</a>
+→ <a href=/tenantpass/abac/>abac</a>
+→ <a href=/tenantpass/biometrics/>biometrics</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

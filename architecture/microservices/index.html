@@ -1,0 +1,592 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Микросервисная архитектура платформы *Pass · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/architecture/>Architectures</a>
+<span class=crumb__sep>/</span>
+<span>Микросервисная архитектура платформы *Pass</span></nav><article class=prose><h1>Микросервисная архитектура платформы *Pass</h1><h1 id=микросервисная-архитектура-платформы-pass>Микросервисная архитектура платформы *Pass</h1><p><em>Декомпозиция сервисов, API Gateway, паттерны коммуникации, деплой</em></p><hr><h2 id=обзор-монолит--микросервисы>Обзор: монолит → микросервисы</h2><pre tabindex=0><code>Было (монолит):
+  FastAPI App ────→ PostgreSQL
+       └──────────→ Keycloak
+       └──────────→ Redis
+  Всё в одном процессе → сложно масштабировать, один деплой на всё
+
+Стало (микросервисы):
+  Browser/App
+       │
+  [Traefik API Gateway]
+       ├──→ tenantpass/iam-service     (Keycloak обёртка)
+       ├──→ tenantpass/access-service  (СКУД PEP/PDP)
+       ├──→ tenantpass/workforce-service (СУРВ, табели)
+       ├──→ eventpass/event-service    (мероприятия)
+       ├──→ eventpass/ticket-service   (QR-билеты)
+       └──→ shared/ml-service          (Triton + Risk API)
+  
+  Сервисы общаются через:
+    Sync:  gRPC (внутренние, low-latency)
+    Async: Redpanda topics (события)
+    IoT:   MQTT broker (устройства)
+</code></pre><hr><h2 id=карта-сервисов>Карта сервисов</h2><div class=mermaid>graph TB
+subgraph CLIENTS["Клиенты"]
+WEB["Web App\n(React)"]
+MOB["Mobile\n(Flutter)"]
+DEV["Edge Devices\n(ESP32)"]
+end
+subgraph GW["API Gateway (Traefik)"]
+GATEWAY["Traefik\nRouting / Auth / SSL / Rate Limit"]
+end
+subgraph TP["TenantPass"]
+IAM["iam-service\nKeycloak wrapper\nJWT / token exchange"]
+ACC["access-service\nPEP/PDP\ndoor control"]
+WORK["workforce-service\nСУРВ, табели\n1С интеграция"]
+DEV_SVC["device-service\ndoor config\nWiegand readers"]
+AUDIT["audit-service\nappend-only events\nPostgreSQL partitioned"]
+TENANT["tenant-service\norganizations\nonboarding"]
+end
+subgraph EP["EventPass"]
+EVENT["event-service\ncreate/manage events"]
+TICKET["ticket-service\nQR gen, JWT RS256"]
+SCAN["scan-service\nreal-time entry/exit"]
+EP_ANALYTICS["analytics-service\nClickHouse queries"]
+BILLING["billing-service\nOpenMeter, invoices"]
+end
+subgraph SHARED["Shared (cross-project)"]
+ML["ml-service\nTriton + Risk Score API"]
+MEDIA["media-service\nAsterisk PA, music"]
+VIDEO["video-service\nFrigate NVR"]
+NOTIF["notification-service\nEmail, push, SMS"]
+NAC["nac-service\nFreeRADIUS bridge\n802.1X"]
+end
+subgraph INFRA["Инфраструктура"]
+KC["Keycloak\n(3 realm)"]
+MQ["Redpanda\n(event bus)"]
+MQTT["MQTT Broker\n(Mosquitto)"]
+PG["PostgreSQL\n(per-service DB)"]
+REDIS["Redis/Valkey\n(cache)"]
+CH["ClickHouse\n(analytics)"]
+end
+WEB & MOB --> GATEWAY
+DEV --> MQTT & ACC
+GATEWAY --> IAM & ACC & WORK & EVENT & TICKET & SCAN & EP_ANALYTICS & BILLING
+ACC --> ML
+ACC --> AUDIT
+ACC --> DEV_SVC
+IAM --> KC
+WORK --> AUDIT
+SCAN --> MQ
+TICKET --> MQ
+ACC --> REDIS
+MQ --> EP_ANALYTICS
+MQ --> ML
+MQTT --> ACC & VIDEO & MEDIA</div><hr><h2 id=декомпозиция-сервисов>Декомпозиция сервисов</h2><h3 id=tenantpass>TenantPass</h3><table><thead><tr><th>Сервис</th><th>Ответственность</th><th>DB</th><th>API</th></tr></thead><tbody><tr><td><code>iam-service</code></td><td>JWT выдача/валидация, token exchange, Keycloak facade</td><td>—</td><td>REST</td></tr><tr><td><code>access-service</code></td><td>PEP/PDP: решение разрешить/запретить, управление дверью</td><td><code>tenantpass_config</code></td><td>gRPC + MQTT</td></tr><tr><td><code>device-service</code></td><td>Конфигурация считывателей, замков, контроллеров</td><td><code>tenantpass_config</code></td><td>REST</td></tr><tr><td><code>workforce-service</code></td><td>Табели, расписания, отчёты, 1С интеграция</td><td><code>tenantpass_tabel</code></td><td>REST</td></tr><tr><td><code>audit-service</code></td><td>Только запись событий, партицированная БД</td><td><code>tenantpass_audit</code></td><td>REST (write) / gRPC (stream)</td></tr><tr><td><code>tenant-service</code></td><td>Управление организациями, onboarding</td><td><code>tenantpass_config</code></td><td>REST</td></tr><tr><td><code>notification-service</code></td><td>Email/push/SMS, шаблоны, очередь</td><td>—</td><td>REST / Kafka consumer</td></tr></tbody></table><h3 id=eventpass>EventPass</h3><table><thead><tr><th>Сервис</th><th>Ответственность</th><th>DB</th><th>API</th></tr></thead><tbody><tr><td><code>event-service</code></td><td>CRUD мероприятий, зон, расписаний</td><td><code>eventpass_events</code></td><td>REST</td></tr><tr><td><code>ticket-service</code></td><td>Генерация QR/JWT RS256, управление ключами</td><td><code>eventpass_tickets</code></td><td>REST</td></tr><tr><td><code>scan-service</code></td><td>Валидация QR, real-time entry/exit подсчёт</td><td><code>eventpass_tickets</code></td><td>WebSocket + REST</td></tr><tr><td><code>analytics-service</code></td><td>Запросы ClickHouse, экспорт отчётов</td><td>ClickHouse</td><td>REST</td></tr><tr><td><code>billing-service</code></td><td>OpenMeter metering, тарификация, инвойсы</td><td><code>eventpass_billing</code></td><td>REST</td></tr></tbody></table><h3 id=shared-services>Shared Services</h3><table><thead><tr><th>Сервис</th><th>Ответственность</th><th>Порт</th><th>Protocol</th></tr></thead><tbody><tr><td><code>ml-service</code></td><td>Triton inference + Risk Score API</td><td>8000/8010</td><td>REST / gRPC</td></tr><tr><td><code>media-service</code></td><td>Asterisk PA, Liquidsoap music, Icecast</td><td>5060 SIP</td><td>SIP + REST</td></tr><tr><td><code>video-service</code></td><td>Frigate NVR wrapper, события детекции</td><td>5000</td><td>REST / RTSP</td></tr><tr><td><code>notification-service</code></td><td>Email, push, SMS, webhook</td><td>8080</td><td>REST</td></tr><tr><td><code>nac-service</code></td><td>FreeRADIUS bridge, 802.1X, dynamic VLAN</td><td>1812 UDP</td><td>RADIUS</td></tr></tbody></table><hr><h2 id=паттерны-коммуникации>Паттерны коммуникации</h2><h3 id=синхронный-rest-и-grpc>Синхронный: REST и gRPC</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># REST: внешние клиенты и cross-domain вызовы</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># access-service -&gt; ml-service: получить risk score перед принятием решения</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_risk_score</span>(user_id: str, zone_id: str) <span style=color:#f92672>-&gt;</span> float:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient(timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>50</span>) <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>        r <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(<span style=color:#e6db74>&#34;http://ml-service:8010/risk_score&#34;</span>,
+</span></span><span style=display:flex><span>                         json<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;user_id&#34;</span>: user_id, <span style=color:#e6db74>&#34;zone_id&#34;</span>: zone_id})
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> r<span style=color:#f92672>.</span>json()[<span style=color:#e6db74>&#34;score&#34;</span>]
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-protobuf data-lang=protobuf><span style=display:flex><span><span style=color:#75715e>// gRPC: внутренние вызовы с низкой задержкой
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// proto/access.proto
+</span></span></span><span style=display:flex><span>syntax <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;proto3&#34;</span>;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#f92672>package</span> access;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>service</span> AccessService {<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>rpc</span> CheckPermit (PermitRequest) <span style=color:#66d9ef>returns</span> (PermitResponse);<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>rpc</span> OpenDoor    (DoorCommand)   <span style=color:#66d9ef>returns</span> (DoorResponse);<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>}<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>message</span> <span style=color:#a6e22e>PermitRequest</span> {<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>string</span> user_id  <span style=color:#f92672>=</span> <span style=color:#ae81ff>1</span>;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>string</span> door_id  <span style=color:#f92672>=</span> <span style=color:#ae81ff>2</span>;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>string</span> amr      <span style=color:#f92672>=</span> <span style=color:#ae81ff>3</span>;   <span style=color:#75715e>// Authentication Method Reference
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>float</span>  risk_score <span style=color:#f92672>=</span> <span style=color:#ae81ff>4</span>;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>}<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>message</span> <span style=color:#a6e22e>PermitResponse</span> {<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>bool</span>   granted    <span style=color:#f92672>=</span> <span style=color:#ae81ff>1</span>;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>string</span> reason     <span style=color:#f92672>=</span> <span style=color:#ae81ff>2</span>;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>int32</span>  grant_ttl  <span style=color:#f92672>=</span> <span style=color:#ae81ff>3</span>;<span style=color:#960050;background-color:#1e0010>
+</span></span></span><span style=display:flex><span>}<span style=color:#960050;background-color:#1e0010>
+</span></span></span></code></pre></div><h3 id=асинхронный-redpanda-topics>Асинхронный: Redpanda topics</h3><pre tabindex=0><code>Topics и их назначение:
+
+tenantpass.access.events     → audit-service, ml-service (обучение), ClickHouse
+tenantpass.door.commands     → access-service (MQTT bridge к ESP32)
+workforce.attendance         → workforce-service (построение табеля)
+eventpass.tickets.scanned    → scan-service, analytics-service, billing-service
+eventpass.alerts.fraud       → notification-service
+iot.sensors.raw              → ml-service (feature pipeline)
+iot.video.detections         → access-service (tailgating alert)
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># access-service: публикация события прохода в Kafka</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> confluent_kafka <span style=color:#f92672>import</span> Producer
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>producer <span style=color:#f92672>=</span> Producer({<span style=color:#e6db74>&#34;bootstrap.servers&#34;</span>: <span style=color:#e6db74>&#34;redpanda:9092&#34;</span>})
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>publish_access_event</span>(event: AccessEvent):
+</span></span><span style=display:flex><span>    producer<span style=color:#f92672>.</span>produce(
+</span></span><span style=display:flex><span>        topic<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;tenantpass.access.events&#34;</span>,
+</span></span><span style=display:flex><span>        key<span style=color:#f92672>=</span>event<span style=color:#f92672>.</span>tenant_id,
+</span></span><span style=display:flex><span>        value<span style=color:#f92672>=</span>event<span style=color:#f92672>.</span>model_dump_json()<span style=color:#f92672>.</span>encode(),
+</span></span><span style=display:flex><span>        headers<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;schema_version&#34;</span>: <span style=color:#e6db74>b</span><span style=color:#e6db74>&#34;1&#34;</span>}
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    producer<span style=color:#f92672>.</span>flush()
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># audit-service: консьюмер access событий</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> confluent_kafka <span style=color:#f92672>import</span> Consumer
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>consumer <span style=color:#f92672>=</span> Consumer({
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;bootstrap.servers&#34;</span>: <span style=color:#e6db74>&#34;redpanda:9092&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;group.id&#34;</span>: <span style=color:#e6db74>&#34;audit-writer&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;auto.offset.reset&#34;</span>: <span style=color:#e6db74>&#34;earliest&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;enable.auto.commit&#34;</span>: <span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>})
+</span></span><span style=display:flex><span>consumer<span style=color:#f92672>.</span>subscribe([<span style=color:#e6db74>&#34;tenantpass.access.events&#34;</span>])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>while</span> <span style=color:#66d9ef>True</span>:
+</span></span><span style=display:flex><span>    msg <span style=color:#f92672>=</span> consumer<span style=color:#f92672>.</span>poll(<span style=color:#ae81ff>1.0</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> msg <span style=color:#f92672>and</span> <span style=color:#f92672>not</span> msg<span style=color:#f92672>.</span>error():
+</span></span><span style=display:flex><span>        event <span style=color:#f92672>=</span> AccessEvent<span style=color:#f92672>.</span>model_validate_json(msg<span style=color:#f92672>.</span>value())
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> db<span style=color:#f92672>.</span>execute(INSERT_AUDIT_SQL, event)
+</span></span><span style=display:flex><span>        consumer<span style=color:#f92672>.</span>commit()
+</span></span></code></pre></div><h3 id=iot-mqtt-mosquitto>IoT: MQTT (Mosquitto)</h3><pre tabindex=0><code>Топики MQTT:
+  tenantpass/{site_id}/door/{door_id}/cmd        ← команды
+  tenantpass/{site_id}/door/{door_id}/state      → статус замка
+  tenantpass/{site_id}/reader/{reader_id}/scan   → считывание карты
+  homepass/zone/{zone_id}/motion                 → движение
+  eventpass/{event_id}/scanner/{id}/scan         → скан билета
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># MQTT bridge: mosquitto → Redpanda через mqtt-kafka-bridge</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># docker-compose snippet</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>mqtt-kafka-bridge</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>image</span>: <span style=color:#ae81ff>hono/hono-mqtt-kafka-bridge:latest</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>MQTT_HOST</span>: <span style=color:#ae81ff>mosquitto</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>KAFKA_BOOTSTRAP</span>: <span style=color:#ae81ff>redpanda:9092</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>TOPIC_MAPPING</span>: |<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      tenantpass/#=tenantpass.mqtt.raw
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      eventpass/#=eventpass.mqtt.raw</span>
+</span></span></code></pre></div><hr><h2 id=api-gateway--traefik>API Gateway — Traefik</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># traefik.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>api</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>dashboard</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>entryPoints</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>web</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#e6db74>&#34;:80&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>http</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>redirections</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entryPoint</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>to</span>: <span style=color:#ae81ff>websecure</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>websecure</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#e6db74>&#34;:443&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>providers</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>docker</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>exposedByDefault</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>certificatesResolvers</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>le</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>acme</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>email</span>: <span style=color:#ae81ff>admin@tenantpass.ru</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>storage</span>: <span style=color:#ae81ff>/letsencrypt/acme.json</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>httpChallenge</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entryPoint</span>: <span style=color:#ae81ff>web</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.yml — labels для каждого сервиса</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>access-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tenantpass/access-service:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.access.rule=Host(`api.tenantpass.ru`) &amp;&amp; PathPrefix(`/api/v1/access`)&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.access.tls.certresolver=le&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.access.middlewares=auth-middleware,rate-limit&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.middlewares.rate-limit.ratelimit.burst=100&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.middlewares.rate-limit.ratelimit.average=50&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#75715e># JWT validation через Forward Auth к iam-service</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.middlewares.auth-middleware.forwardauth.address=http://iam-service:8000/auth/validate&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.middlewares.auth-middleware.forwardauth.authResponseHeaders=X-User-Id,X-Tenant-Id,X-Roles&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ticket-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>eventpass/ticket-service:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.tickets.rule=Host(`api.eventpass.ru`) &amp;&amp; PathPrefix(`/api/v1/tickets`)&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.tickets.tls.certresolver=le&#34;</span>
+</span></span></code></pre></div><h3 id=маршрутизация-по-поддомену>Маршрутизация по поддомену</h3><pre tabindex=0><code>api.tenantpass.ru/api/v1/access/*     → access-service
+api.tenantpass.ru/api/v1/workforce/*  → workforce-service
+api.tenantpass.ru/api/v1/devices/*    → device-service
+api.tenantpass.ru/api/v1/audit/*      → audit-service (read-only)
+
+api.eventpass.ru/api/v1/events/*      → event-service
+api.eventpass.ru/api/v1/tickets/*     → ticket-service
+api.eventpass.ru/api/v1/scan/*        → scan-service (WebSocket)
+api.eventpass.ru/api/v1/analytics/*   → analytics-service
+
+api.shared.internal/ml/*             → ml-service (internal only)
+api.shared.internal/notify/*         → notification-service
+</code></pre><hr><h2 id=data-ownership--каждый-сервис-владеет-своей-бд>Data Ownership — каждый сервис владеет своей БД</h2><pre tabindex=0><code>Принцип Database per Service:
+  ❌ Нельзя: access-service читает из БД workforce-service напрямую
+  ✅ Нужно: access-service вызывает REST API workforce-service
+
+access-service       → DB: tenantpass_config   (doors, rules, permits)
+audit-service        → DB: tenantpass_audit     (append-only partitioned)
+workforce-service    → DB: tenantpass_tabel     (табели, расписания)
+event-service        → DB: eventpass_events     (events, zones)
+ticket-service       → DB: eventpass_tickets    (tickets, keypairs)
+billing-service      → DB: eventpass_billing    (meters, invoices)
+ml-service           → DB: mlflow (experiments) + Redis (feature store)
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#75715e>-- Каждый сервис имеет отдельного PostgreSQL пользователя
+</span></span></span><span style=display:flex><span><span style=color:#75715e>-- без доступа к схемам других сервисов
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>USER</span> access_svc <span style=color:#66d9ef>WITH</span> PASSWORD <span style=color:#e6db74>&#39;...&#39;</span> <span style=color:#66d9ef>CONNECTION</span> <span style=color:#66d9ef>LIMIT</span> <span style=color:#ae81ff>20</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>GRANT</span> <span style=color:#66d9ef>CONNECT</span> <span style=color:#66d9ef>ON</span> <span style=color:#66d9ef>DATABASE</span> tenantpass_config <span style=color:#66d9ef>TO</span> access_svc;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>GRANT</span> <span style=color:#66d9ef>USAGE</span> <span style=color:#66d9ef>ON</span> <span style=color:#66d9ef>SCHEMA</span> <span style=color:#66d9ef>public</span> <span style=color:#66d9ef>TO</span> access_svc;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>GRANT</span> <span style=color:#66d9ef>SELECT</span>, <span style=color:#66d9ef>INSERT</span>, <span style=color:#66d9ef>UPDATE</span> <span style=color:#66d9ef>ON</span> doors, access_rules, permits <span style=color:#66d9ef>TO</span> access_svc;
+</span></span><span style=display:flex><span><span style=color:#75715e>-- access_svc не видит таблицы workforce или audit
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>USER</span> workforce_svc <span style=color:#66d9ef>WITH</span> PASSWORD <span style=color:#e6db74>&#39;...&#39;</span> <span style=color:#66d9ef>CONNECTION</span> <span style=color:#66d9ef>LIMIT</span> <span style=color:#ae81ff>10</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>GRANT</span> <span style=color:#66d9ef>CONNECT</span> <span style=color:#66d9ef>ON</span> <span style=color:#66d9ef>DATABASE</span> tenantpass_tabel <span style=color:#66d9ef>TO</span> workforce_svc;
+</span></span></code></pre></div><hr><h2 id=circuit-breaker--защита-от-каскадных-отказов>Circuit Breaker — защита от каскадных отказов</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># Паттерн Circuit Breaker для межсервисных вызовов</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Используем tenacity + кастомный circuit breaker</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> asyncio
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> datetime, timedelta
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> enum <span style=color:#f92672>import</span> Enum
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CircuitState</span>(Enum):
+</span></span><span style=display:flex><span>    CLOSED <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;closed&#34;</span>       <span style=color:#75715e># нормально, запросы проходят</span>
+</span></span><span style=display:flex><span>    OPEN <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;open&#34;</span>           <span style=color:#75715e># сервис упал, запросы блокируются</span>
+</span></span><span style=display:flex><span>    HALF_OPEN <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;half_open&#34;</span> <span style=color:#75715e># пробуем восстановиться</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CircuitBreaker</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, failure_threshold: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>5</span>,
+</span></span><span style=display:flex><span>                 timeout: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>60.0</span>,
+</span></span><span style=display:flex><span>                 success_threshold: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>2</span>):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>state <span style=color:#f92672>=</span> CircuitState<span style=color:#f92672>.</span>CLOSED
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>failures <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>last_failure_time: datetime <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>success_count <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>failure_threshold <span style=color:#f92672>=</span> failure_threshold
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>timeout <span style=color:#f92672>=</span> timeout
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>success_threshold <span style=color:#f92672>=</span> success_threshold
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>call</span>(self, func, <span style=color:#f92672>*</span>args, <span style=color:#f92672>**</span>kwargs):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>state <span style=color:#f92672>==</span> CircuitState<span style=color:#f92672>.</span>OPEN:
+</span></span><span style=display:flex><span>            elapsed <span style=color:#f92672>=</span> (datetime<span style=color:#f92672>.</span>now() <span style=color:#f92672>-</span> self<span style=color:#f92672>.</span>last_failure_time)<span style=color:#f92672>.</span>total_seconds()
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> elapsed <span style=color:#f92672>&gt;</span> self<span style=color:#f92672>.</span>timeout:
+</span></span><span style=display:flex><span>                self<span style=color:#f92672>.</span>state <span style=color:#f92672>=</span> CircuitState<span style=color:#f92672>.</span>HALF_OPEN
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>raise</span> <span style=color:#a6e22e>Exception</span>(<span style=color:#e6db74>&#34;Circuit OPEN — сервис недоступен&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>            result <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> func(<span style=color:#f92672>*</span>args, <span style=color:#f92672>**</span>kwargs)
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_on_success()
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> result
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span> <span style=color:#66d9ef>as</span> e:
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_on_failure()
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>raise</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_on_success</span>(self):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>state <span style=color:#f92672>==</span> CircuitState<span style=color:#f92672>.</span>HALF_OPEN:
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>success_count <span style=color:#f92672>+=</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>success_count <span style=color:#f92672>&gt;=</span> self<span style=color:#f92672>.</span>success_threshold:
+</span></span><span style=display:flex><span>                self<span style=color:#f92672>.</span>state <span style=color:#f92672>=</span> CircuitState<span style=color:#f92672>.</span>CLOSED
+</span></span><span style=display:flex><span>                self<span style=color:#f92672>.</span>failures <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>failures <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_on_failure</span>(self):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>failures <span style=color:#f92672>+=</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>last_failure_time <span style=color:#f92672>=</span> datetime<span style=color:#f92672>.</span>now()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>failures <span style=color:#f92672>&gt;=</span> self<span style=color:#f92672>.</span>failure_threshold:
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>state <span style=color:#f92672>=</span> CircuitState<span style=color:#f92672>.</span>OPEN
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Использование: access-service → ml-service</span>
+</span></span><span style=display:flex><span>ml_circuit <span style=color:#f92672>=</span> CircuitBreaker(failure_threshold<span style=color:#f92672>=</span><span style=color:#ae81ff>5</span>, timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>30.0</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>safe_get_risk_score</span>(user_id: str) <span style=color:#f92672>-&gt;</span> float:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>await</span> ml_circuit<span style=color:#f92672>.</span>call(get_risk_score, user_id)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0.3</span>  <span style=color:#75715e># fallback: нейтральный risk score</span>
+</span></span></code></pre></div><hr><h2 id=health-checks--service-discovery>Health Checks & Service Discovery</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># Каждый сервис реализует /health endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># FastAPI пример для access-service</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> fastapi <span style=color:#f92672>import</span> FastAPI
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> pydantic <span style=color:#f92672>import</span> BaseModel
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>app <span style=color:#f92672>=</span> FastAPI()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>HealthStatus</span>(BaseModel):
+</span></span><span style=display:flex><span>    status: str
+</span></span><span style=display:flex><span>    version: str
+</span></span><span style=display:flex><span>    dependencies: dict[str, str]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@app.get</span>(<span style=color:#e6db74>&#34;/health&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>health_check</span>() <span style=color:#f92672>-&gt;</span> HealthStatus:
+</span></span><span style=display:flex><span>    deps <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Проверка PostgreSQL</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> db<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;SELECT 1&#34;</span>)
+</span></span><span style=display:flex><span>        deps[<span style=color:#e6db74>&#34;postgres&#34;</span>] <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;ok&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span>:
+</span></span><span style=display:flex><span>        deps[<span style=color:#e6db74>&#34;postgres&#34;</span>] <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;error&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Проверка Redis</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> redis<span style=color:#f92672>.</span>ping()
+</span></span><span style=display:flex><span>        deps[<span style=color:#e6db74>&#34;redis&#34;</span>] <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;ok&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span>:
+</span></span><span style=display:flex><span>        deps[<span style=color:#e6db74>&#34;redis&#34;</span>] <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;error&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Проверка MQTT</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> mqtt<span style=color:#f92672>.</span>is_connected()
+</span></span><span style=display:flex><span>        deps[<span style=color:#e6db74>&#34;mqtt&#34;</span>] <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;ok&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span>:
+</span></span><span style=display:flex><span>        deps[<span style=color:#e6db74>&#34;mqtt&#34;</span>] <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;error&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    all_ok <span style=color:#f92672>=</span> all(v <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;ok&#34;</span> <span style=color:#66d9ef>for</span> v <span style=color:#f92672>in</span> deps<span style=color:#f92672>.</span>values())
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> HealthStatus(
+</span></span><span style=display:flex><span>        status<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;healthy&#34;</span> <span style=color:#66d9ef>if</span> all_ok <span style=color:#66d9ef>else</span> <span style=color:#e6db74>&#34;degraded&#34;</span>,
+</span></span><span style=display:flex><span>        version<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.2.0&#34;</span>,
+</span></span><span style=display:flex><span>        dependencies<span style=color:#f92672>=</span>deps
+</span></span><span style=display:flex><span>    )
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose healthcheck для всех сервисов</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>access-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>healthcheck</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>test</span>: [<span style=color:#e6db74>&#34;CMD&#34;</span>, <span style=color:#e6db74>&#34;curl&#34;</span>, <span style=color:#e6db74>&#34;-f&#34;</span>, <span style=color:#e6db74>&#34;http://localhost:8000/health&#34;</span>]
+</span></span><span style=display:flex><span>      <span style=color:#f92672>interval</span>: <span style=color:#ae81ff>30s</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>timeout</span>: <span style=color:#ae81ff>10s</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>retries</span>: <span style=color:#ae81ff>3</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>start_period</span>: <span style=color:#ae81ff>40s</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>depends_on</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>postgres</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>service_healthy</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>redis</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>service_healthy</span>
+</span></span></code></pre></div><hr><h2 id=полный-docker-compose-для-tenantpass>Полный docker-compose для TenantPass</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.tenantpass.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>version</span>: <span style=color:#e6db74>&#34;3.9&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>frontend</span>:   <span style=color:#75715e># клиенты → gateway</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>backend</span>:    <span style=color:#75715e># сервисы между собой (нет прямого доступа снаружи)</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>infra</span>:      <span style=color:#75715e># инфраструктура (DB, MQ)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># ===== GATEWAY =====</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>traefik</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>traefik:v3.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>:
+</span></span><span style=display:flex><span>      - --<span style=color:#ae81ff>providers.docker=true</span>
+</span></span><span style=display:flex><span>      - --<span style=color:#ae81ff>providers.docker.exposedbydefault=false</span>
+</span></span><span style=display:flex><span>      - --<span style=color:#ae81ff>entrypoints.web.address=:80</span>
+</span></span><span style=display:flex><span>      - --<span style=color:#ae81ff>entrypoints.websecure.address=:443</span>
+</span></span><span style=display:flex><span>      - --<span style=color:#ae81ff>certificatesresolvers.le.acme.tlschallenge=true</span>
+</span></span><span style=display:flex><span>      - --<span style=color:#ae81ff>certificatesresolvers.le.acme.email=admin@tenantpass.ru</span>
+</span></span><span style=display:flex><span>      - --<span style=color:#ae81ff>certificatesresolvers.le.acme.storage=/letsencrypt/acme.json</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;80:80&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;443:443&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/var/run/docker.sock:/var/run/docker.sock:ro</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>letsencrypt:/letsencrypt</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>frontend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># ===== IAM =====</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>keycloak</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>quay.io/keycloak/keycloak:24.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>start</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB</span>: <span style=color:#ae81ff>postgres</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB_URL</span>: <span style=color:#ae81ff>jdbc:postgresql://postgres:5432/keycloak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB_USERNAME</span>: <span style=color:#ae81ff>keycloak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB_PASSWORD</span>: <span style=color:#ae81ff>${KC_DB_PASSWORD}</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_HOSTNAME</span>: <span style=color:#ae81ff>auth.tenantpass.ru</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_PROXY</span>: <span style=color:#ae81ff>edge</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KEYCLOAK_ADMIN</span>: <span style=color:#ae81ff>admin</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KEYCLOAK_ADMIN_PASSWORD</span>: <span style=color:#ae81ff>${KC_ADMIN_PASSWORD}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.keycloak.rule=Host(`auth.tenantpass.ru`)&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.keycloak.tls.certresolver=le&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>iam-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tenantpass/iam-service:${VERSION:-latest}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KEYCLOAK_URL</span>: <span style=color:#ae81ff>http://keycloak:8080</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KEYCLOAK_REALM</span>: <span style=color:#ae81ff>tenantpass</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>REDIS_URL</span>: <span style=color:#ae81ff>redis://redis:6379</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.iam.rule=Host(`api.tenantpass.ru`) &amp;&amp; PathPrefix(`/api/v1/auth`)&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># ===== СКУД =====</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>access-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tenantpass/access-service:${VERSION:-latest}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>DATABASE_URL</span>: <span style=color:#ae81ff>postgresql+asyncpg://access_svc:${ACCESS_DB_PASS}@postgres/tenantpass_config</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>REDIS_URL</span>: <span style=color:#ae81ff>redis://redis:6379</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MQTT_URL</span>: <span style=color:#ae81ff>mqtt://mosquitto:1883</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>ML_SERVICE_URL</span>: <span style=color:#ae81ff>http://ml-service:8010</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KAFKA_BOOTSTRAP</span>: <span style=color:#ae81ff>redpanda:9092</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.access.rule=Host(`api.tenantpass.ru`) &amp;&amp; PathPrefix(`/api/v1/access`)&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.middlewares.auth.forwardauth.address=http://iam-service:8000/auth/validate&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>deploy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>replicas</span>: <span style=color:#ae81ff>2</span>    <span style=color:#75715e># горизонтальное масштабирование</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>restart_policy</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>condition</span>: <span style=color:#66d9ef>on</span>-<span style=color:#ae81ff>failure</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>device-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tenantpass/device-service:${VERSION:-latest}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>DATABASE_URL</span>: <span style=color:#ae81ff>postgresql+asyncpg://device_svc:${DEVICE_DB_PASS}@postgres/tenantpass_config</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>MQTT_URL</span>: <span style=color:#ae81ff>mqtt://mosquitto:1883</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.devices.rule=Host(`api.tenantpass.ru`) &amp;&amp; PathPrefix(`/api/v1/devices`)&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>workforce-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tenantpass/workforce-service:${VERSION:-latest}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>DATABASE_URL</span>: <span style=color:#ae81ff>postgresql+asyncpg://workforce_svc:${WF_DB_PASS}@postgres/tenantpass_tabel</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KAFKA_BOOTSTRAP</span>: <span style=color:#ae81ff>redpanda:9092</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>ONS_ENDPOINT</span>: <span style=color:#ae81ff>${ONS_1C_URL}  </span> <span style=color:#75715e># 1С интеграция (опционально)</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.workforce.rule=Host(`api.tenantpass.ru`) &amp;&amp; PathPrefix(`/api/v1/workforce`)&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>audit-service</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tenantpass/audit-service:${VERSION:-latest}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>DATABASE_URL</span>: <span style=color:#ae81ff>postgresql+asyncpg://audit_svc:${AUDIT_DB_PASS}@postgres/tenantpass_audit</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KAFKA_BOOTSTRAP</span>: <span style=color:#ae81ff>redpanda:9092</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KAFKA_TOPICS</span>: <span style=color:#ae81ff>tenantpass.access.events,workforce.attendance</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># audit-service НЕ доступен снаружи через traefik — только через VPN</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># ===== ИНФРАСТРУКТУРА =====</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>postgres</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>postgres:16-alpine</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>POSTGRES_PASSWORD</span>: <span style=color:#ae81ff>${PG_ROOT_PASSWORD}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>pgdata:/var/lib/postgresql/data</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./sql/init:/docker-entrypoint-initdb.d</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>healthcheck</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>test</span>: [<span style=color:#e6db74>&#34;CMD-SHELL&#34;</span>, <span style=color:#e6db74>&#34;pg_isready -U postgres&#34;</span>]
+</span></span><span style=display:flex><span>      <span style=color:#f92672>interval</span>: <span style=color:#ae81ff>10s</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>redis</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>valkey/valkey:7.2-alpine </span> <span style=color:#75715e># Apache 2.0 vs Redis SSPL</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>valkey-server --maxmemory 256mb --maxmemory-policy allkeys-lru</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>redisdata:/data</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>healthcheck</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>test</span>: [<span style=color:#e6db74>&#34;CMD&#34;</span>, <span style=color:#e6db74>&#34;valkey-cli&#34;</span>, <span style=color:#e6db74>&#34;ping&#34;</span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>redpanda</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>redpandadata/redpanda:v23.3</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      redpanda start
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      --smp 1 --memory 512M
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      --advertise-kafka-addr internal://redpanda:9092</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>mosquitto</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>eclipse-mosquitto:2</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./mosquitto.conf:/mosquitto/config/mosquitto.conf</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>mqttdata:/mosquitto/data</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;1883:1883&#34;</span>    <span style=color:#75715e># внутренняя сеть (ESP32)</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8883:8883&#34;</span>    <span style=color:#75715e># TLS для внешних устройств</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>backend</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>infra</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>pgdata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>redisdata</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>letsencrypt</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>mqttdata</span>:
+</span></span></code></pre></div><hr><h2 id=масштабирование>Масштабирование</h2><h3 id=горизонтальное-stateless-сервисы>Горизонтальное (stateless сервисы)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Масштабировать access-service при высокой нагрузке</span>
+</span></span><span style=display:flex><span>docker compose up -d --scale access-service<span style=color:#f92672>=</span><span style=color:#ae81ff>3</span> --scale scan-service<span style=color:#f92672>=</span><span style=color:#ae81ff>4</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Traefik автоматически load balance между репликами</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Сессии: stateless JWT + Redis, реплики не нужны сессии</span>
+</span></span></code></pre></div><h3 id=вертикальное-statefull-сервисы>Вертикальное (statefull сервисы)</h3><pre tabindex=0><code>PostgreSQL:  PgBouncer connection pooling → читать реплика для отчётов
+ClickHouse:  шарды по tenant_id при &gt;10M events/day
+Redpanda:    добавить партиции к топикам при росте throughput
+</code></pre><hr><h2 id=сравнение-с-монолитом>Сравнение с монолитом</h2><table><thead><tr><th>Аспект</th><th>Монолит</th><th>Микросервисы</th></tr></thead><tbody><tr><td>Деплой</td><td>Один большой контейнер</td><td>Отдельный CI/CD на каждый сервис</td></tr><tr><td>Масштабирование</td><td>Весь монолит × N</td><td>Только нагруженный сервис × N</td></tr><tr><td>Отказоустойчивость</td><td>Один сбой → весь монолит</td><td>Circuit breaker изолирует отказ</td></tr><tr><td>Трассировка</td><td>Простой лог</td><td>OpenTelemetry, distributed tracing</td></tr><tr><td>Разработка</td><td>Просто начать</td><td>Сложнее локально, но легче масштабировать команды</td></tr><tr><td>Сложность</td><td>Низкая</td><td>Высокая (сеть, данные, версионирование)</td></tr><tr><td><strong>Рекомендация</strong></td><td>HomePass, EventPass MVP</td><td>TenantPass production, EventPass enterprise</td></tr></tbody></table><hr><h2 id=observability--мониторинг-всех-сервисов>Observability — мониторинг всех сервисов</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Стек: Prometheus + Grafana + Loki + Jaeger</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>prometheus</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>prom/prometheus:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./prometheus.yml:/etc/prometheus/prometheus.yml</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Автоматически скрейпит /metrics у всех сервисов через Docker SD</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>grafana</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>grafana/grafana:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>GF_SECURITY_ADMIN_PASSWORD</span>: <span style=color:#ae81ff>${GRAFANA_PASSWORD}</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>labels</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.enable=true&#34;</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;traefik.http.routers.grafana.rule=Host(`grafana.tenantpass.ru`)&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Дашборды: per-service latency, error rates, DB pool usage</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>loki</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>grafana/loki:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Агрегирует логи всех контейнеров через Promtail</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>jaeger</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>jaegertracing/all-in-one:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Distributed tracing: OpenTelemetry → Jaeger</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Видно полный путь запроса: Gateway → access-service → ml-service → Redis</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># OpenTelemetry в каждом сервисе (3 строки!)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> opentelemetry.instrumentation.fastapi <span style=color:#f92672>import</span> FastAPIInstrumentor
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> opentelemetry.instrumentation.httpx <span style=color:#f92672>import</span> HTTPXClientInstrumentor
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> opentelemetry.exporter.otlp.proto.grpc.trace_exporter <span style=color:#f92672>import</span> OTLPSpanExporter
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>FastAPIInstrumentor<span style=color:#f92672>.</span>instrument_app(app)
+</span></span><span style=display:flex><span>HTTPXClientInstrumentor()<span style=color:#f92672>.</span>instrument()
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/arch-checklist/>arch-checklist</a>
+← <a href=/shared/keycloak-topology/>keycloak-topology</a>
+← <a href=/ml/inference-stack/>inference-stack</a>
+← <a href=/tenantpass/offline-mode/>offline-mode</a>
+← <a href=/tenantpass/data-isolation/>data-isolation</a>
+→ <a href=/tenantpass/access-control-models/>access-control-models</a>
+→ <a href=/eventpass/analytics-pipeline/>analytics-pipeline</a>
+→ <a href=/shared/billing-compliance/>billing-compliance</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

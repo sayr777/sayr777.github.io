@@ -1,0 +1,198 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Датчики движения и присутствия · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Датчики движения и присутствия</span></nav><article class=prose><h1>Датчики движения и присутствия</h1><h1 id=датчики-движения-и-присутствия>Датчики движения и присутствия</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=стек>Стек</h2><table><thead><tr><th>Сенсор</th><th>Принцип</th><th>Применение</th><th>Цена</th></tr></thead><tbody><tr><td><strong>HC-SR501 (PIR)</strong></td><td>ИК пассивный</td><td>Освещение, охрана</td><td>~50 ₽</td></tr><tr><td><strong>AM312 (мини-PIR)</strong></td><td>ИК пассивный</td><td>В подрозетник, скрытая установка</td><td>~70 ₽</td></tr><tr><td><strong>HLK-LD2410 (mmWave)</strong></td><td>24 ГГц радар</td><td>Присутствие (неподвижный человек)</td><td>~300 ₽</td></tr><tr><td><strong>HLK-LD2450 (mmWave)</strong></td><td>24 ГГц радар</td><td>Счёт людей, направление движения</td><td>~500 ₽</td></tr><tr><td><strong>Aqara FP1 (mmWave)</strong></td><td>60 ГГц радар</td><td>Зоны в комнате, падение, дыхание</td><td>~4 000 ₽</td></tr><tr><td><strong>Aqara P1 (Zigbee PIR)</strong></td><td>ИК</td><td>Готовое Zigbee-устройство</td><td>~900 ₽</td></tr><tr><td><strong>SONOFF SNZB-03 (Zigbee)</strong></td><td>ИК</td><td>Дешёвый Zigbee</td><td>~500 ₽</td></tr><tr><td><strong>Frigate (видео)</strong></td><td>AI-детекция</td><td>Камера → зона человека</td><td>0 ₽</td></tr><tr><td><strong>ESPresense (BLE)</strong></td><td>Bluetooth-маяк</td><td>Определение конкретного человека</td><td>~300 ₽</td></tr></tbody></table><hr><h2 id=архитектура>Архитектура</h2><div class=mermaid>graph TD
+subgraph SENSORS["Датчики"]
+PIR["PIR (HC-SR501)\nдвижение / нет"]
+MM["mmWave (HLK-LD2410)\nприсутствие + дистанция"]
+ZB_PIR["Zigbee PIR\n(Aqara / SONOFF)"]
+CAM["Камера + Frigate\nAI-зоны"]
+BLE["ESPresense\nкто именно в комнате"]
+end
+subgraph BRIDGE["Шлюз"]
+ESPH["ESP32 + ESPHome\n(PIR + mmWave)"]
+ZB2M["Zigbee2MQTT"]
+FRIGATE["Frigate NVR\nMQTT events"]
+end
+subgraph HA["Home Assistant"]
+PRESENCE["Определение присутствия\nperson.X в комнате Y"]
+AUTOMATION["Автоматизации\nсвет, климат, безопасность"]
+ANALYTICS["Аналитика\nTraffic counting (TenantPass)"]
+end
+PIR & MM --> ESPH --> HA
+ZB_PIR --> ZB2M --> HA
+CAM --> FRIGATE --> HA
+BLE --> ESPH --> HA
+HA --> PRESENCE & AUTOMATION & ANALYTICS</div><hr><h2 id=esphome--pir-hc-sr501>ESPHome — PIR (HC-SR501)</h2><p>Простейший и самый дешёвый вариант. Не фиксирует неподвижного человека.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/motion-pir.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Коридор — движение&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>motion</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO4</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Задержка снятия: HC-SR501 держит HIGH ~3 сек после движения</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Для автоматизации освещения достаточно</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>filters</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delayed_off</span>: <span style=color:#ae81ff>30s  </span> <span style=color:#75715e># свет остаётся ещё 30 сек после движения</span>
+</span></span></code></pre></div><hr><h2 id=esphome--hlk-ld2410-mmwave-присутствие>ESPHome — HLK-LD2410 (mmWave присутствие)</h2><p>mmWave фиксирует неподвижного человека (работает за столом, спит). Ключевое отличие от PIR.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/motion-mmwave.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>esphome</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>presence-office</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ESP32</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>board</span>: <span style=color:#ae81ff>esp32dev</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>uart</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>id</span>: <span style=color:#ae81ff>ld2410_uart</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>tx_pin</span>: <span style=color:#ae81ff>GPIO17</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>rx_pin</span>: <span style=color:#ae81ff>GPIO16</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>baud_rate</span>: <span style=color:#ae81ff>256000</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>parity</span>: <span style=color:#ae81ff>NONE</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>stop_bits</span>: <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>ld2410</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>id</span>: <span style=color:#ae81ff>ld2410_sensor</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>uart_id</span>: <span style=color:#ae81ff>ld2410_uart</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ld2410</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>has_target</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Офис — присутствие&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>occupancy</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>has_moving_target</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Офис — движение&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>has_still_target</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Офис — статичное присутствие&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ld2410</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>moving_distance</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Дистанция до движущегося&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>cm</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>still_distance</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Дистанция до статичного&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>cm</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>moving_energy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Энергия движущегося&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>still_energy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Энергия статичного&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>detection_distance</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Дистанция обнаружения&#34;</span>
+</span></span></code></pre></div><hr><h2 id=esphome--hlk-ld2450-mmwave-счёт-и-направление>ESPHome — HLK-LD2450 (mmWave счёт и направление)</h2><p>Отслеживает до 3 целей одновременно — можно считать людей в зоне.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/motion-counter.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>ld2450</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>id</span>: <span style=color:#ae81ff>ld2450_sensor</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>uart_id</span>: <span style=color:#ae81ff>ld2450_uart</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Координаты каждой цели (X, Y в мм)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ld2450</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>target_1</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>x</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Цель 1 X&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>y</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Цель 1 Y&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>target_2</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>x</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Цель 2 X&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>y</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Цель 2 Y&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>target_count</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Количество людей&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Паттерн счёта входа/выхода через коридор:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># target X переходит линию threshold → increment counter</span>
+</span></span></code></pre></div><hr><h2 id=zigbee-датчики-движения>Zigbee-датчики движения</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Zigbee2MQTT конфигурация</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>devices</span>:
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#34;0x00158d0001234aaa&#34;</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Гостиная — PIR&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#34;0x00158d0001234bbb&#34;</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Коридор — PIR&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA создаёт автоматически:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   binary_sensor.gostinaya_pir_occupancy     (движение)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.gostinaya_pir_battery              (батарея)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.gostinaya_pir_illuminance          (освещённость, у Aqara P1)</span>
+</span></span></code></pre></div><hr><h2 id=espresense--кто-именно-в-комнате>ESPresense — кто именно в комнате</h2><p>ESPresense работает на ESP32, слушает BLE-маяки телефонов и браслетов (Apple Watch, Mi Band, AirTags, iBeacon).</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/espresense-room.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Требует fork ESPresense, не стандартный ESPHome</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># https://espresense.com/</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA: создаёт сенсоры типа:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.espresense_living_room_iphone_owner   (дистанция в метрах)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># </span>
+</span></span><span style=display:flex><span><span style=color:#75715e># + zone с помощью Node-RED или HA automation:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   если distance &lt; 3 → person.owner в living_room</span>
+</span></span></code></pre></div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=homepass--карта-присутствия>HomePass — карта присутствия</h3><table><thead><tr><th>Помещение</th><th>Датчик</th><th>Автоматизация</th></tr></thead><tbody><tr><td>Прихожая</td><td>PIR HC-SR501</td><td>Свет при входе</td></tr><tr><td>Гостиная</td><td>LD2410 mmWave</td><td>Климат по присутствию, TV выкл когда ушли</td></tr><tr><td>Кухня</td><td>PIR</td><td>Свет под шкафами</td></tr><tr><td>Спальни</td><td>LD2410 mmWave</td><td>Ночной режим (неподвижный = спит)</td></tr><tr><td>Ванная</td><td>PIR</td><td>Свет + вентиляция</td></tr><tr><td>Кабинет</td><td>LD2410</td><td>&ldquo;Не беспокоить&rdquo; если человек за столом</td></tr><tr><td>Чердак</td><td>PIR</td><td>Охрана (алерт ночью)</td></tr><tr><td>Подвал</td><td>PIR</td><td>Охрана + свет</td></tr><tr><td>Хозблок</td><td>PIR</td><td>Охрана ночью</td></tr><tr><td>Уличный периметр</td><td>PIR × 4</td><td>Освещение + видеозапись</td></tr></tbody></table><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA: умный свет по присутствию</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Гостиная: свет по присутствию&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.living_room_occupancy</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>light.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>light.living_room</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>brightness_pct</span>: <span style=color:#e6db74>&#34;{{ 80 if now().hour &lt; 21 else 30 }}&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Гостиная: свет выкл при уходе&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.living_room_occupancy</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;off&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>for</span>: <span style=color:#e6db74>&#34;00:05:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>light.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>light.living_room</span>
+</span></span></code></pre></div><h3 id=tenantpass--подсчёт-посетителей-и-охрана>TenantPass — подсчёт посетителей и охрана</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># TenantPass: счётчики людей по зонам</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HLK-LD2450 на входе каждой зоны → HA MQTT → аналитика</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;СКУД: тревога — движение в нерабочее время&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.motion_server_room</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>condition</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>after</span>: <span style=color:#e6db74>&#34;20:00:00&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>before</span>: <span style=color:#e6db74>&#34;08:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>title</span>: <span style=color:#e6db74>&#34;ТРЕВОГА: серверная!&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Движение в серверной в нерабочее время&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>camera.snapshot</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>camera.server_room</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>filename</span>: <span style=color:#e6db74>&#34;/config/snapshots/server_room_{{ now().strftime(&#39;%Y%m%d_%H%M%S&#39;) }}.jpg&#34;</span>
+</span></span></code></pre></div><h3 id=eventpass--контроль-потоков>EventPass — контроль потоков</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># EventPass: считать людей в зонах мероприятия</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># LD2450 (3 цели) или Frigate person count → MQTT</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Превышение вместимости → алерт организатору</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Мероприятие: VIP-зона переполнена&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.vip_zone_people_count</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>50</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_organizer</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;VIP-зона: {{ states(&#39;sensor.vip_zone_people_count&#39;) }} чел — лимит 50!&#34;</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/shared/video-surveillance/>video-surveillance</a>
+← <a href=/home/alarm/>alarm</a>
+← <a href=/tenantpass/access-model/>access-model</a>
+→ <a href=/shared/smart-switch/>smart-switch</a>
+→ <a href=/home/automation/presence/>presence</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

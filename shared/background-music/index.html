@@ -1,0 +1,367 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Объектовая музыка — фоновое аудиовещание · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Объектовая музыка — фоновое аудиовещание</span></nav><article class=prose><h1>Объектовая музыка — фоновое аудиовещание</h1><h1 id=объектовая-музыка--фоновое-аудиовещание>Объектовая музыка — фоновое аудиовещание</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=стек-всё-бесплатное>Стек (всё бесплатное)</h2><table><thead><tr><th>Компонент</th><th>Роль</th><th>Лицензия</th></tr></thead><tbody><tr><td><strong>Liquidsoap</strong></td><td>Планировщик и микшер потоков</td><td>GPL-2.0</td></tr><tr><td><strong>Icecast2</strong></td><td>Стриминг-сервер (HTTP audio stream)</td><td>GPL-2.0</td></tr><tr><td><strong>Snapcast</strong></td><td>Синхронное мультизональное воспроизведение</td><td>GPL-3.0</td></tr><tr><td><strong>MPD</strong></td><td>Плеер на зональном клиенте</td><td>GPL-2.0</td></tr><tr><td><strong>Mopidy</strong></td><td>MPD + Spotify/Яндекс.Музыка плагины</td><td>Apache-2.0</td></tr><tr><td><strong>Asterisk MOH</strong></td><td>Прерывание музыки объявлением</td><td>GPL-2.0</td></tr></tbody></table><hr><h2 id=архитектура>Архитектура</h2><div class=mermaid>graph TD
+subgraph SOURCES["Источники музыки"]
+LOCAL["Локальные файлы\n/var/music/ (MP3/FLAC/OGG)"]
+RADIO["Интернет-радио\nIcecast / Shoutcast URL"]
+MOPIDY["Mopidy\nYandex Music / Last.fm"]
+end
+subgraph ENGINE["Движок (Liquidsoap)"]
+SCHED["Планировщик\nпо времени / зоне / событию"]
+DUCK["Audio Ducking\nприглушение при объявлении"]
+MIX["Миксер\nJingle + Music + PA"]
+end
+subgraph STREAM["Раздача (Icecast2)"]
+ZONE_A["Поток /zone-a\n128 kbps MP3"]
+ZONE_B["Поток /zone-b"]
+ZONE_LOBBY["Поток /lobby"]
+ZONE_OUTDOOR["Поток /outdoor"]
+end
+subgraph ENDPOINTS["Клиенты (воспроизведение)"]
+SNAP_CLIENT["Snapcast client\n(Raspberry Pi / ESP32-A1S)"]
+SIP_PA["SIP PA-усилитель\n(Asterisk MOH channel)"]
+AMP_IP["IP-усилитель\n(Algo / DIY)"]
+BROWSER["Веб-браузер\n(для мониторинга)"]
+end
+subgraph PA["Приоритетные прерывания"]
+AST["Asterisk\nобъявление / тревога"]
+HA_PA["Home Assistant\nTTS-оповещение"]
+end
+SOURCES --> ENGINE
+PA -->|DUCK сигнал| DUCK
+ENGINE --> STREAM
+STREAM --> SNAP_CLIENT & SIP_PA & AMP_IP & BROWSER</div><hr><h2 id=liquidsoap--планировщик-потоков>Liquidsoap — планировщик потоков</h2><p><strong>Liquidsoap</strong> — язык программирования и рантайм для управления аудиопотоками. Всё что угодно: расписание, jingle&rsquo;ы, кроссфейды, ducking при объявлениях.</p><h3 id=установка>Установка</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Ubuntu / Debian</span>
+</span></span><span style=display:flex><span>apt-get install liquidsoap liquidsoap-plugin-all
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Или через opam (последняя версия)</span>
+</span></span><span style=display:flex><span>opam install liquidsoap
+</span></span></code></pre></div><h3 id=базовый-скрипт-два-плейлиста-по-расписанию--ducking>Базовый скрипт: два плейлиста по расписанию + ducking</h3><pre tabindex=0><code class=language-liquidsoap data-lang=liquidsoap># /etc/liquidsoap/zones.liq
+
+# === ИСТОЧНИКИ ===
+
+# Утренняя подборка (спокойная)
+morning = playlist(
+  mode = &#34;randomize&#34;,
+  &#34;/var/music/morning/&#34;
+)
+
+# Дневная (активная)
+daytime = playlist(
+  mode = &#34;randomize&#34;,
+  &#34;/var/music/daytime/&#34;
+)
+
+# Вечерняя (расслабляющая)
+evening = playlist(
+  mode = &#34;randomize&#34;,
+  &#34;/var/music/evening/&#34;
+)
+
+# Интернет-радио как фолбэк
+fallback_radio = mksafe(
+  input.http(&#34;http://radiorecord.ru/mp3/rr_320&#34;)
+)
+
+# === РАСПИСАНИЕ ===
+
+music = switch(
+  track_sensitive = false,
+  [
+    ({ 07h00m - 11h00m }, morning),
+    ({ 11h00m - 18h00m }, daytime),
+    ({ 18h00m - 23h00m }, evening),
+    ({ true },             fallback_radio)   # ночью — радио
+  ]
+)
+
+# Кроссфейд между треками (3 секунды)
+music = crossfade(duration = 3.0, music)
+
+# === ОБЪЯВЛЕНИЯ (Ducking) ===
+
+# Asterisk пишет в этот файл сигнал &#34;объявление активно&#34;
+announce_active = ref(false)
+
+# Duck: при объявлении музыка тихнет до 20% за 1 сек
+music_ducked = amplify(
+  override = &#34;liq_amplify&#34;,
+  music
+)
+
+on_metadata(
+  fun(m) -&gt;
+    if !announce_active then
+      music_ducked.set(&#34;liq_amplify&#34;, lin_of_dB(-14.0))  # -14 dB
+    end,
+  music
+)
+
+# HTTP endpoint для управления ducking из Asterisk/HA
+harbor.http.register(
+  port = 8005,
+  method = &#34;POST&#34;,
+  &#34;/duck&#34;,
+  fun(_, response) -&gt;
+    begin
+      announce_active := true
+      music_ducked.set(&#34;liq_amplify&#34;, lin_of_dB(-14.0))
+      response.status_code(200)
+      response.data(&#34;ducking on&#34;)
+    end
+)
+
+harbor.http.register(
+  port = 8005,
+  method = &#34;POST&#34;,
+  &#34;/unduck&#34;,
+  fun(_, response) -&gt;
+    begin
+      announce_active := false
+      music_ducked.set(&#34;liq_amplify&#34;, lin_of_dB(0.0))
+      response.status_code(200)
+      response.data(&#34;ducking off&#34;)
+    end
+)
+
+# === ЗОНЫ — разные потоки на Icecast ===
+
+# Зона А — лобби (громче, более энергичная)
+zone_a = amplify(1.2, music_ducked)
+
+# Зона Б — рабочее пространство (тише)
+zone_b = amplify(0.7, music_ducked)
+
+# Улица — отдельный плейлист, только летом
+outdoor_music = playlist(&#34;/var/music/outdoor/&#34;)
+zone_outdoor = switch([
+  ({ 05h00m - 23h00m }, amplify(1.5, outdoor_music)),
+  ({ true }, blank())           # ночью тишина
+])
+
+# === ВЫВОД НА ICECAST ===
+
+output.icecast(
+  %mp3(bitrate = 128),
+  host = &#34;localhost&#34;, port = 8000,
+  password = &#34;icecast_source_pass&#34;,
+  mount = &#34;/zone-a&#34;,
+  name = &#34;Zone A — Lobby&#34;,
+  zone_a
+)
+
+output.icecast(
+  %mp3(bitrate = 96),
+  host = &#34;localhost&#34;, port = 8000,
+  password = &#34;icecast_source_pass&#34;,
+  mount = &#34;/zone-b&#34;,
+  name = &#34;Zone B — Workspace&#34;,
+  zone_b
+)
+
+output.icecast(
+  %mp3(bitrate = 128),
+  host = &#34;localhost&#34;, port = 8000,
+  password = &#34;icecast_source_pass&#34;,
+  mount = &#34;/outdoor&#34;,
+  name = &#34;Outdoor&#34;,
+  zone_outdoor
+)
+</code></pre><hr><h2 id=icecast2--стриминг-сервер>Icecast2 — стриминг-сервер</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-xml data-lang=xml><span style=display:flex><span><span style=color:#75715e>&lt;!-- /etc/icecast2/icecast.xml --&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;icecast&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;location&gt;</span>Moscow<span style=color:#f92672>&lt;/location&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;admin&gt;</span>admin@company.ru<span style=color:#f92672>&lt;/admin&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;limits&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;clients&gt;</span>100<span style=color:#f92672>&lt;/clients&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;sources&gt;</span>10<span style=color:#f92672>&lt;/sources&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;burst-size&gt;</span>65536<span style=color:#f92672>&lt;/burst-size&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;/limits&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;authentication&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;source-password&gt;</span>icecast_source_pass<span style=color:#f92672>&lt;/source-password&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;relay-password&gt;</span>icecast_relay_pass<span style=color:#f92672>&lt;/relay-password&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;admin-user&gt;</span>admin<span style=color:#f92672>&lt;/admin-user&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;admin-password&gt;</span>icecast_admin_pass<span style=color:#f92672>&lt;/admin-password&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;/authentication&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;hostname&gt;</span>192.168.1.X<span style=color:#f92672>&lt;/hostname&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;listen-socket&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;port&gt;</span>8000<span style=color:#f92672>&lt;/port&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;bind-address&gt;</span>0.0.0.0<span style=color:#f92672>&lt;/bind-address&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;/listen-socket&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>&lt;!-- Только внутренняя сеть --&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;security&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;chroot&gt;</span>0<span style=color:#f92672>&lt;/chroot&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;/security&gt;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;paths&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;logdir&gt;</span>/var/log/icecast2<span style=color:#f92672>&lt;/logdir&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;webroot&gt;</span>/usr/share/icecast2/web<span style=color:#f92672>&lt;/webroot&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;/paths&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;/icecast&gt;</span>
+</span></span></code></pre></div><hr><h2 id=snapcast--синхронное-мультизональное-воспроизведение>Snapcast — синхронное мультизональное воспроизведение</h2><p>Snapcast решает проблему рассинхронизации: все зоны играют <strong>одновременно</strong> с точностью до миллисекунды. Это важно в больших пространствах, где слышно несколько зон сразу.</p><div class=mermaid>graph LR
+LIQ["Liquidsoap\npipe output"] --> SNAP_SRV["Snapserver\n(на сервере)"]
+SNAP_SRV -->|TCP sync| C1["Snapclient\nЗона А (RPi Zero)"]
+SNAP_SRV -->|TCP sync| C2["Snapclient\nЗона Б (ESP32-A1S)"]
+SNAP_SRV -->|TCP sync| C3["Snapclient\nУлица (RPi Zero)"]
+SNAP_SRV -->|TCP sync| C4["Snapclient\nБаня (RPi Zero)"]</div><h3 id=сервер>Сервер</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>apt-get install snapserver
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># /etc/snapserver.conf</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>[</span>stream<span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>source <span style=color:#f92672>=</span> pipe:///tmp/snapcast_pipe?name<span style=color:#f92672>=</span>main&amp;sampleformat<span style=color:#f92672>=</span>48000:16:2
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>[</span>http<span style=color:#f92672>]</span>
+</span></span><span style=display:flex><span>enabled <span style=color:#f92672>=</span> true
+</span></span><span style=display:flex><span>port <span style=color:#f92672>=</span> <span style=color:#ae81ff>1780</span>         <span style=color:#75715e># веб-интерфейс управления</span>
+</span></span></code></pre></div><pre tabindex=0><code class=language-liquidsoap data-lang=liquidsoap># Liquidsoap: дополнительный вывод в Snapcast pipe
+output.file(
+  %wav(channels=2, samplerate=48000, header=false),
+  &#34;/tmp/snapcast_pipe&#34;,
+  music_ducked
+)
+</code></pre><h3 id=клиент-raspberry-pi-zero-2w>Клиент (Raspberry Pi Zero 2W)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>apt-get install snapclient
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># /etc/default/snapclient</span>
+</span></span><span style=display:flex><span>SNAPCLIENT_OPTS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;--host 192.168.1.X --port 1704 --soundcard default&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Задержка клиента (компенсация задержки усилителя)</span>
+</span></span><span style=display:flex><span>snapclientctl latency <span style=color:#ae81ff>50</span>   <span style=color:#75715e># мс</span>
+</span></span></code></pre></div><h3 id=diy-клиент-на-esp32-a1s-lyrat-mini>DIY клиент на ESP32-A1S (Lyrat Mini)</h3><pre tabindex=0><code>ESP32-A1S + ES8388 codec → I2S → усилитель → динамики
+Прошивка: esp-idf + snapcast-esp32 (open-source)
+Стоимость: ~1 500 ₽
+Питание: 5V USB или PoE-сплиттер
+</code></pre><hr><h2 id=ducking--приглушение-при-объявлении>Ducking — приглушение при объявлении</h2><p>При поступлении PA-объявления из Asterisk или TTS из Home Assistant музыка автоматически приглушается.</p><div class=mermaid>sequenceDiagram
+participant HA as Home Assistant
+participant LIQ as Liquidsoap
+participant AST as Asterisk
+participant SNAP as Snapcast
+participant SPK as Динамики
+HA->>LIQ: POST /duck (музыка -14 dB за 1 сек)
+HA->>AST: AMI Originate → PA-объявление
+AST->>SNAP: SIP PA channel → audio
+note over SPK: Объявление хорошо слышно на фоне тихой музыки
+AST->>HA: AMI Event: Hangup
+HA->>LIQ: POST /unduck (музыка +14 dB за 2 сек)</div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automation: ducking при объявлении</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;PA объявление: приглушить музыку&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>webhook</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>webhook_id</span>: <span style=color:#ae81ff>pa_announce_start</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>rest_command.liquidsoap_duck</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>: {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;PA объявление: восстановить музыку&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>webhook</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>webhook_id</span>: <span style=color:#ae81ff>pa_announce_end</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>delay</span>: <span style=color:#e6db74>&#34;00:00:02&#34;</span>   <span style=color:#75715e># пауза после объявления</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>rest_command.liquidsoap_unduck</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>: {}
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># configuration.yaml — rest_command для Liquidsoap</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>rest_command</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>liquidsoap_duck</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>url</span>: <span style=color:#e6db74>&#34;http://192.168.1.X:8005/duck&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>method</span>: <span style=color:#ae81ff>POST</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>liquidsoap_unduck</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>url</span>: <span style=color:#e6db74>&#34;http://192.168.1.X:8005/unduck&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>method</span>: <span style=color:#ae81ff>POST</span>
+</span></span></code></pre></div><hr><h2 id=asterisk-moh-music-on-hold--музыка-при-ожидании>Asterisk MOH (Music on Hold) — музыка при ожидании</h2><p>Стандартный Music on Hold в Asterisk — тоже слушает Icecast-поток.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/musiconhold.conf</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[default]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>mode</span><span style=color:#f92672>=</span><span style=color:#e6db74>stream</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>directory</span><span style=color:#f92672>=</span><span style=color:#e6db74>http://192.168.1.X:8000/zone-a   ; поток Icecast</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Отдельный класс для VIP-зоны (другая музыка)</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[vip-lounge]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>mode</span><span style=color:#f92672>=</span><span style=color:#e6db74>stream</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>directory</span><span style=color:#f92672>=</span><span style=color:#e6db74>http://192.168.1.X:8000/zone-b</span>
+</span></span></code></pre></div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=tenantpass-офисобъект>TenantPass (офис/объект)</h3><pre tabindex=0><code>Расписание:
+  08:00–09:00  Утренняя энергичная → рабочий настрой
+  09:00–12:00  Фоновая инструментальная → концентрация
+  12:00–13:00  Обеденная (чуть активнее)
+  13:00–18:00  Фоновая инструментальная
+  18:00+        Тихо / выключить
+
+Зоны:
+  Лобби / ресепшн     → zone-a (энергичнее, громче)
+  Переговорные        → тишина (выключать при встрече через HA)
+  Open space          → zone-b (тихо, не отвлекает)
+  Столовая            → zone-c (общий фон)
+</code></pre><h3 id=homepass-частный-дом>HomePass (частный дом)</h3><pre tabindex=0><code>Расписание:
+  07:00–09:00  Утренняя классика / джаз
+  09:00–22:00  По желанию (голосовая команда)
+  22:00+        Выключить везде
+
+Зоны + управление голосом:
+  &#34;Включи музыку на кухне&#34;    → zone-kitchen включить
+  &#34;Выключи везде&#34;             → all zones off
+  &#34;Что-нибудь потише&#34;         → amplify -3 dB текущая зона
+  &#34;Включи радио в бане&#34;       → zone-sauna = radio stream
+
+Баня: отдельный Snapcast-клиент, водозащищённый корпус
+Улица: только летом (05:00–23:00), приглушается при закрытых воротах
+</code></pre><h3 id=eventpass-мероприятие>EventPass (мероприятие)</h3><pre tabindex=0><code>Pre-event (двери открыты, гости входят):
+  Энергичная музыка → создать атмосферу
+  Громкость: 70%
+
+Event (шоу идёт):
+  Музыка выключена / только в фойе
+
+Break / пауза:
+  Фоновая музыка во всех зонах
+
+Post-event (выход гостей):
+  Расслабляющая музыка → плавное завершение
+
+Управление: организатор через веб-панель EventPass
+  → REST → Liquidsoap HTTP API → мгновенное переключение
+</code></pre><hr><h2 id=лицензирование-музыки>Лицензирование музыки</h2><p>Публичное воспроизведение музыки в коммерческих помещениях требует договора с РАО/ВОИС.</p><table><thead><tr><th>Вариант</th><th>Стоимость</th><th>Ограничения</th></tr></thead><tbody><tr><td><strong>РАО + ВОИС договор</strong></td><td>~2 000–15 000 ₽/мес</td><td>Любая музыка</td></tr><tr><td><strong>Royalty-free / CC0</strong></td><td>0 ₽</td><td>Только лицензионно чистые треки</td></tr><tr><td><strong>Epidemic Sound</strong></td><td>~$15/мес</td><td>Огромная библиотека, коммерческое использование</td></tr><tr><td><strong>Jamendo for Business</strong></td><td>€7–20/мес</td><td>Open licensing</td></tr><tr><td><strong>Собственные записи</strong></td><td>0 ₽</td><td>Полная свобода</td></tr></tbody></table><p>Для HomePass — лицензирование не требуется (частное использование).</p><hr><h2 id=docker-compose>Docker Compose</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>icecast</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>moul/icecast</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8000:8000&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./icecast.xml:/etc/icecast2/icecast.xml</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>liquidsoap</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>savonet/liquidsoap:v2.2</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./zones.liq:/etc/liquidsoap/zones.liq</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/var/music:/var/music:ro</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/tmp/snapcast_pipe:/tmp/snapcast_pipe</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>liquidsoap /etc/liquidsoap/zones.liq</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>depends_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>icecast</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>snapserver</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>ghcr.io/badaix/snapcast:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;1704:1704&#34;</span>   <span style=color:#75715e># клиенты</span>
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;1780:1780&#34;</span>   <span style=color:#75715e># веб UI</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./snapserver.conf:/etc/snapserver.conf</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>/tmp/snapcast_pipe:/tmp/snapcast_pipe</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>depends_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>liquidsoap</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/shared/sip-server/>sip-server</a>
+← <a href=/shared/sip-audio/>sip-audio</a>
+← <a href=/home/voice-assistant/>voice-assistant</a>
+← <a href=/tenantpass/>index</a>
+← <a href=/eventpass/>index</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

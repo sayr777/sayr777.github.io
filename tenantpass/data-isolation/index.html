@@ -1,0 +1,132 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Изоляция данных СКУД / СУРВ (замечание 3) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=tp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp nav__lnk--active">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/tenantpass/>TenantPass</a>
+<span class=crumb__sep>/</span>
+<span>Изоляция данных СКУД / СУРВ (замечание 3)</span></nav><article class=prose><h1>Изоляция данных СКУД / СУРВ (замечание 3)</h1><h1 id=изоляция-данных-скуд--сурв-замечание-3>Изоляция данных СКУД / СУРВ (замечание 3)</h1><p><em>TenantPass — разделение данных по функциям и требованиям</em></p><hr><h2 id=проблема>Проблема</h2><p>Одна PostgreSQL для всего: конфигурация СКУД, события проходов, табель СУРВ. Риски:</p><ul><li>Rollback схемы СКУД затирает данные табеля</li><li>ФЗ-152: персональные данные и события прохода требуют отдельных политик доступа</li><li>Трудовой кодекс: табель хранится 5 лет, события СКУД — 1 год</li></ul><hr><h2 id=решение-три-отдельные-базы-данных>Решение: три отдельные базы данных</h2><div class=mermaid>graph TD
+subgraph DB_CLUSTER["PostgreSQL (один кластер, разные БД)"]
+DB_CONFIG["tenantpass_config\n(конфигурация: двери, зоны, расписания)"]
+DB_AUDIT["tenantpass_audit\n(события прохода — append-only)"]
+DB_TABEL["tenantpass_tabel\n(табель СУРВ — юридически значимые)"]
+end
+subgraph APPS["Приложения"]
+API_GATEWAY["API Gateway"]
+PEP["PEP Agent"]
+SYRV["СУРВ Сервис"]
+HR["HR-интерфейс"]
+end
+API_GATEWAY -->|read/write| DB_CONFIG
+PEP -->|write events| DB_AUDIT
+SYRV -->|read events| DB_AUDIT
+SYRV -->|write/read tabel| DB_TABEL
+HR -->|read tabel| DB_TABEL</div><hr><h2 id=схемы-баз-данных>Схемы баз данных</h2><h3 id=tenantpass_config--конфигурация>tenantpass_config — конфигурация</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#75715e>-- Сбрасываемая/изменяемая, нет ФЗ-152 рисков
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>TABLE</span> doors (
+</span></span><span style=display:flex><span>    id          UUID <span style=color:#66d9ef>PRIMARY</span> <span style=color:#66d9ef>KEY</span> <span style=color:#66d9ef>DEFAULT</span> gen_random_uuid(),
+</span></span><span style=display:flex><span>    tenant_id   UUID <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    name        TEXT <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    fail_mode   TEXT <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span> <span style=color:#66d9ef>DEFAULT</span> <span style=color:#e6db74>&#39;fail_open&#39;</span>,
+</span></span><span style=display:flex><span>    zone_id     UUID <span style=color:#66d9ef>REFERENCES</span> zones(id)
+</span></span><span style=display:flex><span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>TABLE</span> access_rules (
+</span></span><span style=display:flex><span>    id          UUID <span style=color:#66d9ef>PRIMARY</span> <span style=color:#66d9ef>KEY</span> <span style=color:#66d9ef>DEFAULT</span> gen_random_uuid(),
+</span></span><span style=display:flex><span>    door_id     UUID <span style=color:#66d9ef>REFERENCES</span> doors(id),
+</span></span><span style=display:flex><span>    subject_id  UUID <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,   <span style=color:#75715e>-- user or group in Keycloak
+</span></span></span><span style=display:flex><span>    schedule_id UUID <span style=color:#66d9ef>REFERENCES</span> schedules(id),
+</span></span><span style=display:flex><span>    valid_from  TIMESTAMPTZ,
+</span></span><span style=display:flex><span>    valid_until TIMESTAMPTZ
+</span></span><span style=display:flex><span>);
+</span></span></code></pre></div><h3 id=tenantpass_audit--события-скуд>tenantpass_audit — события СКУД</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#75715e>-- Append-only: никогда не UPDATE/DELETE
+</span></span></span><span style=display:flex><span><span style=color:#75715e>-- Retention: 1 год (конфигурируется через pg_partman)
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>TABLE</span> access_events (
+</span></span><span style=display:flex><span>    id          UUID <span style=color:#66d9ef>DEFAULT</span> gen_random_uuid(),
+</span></span><span style=display:flex><span>    tenant_id   UUID <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    door_id     UUID <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    person_id   UUID <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,       <span style=color:#75715e>-- FK к Keycloak user_id
+</span></span></span><span style=display:flex><span>    card_id     TEXT <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,       <span style=color:#75715e>-- хэш карты (SHA-256), не сырые данные
+</span></span></span><span style=display:flex><span>    event_type  TEXT <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,       <span style=color:#75715e>-- &#39;granted&#39; | &#39;denied&#39; | &#39;forced_open&#39; | &#39;tailgate&#39;
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>source</span>      TEXT <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,       <span style=color:#75715e>-- &#39;keycloak&#39; | &#39;cache_hit&#39; | &#39;cache_stale&#39; | &#39;offline_default&#39;
+</span></span></span><span style=display:flex><span>    occurred_at TIMESTAMPTZ <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span> <span style=color:#66d9ef>DEFAULT</span> NOW(),
+</span></span><span style=display:flex><span>    metadata    JSONB
+</span></span><span style=display:flex><span>) PARTITION <span style=color:#66d9ef>BY</span> RANGE (occurred_at);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>-- Автопартиции по месяцу (pg_partman)
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>SELECT</span> partman.create_parent(
+</span></span><span style=display:flex><span>    p_parent_table <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;access_events&#39;</span>,
+</span></span><span style=display:flex><span>    p_control <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;occurred_at&#39;</span>,
+</span></span><span style=display:flex><span>    p_type <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;range&#39;</span>,
+</span></span><span style=display:flex><span>    p_interval <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;monthly&#39;</span>,
+</span></span><span style=display:flex><span>    p_retention <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;12 months&#39;</span>,
+</span></span><span style=display:flex><span>    p_retention_keep_table <span style=color:#f92672>=&gt;</span> <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>-- ВАЖНО: права — только INSERT, без UPDATE/DELETE
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>REVOKE</span> <span style=color:#66d9ef>UPDATE</span>, <span style=color:#66d9ef>DELETE</span> <span style=color:#66d9ef>ON</span> access_events <span style=color:#66d9ef>FROM</span> pep_agent_role;
+</span></span></code></pre></div><h3 id=tenantpass_tabel--табель-сурв>tenantpass_tabel — табель СУРВ</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#75715e>-- Retention: 5 лет (ТК РФ ст.283)
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> <span style=color:#66d9ef>TABLE</span> tabel_records (
+</span></span><span style=display:flex><span>    id              UUID <span style=color:#66d9ef>PRIMARY</span> <span style=color:#66d9ef>KEY</span> <span style=color:#66d9ef>DEFAULT</span> gen_random_uuid(),
+</span></span><span style=display:flex><span>    tenant_id       UUID <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    employee_id     UUID <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    record_date     DATE <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    tabel_code      TEXT <span style=color:#66d9ef>NOT</span> <span style=color:#66d9ef>NULL</span>,
+</span></span><span style=display:flex><span>    worked_minutes  INTEGER,
+</span></span><span style=display:flex><span>    first_in        TIME,
+</span></span><span style=display:flex><span>    last_out        TIME,
+</span></span><span style=display:flex><span>    correction_by   UUID,               <span style=color:#75715e>-- кто корректировал
+</span></span></span><span style=display:flex><span>    correction_at   TIMESTAMPTZ,
+</span></span><span style=display:flex><span>    correction_note TEXT,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>source</span>          TEXT <span style=color:#66d9ef>DEFAULT</span> <span style=color:#e6db74>&#39;auto&#39;</span>, <span style=color:#75715e>-- &#39;auto&#39; | &#39;manual_hr&#39; | &#39;manual_manager&#39;
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>UNIQUE</span>(employee_id, record_date)
+</span></span><span style=display:flex><span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>-- Партиции по году
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>SELECT</span> partman.create_parent(
+</span></span><span style=display:flex><span>    p_parent_table <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;tabel_records&#39;</span>,
+</span></span><span style=display:flex><span>    p_control <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;record_date&#39;</span>,
+</span></span><span style=display:flex><span>    p_type <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;range&#39;</span>,
+</span></span><span style=display:flex><span>    p_interval <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;yearly&#39;</span>,
+</span></span><span style=display:flex><span>    p_retention <span style=color:#f92672>=&gt;</span> <span style=color:#e6db74>&#39;5 years&#39;</span>,
+</span></span><span style=display:flex><span>    p_retention_keep_table <span style=color:#f92672>=&gt;</span> <span style=color:#66d9ef>true</span>   <span style=color:#75715e>-- архивировать, не удалять
+</span></span></span><span style=display:flex><span>);
+</span></span></code></pre></div><hr><h2 id=политики-доступа-row-level-security>Политики доступа (Row-Level Security)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sql data-lang=sql><span style=display:flex><span><span style=color:#75715e>-- tenantpass_audit: тенант видит только свои события
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>ALTER</span> <span style=color:#66d9ef>TABLE</span> access_events ENABLE <span style=color:#66d9ef>ROW</span> <span style=color:#66d9ef>LEVEL</span> <span style=color:#66d9ef>SECURITY</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> POLICY tenant_isolation <span style=color:#66d9ef>ON</span> access_events
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>USING</span> (tenant_id <span style=color:#f92672>=</span> current_setting(<span style=color:#e6db74>&#39;app.current_tenant&#39;</span>)::UUID);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>-- tenantpass_tabel: HR видит только своих сотрудников
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>ALTER</span> <span style=color:#66d9ef>TABLE</span> tabel_records ENABLE <span style=color:#66d9ef>ROW</span> <span style=color:#66d9ef>LEVEL</span> <span style=color:#66d9ef>SECURITY</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>CREATE</span> POLICY hr_access <span style=color:#66d9ef>ON</span> tabel_records
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>USING</span> (tenant_id <span style=color:#f92672>=</span> current_setting(<span style=color:#e6db74>&#39;app.current_tenant&#39;</span>)::UUID);
+</span></span></code></pre></div><hr><h2 id=фз-152-что-является-персональными-данными>ФЗ-152: что является персональными данными</h2><table><thead><tr><th>Поле</th><th>ПД?</th><th>Хранение</th><th>Шифрование</th></tr></thead><tbody><tr><td><code>card_id</code> (сырой номер)</td><td>Да</td><td>Хранить хэш SHA-256</td><td>—</td></tr><tr><td><code>person_id</code> (UUID Keycloak)</td><td>Псевдоним</td><td>OK</td><td>—</td></tr><tr><td>ФИО</td><td>Да</td><td>Только в Keycloak, не в audit</td><td>—</td></tr><tr><td>Биометрия (фото лица)</td><td>Спецкатегория</td><td>Только с согласия, отдельно</td><td>AES-256</td></tr><tr><td>Геолокация</td><td>Да</td><td>Только при явном согласии</td><td>—</td></tr></tbody></table><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># pep/event_writer.py — никогда не пишем сырые ПД в audit</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>write_access_event</span>(person_id: str, raw_card_id: str, door_id: str, permit: bool):
+</span></span><span style=display:flex><span>    <span style=color:#f92672>import</span> hashlib
+</span></span><span style=display:flex><span>    card_hash <span style=color:#f92672>=</span> hashlib<span style=color:#f92672>.</span>sha256(raw_card_id<span style=color:#f92672>.</span>encode())<span style=color:#f92672>.</span>hexdigest()[:<span style=color:#ae81ff>16</span>]  <span style=color:#75715e># truncate — не reversible</span>
+</span></span><span style=display:flex><span>    db_audit<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        INSERT INTO access_events (person_id, card_id, door_id, event_type, occurred_at)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        VALUES ($1, $2, $3, $4, NOW())
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>, person_id, card_hash, door_id, <span style=color:#e6db74>&#34;granted&#34;</span> <span style=color:#66d9ef>if</span> permit <span style=color:#66d9ef>else</span> <span style=color:#e6db74>&#34;denied&#34;</span>)
+</span></span></code></pre></div><hr><h2 id=политика-хранения>Политика хранения</h2><table><thead><tr><th>База</th><th>Срок хранения</th><th>Основание</th></tr></thead><tbody><tr><td>tenantpass_config</td><td>Бессрочно (версионируется)</td><td>—</td></tr><tr><td>tenantpass_audit (события СКУД)</td><td>1 год</td><td>Внутренняя политика</td></tr><tr><td>tenantpass_tabel (табель)</td><td>5 лет</td><td>ТК РФ ст. 283, Приказ Минкультуры</td></tr><tr><td>Биометрия (Double Take)</td><td>Удалять через 1 мес при отзыве согласия</td><td>ФЗ-152</td></tr></tbody></table><hr><h2 id=миграции-без-риска>Миграции без риска</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Разные БД = независимые миграции</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Инструмент: Alembic с отдельными env.py на каждую БД</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>alembic -c alembic_config.ini upgrade head    <span style=color:#75715e># config DB</span>
+</span></span><span style=display:flex><span>alembic -c alembic_audit.ini  upgrade head    <span style=color:#75715e># audit DB (только additive!)</span>
+</span></span><span style=display:flex><span>alembic -c alembic_tabel.ini  upgrade head    <span style=color:#75715e># tabel DB</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Правило: audit и tabel DB — только additive migrations</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># (ADD COLUMN, CREATE TABLE — да; DROP TABLE, ALTER TYPE — нет)</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/offline-mode/>offline-mode</a>
+← <a href=/tenantpass/workforce-time/>workforce-time</a>
+→ <a href=/shared/backup-strategy/>backup-strategy</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

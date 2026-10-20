@@ -1,0 +1,61 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Варианты развёртывания · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=tp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp nav__lnk--active">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/tenantpass/>TenantPass</a>
+<span class=crumb__sep>/</span>
+<span>Варианты развёртывания</span></nav><article class=prose><h1>Варианты развёртывания</h1><h1 id=варианты-развёртывания>Варианты развёртывания</h1><h2 id=два-режима>Два режима</h2><h3 id=облачное-mvp--saas>Облачное (MVP / SaaS)</h3><div class=mermaid>graph TD
+subgraph CLOUD["Российский облачный провайдер"]
+LB[Балансировщик]
+KC1[Keycloak node 1]
+KC2[Keycloak node 2]
+KC3[Keycloak node 3]
+DB1[(PostgreSQL primary)]
+DB2[(PostgreSQL replica)]
+LB --> KC1 & KC2
+KC2 -->|синхронная репликация| KC3
+KC1 & KC2 & KC3 --> DB1
+DB1 -->|репликация| DB2
+end
+INT[Интернет]
+T[Терминалы\nGPRS / 4G]
+GW[API Gateway]
+INT --> LB
+T --> GW --> LB</div><p><strong>Требования к провайдеру</strong>: аттестованный российский облачный провайдер (152-ФЗ локализация).
+Варианты: Yandex Cloud, Selectel, VK Cloud.</p><p>Плюсы:</p><ul><li>Быстрый старт</li><li>Нет ИТ-инфраструктуры у заказчика</li><li>Managed DB + мониторинг провайдера</li></ul><p>Минусы:</p><ul><li>Данные «в облаке» (нужен провайдер с аттестатом)</li><li>СКЗИ для канала терминал → облако обязательно</li><li>Недоступно для объектов с требованием «только внутри периметра»</li></ul><hr><h3 id=локальное-on-premise--enterprise>Локальное (On-premise / Enterprise)</h3><div class=mermaid>graph TD
+subgraph ONPREM["Контролируемая зона предприятия"]
+SKZI[СКЗИ-шлюз]
+LB[Балансировщик]
+KC1[Keycloak node 1]
+KC2[Keycloak node 2]
+DB[(PostgreSQL кластер)]
+T[Терминалы\nLAN / WiFi]
+GW[API Gateway]
+T --> GW --> SKZI --> LB
+LB --> KC1 & KC2
+KC1 & KC2 --> DB
+end</div><p>Плюсы:</p><ul><li>Данные не покидают периметр → проще соответствие ФСТЭК/ФСБ</li><li>Нет зависимости от интернета</li><li>Подходит для ГИС, КИИ, закрытых объектов</li></ul><p>Минусы:</p><ul><li>Нужна ИТ-команда заказчика или наша поддержка</li><li>Стоимость железа и администрирования</li><li>Обновления — ответственность заказчика / нашей команды</li></ul><hr><h3 id=многосайтовое-on-premise-multi-site>Многосайтовое (On-premise multi-site)</h3><div class=mermaid>graph LR
+subgraph A["Сайт A (объект 1)"]
+KCA[Keycloak cluster]
+DBA[(PostgreSQL)]
+KCA --- DBA
+end
+subgraph B["Сайт B (объект 2)"]
+KCB[Keycloak cluster]
+DBB[(PostgreSQL)]
+KCB --- DBB
+end
+KCA <-->|"СКЗИ / VPN (sync)"| KCB</div><p>Multi-cluster v2: единая синхронно реплицируемая БД, кэши локальные.
+Требование: commit latency &lt; 5 мс между сайтами.</p><hr><h2 id=сравнение>Сравнение</h2><table><thead><tr><th>Параметр</th><th>Облако</th><th>On-premise</th><th>Multi-site</th></tr></thead><tbody><tr><td>Время запуска</td><td>Дни</td><td>Недели</td><td>Месяцы</td></tr><tr><td>Стоимость старта</td><td>Низкая</td><td>Высокая</td><td>Очень высокая</td></tr><tr><td>Зависимость от интернета</td><td>Да</td><td>Нет</td><td>Нет</td></tr><tr><td>ФСТЭК/ФСБ</td><td>Сложнее</td><td>Проще</td><td>Проще</td></tr><tr><td>Масштабируемость</td><td>Высокая</td><td>Средняя</td><td>Высокая</td></tr><tr><td>Подходит для ГИС/КИИ</td><td>Условно</td><td>Да</td><td>Да</td></tr></tbody></table><h2 id=стратегия-выхода-на-рынок>Стратегия выхода на рынок</h2><ol><li><strong>MVP</strong> → облако (Yandex Cloud / Selectel) + один пилотный объект</li><li><strong>Enterprise</strong> → on-premise по запросу заказчика</li><li><strong>Крупные объекты</strong> → multi-site с СКЗИ между площадками</li></ol><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/access-model/>access-model</a>
+→ <a href=/tenantpass/compliance/fsb/>fsb</a>
+→ <a href=/tenantpass/compliance/152fz/>152fz</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

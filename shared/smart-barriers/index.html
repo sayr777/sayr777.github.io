@@ -1,0 +1,266 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Шлагбаумы и турникеты · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Шлагбаумы и турникеты</span></nav><article class=prose><h1>Шлагбаумы и турникеты</h1><h1 id=шлагбаумы-и-турникеты>Шлагбаумы и турникеты</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=типы-заградительных-устройств>Типы заградительных устройств</h2><div class=mermaid>graph TD
+subgraph VEHICLE["Для автомобилей"]
+BOOM["Шлагбаум (boom gate)\nCAME, NICE, FAAC, DoorHan"]
+BOLLARD["Выдвижной боллард\nгидравлический/электрический"]
+SPIKE["Шипы-антивозврат\nдля въезда/выезда в одном направлении"]
+end
+subgraph PEDESTRIAN["Для пешеходов"]
+TURNSTILE_FULL["Полноростовой турникет\n(антипаника: складывается при пожаре)"]
+TURNSTILE_WAIST["Поясной турникет\n(трипод)"]
+SPEED_GATE["Speed gate\n(раздвижные лопасти)"]
+SWING_GATE["Калитка с доводчиком\n(для инвалидов, велосипедов)"]
+end
+subgraph CTRL["Управление"]
+ESP32["ESP32\n(dry contact / Wiegand)"]
+CTRL_HW["Встроенный контроллер\nCAME ZL180N / ZBX7"]
+HA["Home Assistant\n(автоматизация)"]
+end
+VEHICLE --> CTRL
+PEDESTRIAN --> CTRL</div><hr><h2 id=шлагбаумы-популярные-модели>Шлагбаумы: популярные модели</h2><table><thead><tr><th>Модель</th><th>Длина стрелы</th><th>Время</th><th>Интерфейс</th><th>Цена</th></tr></thead><tbody><tr><td><strong>DoorHan Barrier 4000</strong></td><td>4 м</td><td>4 сек</td><td>Dry contact</td><td>~25 000 ₽</td></tr><tr><td><strong>DoorHan Barrier 6000</strong></td><td>6 м</td><td>6 сек</td><td>Dry contact</td><td>~35 000 ₽</td></tr><tr><td><strong>CAME GARD 4</strong></td><td>4 м</td><td>3 сек</td><td>CAN / dry contact</td><td>~40 000 ₽</td></tr><tr><td><strong>NICE PST6B</strong></td><td>6 м</td><td>6 сек</td><td>Dry contact</td><td>~45 000 ₽</td></tr><tr><td><strong>CAME GARD 8</strong></td><td>8 м</td><td>8 сек</td><td>CAN</td><td>~55 000 ₽</td></tr></tbody></table><hr><h2 id=турникеты>Турникеты</h2><table><thead><tr><th>Тип</th><th>Модель</th><th>Применение</th><th>Цена</th></tr></thead><tbody><tr><td>Трипод</td><td>PERCo TTR-08</td><td>КПП офис</td><td>~25 000 ₽</td></tr><tr><td>Трипод дешёвый</td><td>Вектор ТRIOD-110</td><td>Стройплощадка</td><td>~18 000 ₽</td></tr><tr><td>Полноростовой</td><td>PERCo RTD-15</td><td>Стадион, завод</td><td>~60 000 ₽</td></tr><tr><td>Speed gate</td><td>CARDDEX STR-04M</td><td>Бизнес-центр</td><td>~120 000 ₽</td></tr><tr><td>Раздвижная калитка</td><td>CAME FERNI</td><td>Для инвалидов рядом с турникетом</td><td>~30 000 ₽</td></tr></tbody></table><hr><h2 id=управление-шлагбаумом-через-esp32>Управление шлагбаумом через ESP32</h2><p>Большинство шлагбаумов управляются <strong>dry contact</strong> (сухой контакт реле):</p><ul><li>Короткое замыкание контакта (100–500 мс) → стрела открывается</li><li>Второй контакт → принудительное закрытие</li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/barrier-entrance.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>esphome</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>barrier-entrance</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ESP32</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>board</span>: <span style=color:#ae81ff>esp32dev</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wifi</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ssid</span>: !<span style=color:#ae81ff>secret wifi_ssid</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>password</span>: !<span style=color:#ae81ff>secret wifi_password</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>api</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>encryption</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>key</span>: !<span style=color:#ae81ff>secret api_key</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Управление шлагбаумом — dry contact (импульс 500 мс)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>barrier_open_relay</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Шлагбаум — открыть&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>ALWAYS_OFF</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_turn_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>500ms    </span> <span style=color:#75715e># импульс 500 мс</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>barrier_open_relay</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>barrier_close_relay</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Шлагбаум — закрыть&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO27</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>ALWAYS_OFF</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_turn_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>500ms</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>barrier_close_relay</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Геркон: стрела поднята / опущена</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Шлагбаум — открыт&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>garage_door</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO34</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Петлевой индуктивный датчик: автомобиль под стрелой</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Автомобиль: под шлагбаумом&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>presence</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO35</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># НЕ закрывать пока машина под стрелой!</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># RFID считыватель для въезда</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wiegand</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>rfid_reader</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>d0</span>: <span style=color:#ae81ff>GPIO4</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>d1</span>: <span style=color:#ae81ff>GPIO5</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_tag</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>homeassistant.event</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>event</span>: <span style=color:#ae81ff>esphome.barrier_card</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>card_id</span>: !<span style=color:#ae81ff>lambda &#39;return x;&#39;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Home Assistant automation: контроль шлагбаума</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Шлагбаум: открыть по карте&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>event</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>event_type</span>: <span style=color:#ae81ff>esphome.barrier_card</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>variables</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>card_id</span>: <span style=color:#e6db74>&#34;{{ trigger.event.data.card_id }}&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>if</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>template</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>value_template</span>: <span style=color:#e6db74>&#34;{{ card_id in state_attr(&#39;input_text.vehicle_cards&#39;, &#39;value&#39;).split(&#39;,&#39;) }}&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>then</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.barrier_entrance_barrier_open_relay_turn_on</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Въезд: карта {{ card_id }}&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Шлагбаум: автозакрытие после проезда&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.barrier_entrance_car_under_barrier</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;off&#34;</span>    <span style=color:#75715e># машина проехала</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>condition</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.barrier_entrance_open</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state</span>: <span style=color:#e6db74>&#34;on&#34;</span>  <span style=color:#75715e># шлагбаум открыт</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>delay</span>: <span style=color:#e6db74>&#34;00:00:03&#34;</span>   <span style=color:#75715e># 3 секунды буфер</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.barrier_entrance_barrier_close_relay_turn_on</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Шлагбаум: открыть при выезде (кнопка изнутри)&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.exit_button</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.barrier_entrance_barrier_open_relay_turn_on</span>
+</span></span></code></pre></div><hr><h2 id=шлагбаум-по-номеру-авто-openipc--frigate>Шлагбаум по номеру авто (OpenIPC + Frigate)</h2><p>Автоматическое открытие по распознаванию номерного знака.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Frigate: зона распознавания у шлагбаума</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>cameras</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>barrier_cam</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ffmpeg</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inputs</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>rtsp://192.168.30.10:554/stream1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>detect</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>lpr</span>:           <span style=color:#75715e># License Plate Recognition (Frigate+ платная функция)</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>      <span style=color:#75715e># Или: использовать Plate Recognizer (free tier 2500 вызовов/мес)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Альтернатива: Double Take + Plate Recognizer</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># double-take/config.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>frigate</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>cameras</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>barrier_cam</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>zones</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#ae81ff>entrance_zone</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>plate_recognizer</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>token</span>: <span style=color:#ae81ff>YOUR_TOKEN</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>regions</span>: <span style=color:#ae81ff>ru  </span> <span style=color:#75715e># Россия</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automation: открыть шлагбаум по номеру</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Шлагбаум: открыть по номеру авто&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>mqtt</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>topic</span>: <span style=color:#e6db74>&#34;frigate/events&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>variables</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>plate</span>: <span style=color:#e6db74>&#34;{{ trigger.payload_json.after.attributes.license_plate }}&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>if</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>template</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>value_template</span>: <span style=color:#e6db74>&#34;{{ plate in [&#39;А777ВС77&#39;, &#39;В123ЕН99&#39;, &#39;М001КА50&#39;] }}&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>then</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.barrier_entrance_barrier_open_relay_turn_on</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Въезд по номеру: {{ plate }}&#34;</span>
+</span></span></code></pre></div><hr><h2 id=турникет-управление-через-esp32>Турникет: управление через ESP32</h2><p>Большинство турникетов управляются двумя dry contact-входами:</p><ul><li>Контакт A → разрешить проход влево</li><li>Контакт B → разрешить проход вправо</li><li>Геркон → турникет использован (лопасть прокрутилась)</li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/turnstile-kpp.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>turnstile_in_relay   </span> <span style=color:#75715e># разрешить вход</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Турникет — вход&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>ALWAYS_OFF</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_turn_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>3s  </span> <span style=color:#75715e># 3 секунды на проход</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>turnstile_in_relay</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>turnstile_out_relay  </span> <span style=color:#75715e># разрешить выход</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Турникет — выход&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO27</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>ALWAYS_OFF</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_turn_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>3s</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>turnstile_out_relay</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Считыватель входа (Wiegand)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>reader_in</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Считыватель входа&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO4</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Считыватель выхода</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>reader_out</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Считыватель выхода&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO5</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Пожарная тревога → разблокировать турникет (антипаника)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>homeassistant</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Пожарная тревога&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.fire_alarm</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_press</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_on</span>: <span style=color:#ae81ff>turnstile_in_relay  </span> <span style=color:#75715e># открыть для эвакуации</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_on</span>: <span style=color:#ae81ff>turnstile_out_relay</span>
+</span></span></code></pre></div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=homepass--ворота--калитка>HomePass — ворота + калитка</h3><table><thead><tr><th>Устройство</th><th>Тип</th><th>Управление</th></tr></thead><tbody><tr><td>Откатные ворота</td><td>DoorHan Sliding 500</td><td>ESP32 + dry contact</td></tr><tr><td>Калитка</td><td>Электрозащёлка</td><td>ESP32 + Wiegand</td></tr><tr><td>Открытие: по BLE телефона</td><td>ESPresense</td><td>HA automation</td></tr><tr><td>Открытие: по кнопке в авто</td><td>433 МГц брелок</td><td>ESP32 + RF receiver</td></tr><tr><td>Автозакрытие: через 30 сек</td><td>Таймер</td><td>HA automation</td></tr></tbody></table><h3 id=tenantpass--кпп-объекта>TenantPass — КПП объекта</h3><pre tabindex=0><code>Въезд:
+  RFID-считыватель на стойке → ESP32 → Keycloak PEP → dry contact → шлагбаум
+  Альтернатива: распознавание номера (OpenIPC + Frigate LPR)
+  
+Выезд:
+  Петлевой индуктивный датчик → автооткрытие (выезд всегда открыт)
+  Или: RFID-считыватель выезда
+
+КПП пешеходный:
+  Трипод PERCo + Wiegand-считыватель + ESP32 → Keycloak PEP
+</code></pre><h3 id=eventpass--входная-группа>EventPass — входная группа</h3><pre tabindex=0><code>Стадион / концерт:
+  Speed gate × N (параллельные проходы)
+  + QR-сканер (ESP32+4G) на каждый проход
+  + Полноростовой турникет для секций (антипаника при эвакуации!)
+
+Стройплощадка:
+  Трипод + RFID
+  Шлагбаум для техники (с петлевым датчиком)
+</code></pre><hr><h2 id=безопасность-антипаника-обязательна>Безопасность: антипаника обязательна</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automation: при пожаре — все турникеты открыть</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Пожар: разблокировать все точки доступа&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.fire_alarm_system</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Снять питание с электромагнитов (fail-open)</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.electromagnet_main_door</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.electromagnet_floor_1</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.electromagnet_floor_2</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Открыть турникеты</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.turnstile_kpp_turnstile_in_relay_turn_on</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.turnstile_kpp_turnstile_out_relay_turn_on</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Открыть шлагбаум для пожарных</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.barrier_entrance_barrier_open_relay_turn_on</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Уведомить всех</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.all_users</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>title</span>: <span style=color:#e6db74>&#34;ЭВАКУАЦИЯ!&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Все выходы открыты. Покиньте здание.&#34;</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/shared/smart-locks/>smart-locks</a>
+← <a href=/tenantpass/access-model/>access-model</a>
+← <a href=/home/access/>access</a>
+← <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/shared/smart-motion/>smart-motion</a>
+→ <a href=/shared/network-access/>network-access</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

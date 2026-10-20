@@ -1,0 +1,74 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>EventPass для магазина / торговой сети · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=ep><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep nav__lnk--active">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/eventpass/>EventPass</a>
+<span class=crumb__sep>/</span>
+<span>EventPass для магазина / торговой сети</span></nav><article class=prose><h1>EventPass для магазина / торговой сети</h1><h1 id=eventpass-для-магазина--торговой-сети>EventPass для магазина / торговой сети</h1><h2 id=задача>Задача</h2><p>Контроль персонала в торговой точке: кто вышел на смену, сколько отработал, кто имеет доступ в кассовую зону и склад.</p><p>Отличие от TenantPass: <strong>нет постоянного IT-отдела</strong>, договор аренды может закончиться, персонал меняется каждые 2–3 месяца.</p><hr><h2 id=целевая-аудитория>Целевая аудитория</h2><ul><li>Одиночный магазин (5–30 сотрудников)</li><li>Сеть (до 100 точек, центральный HR)</li><li>Франшиза (франчайзи не хочет отдельный сервер)</li><li>Ресторан, кафе, гостиница (аналогичная структура)</li></ul><hr><h2 id=ключевые-сценарии>Ключевые сценарии</h2><h3 id=сценарий-1-открытие-смены>Сценарий 1: Открытие смены</h3><pre tabindex=0><code>07:45 Кассир Аня подходит к считывателю у входа для персонала
+      → прикладывает карту / сканирует QR с телефона
+      → EventPass API: проверка графика (смена с 08:00, разрешено за 15 мин)
+      → Турникет открывается
+      → Таймер смены стартует
+      → Push администратору: &#34;Аня открыла смену, пришла в 07:45&#34;
+</code></pre><h3 id=сценарий-2-вход-в-кассовую-зону>Сценарий 2: Вход в кассовую зону</h3><pre tabindex=0><code>Кассир Аня идёт к кассе:
+      → считыватель на двери кассового периметра
+      → ABAC-проверка: role=cashier, zone=cash, time=working_hours → permit
+      → Охранник Петров: role=security → кассовая зона → deny
+</code></pre><h3 id=сценарий-3-замена-кассира-из-другой-точки>Сценарий 3: Замена кассира из другой точки</h3><pre tabindex=0><code>Срочная замена: кассир заболел
+Администратор сети через мобильное приложение:
+  → Поиск кассиров сети по городу
+  → Добавление временного разрешения на точку (на 1 смену)
+  → Кассир из другой точки приходит по своей карте, доступ работает
+</code></pre><h3 id=сценарий-4-ревизия-склада>Сценарий 4: Ревизия склада</h3><pre tabindex=0><code>Директор магазина создаёт &#34;ревизионный период&#34;:
+  → Внешняя команда ревизоров получает QR-коды с доступом только на склад
+  → Срок: 2 дня
+  → По истечении — автоматический отзыв доступа
+</code></pre><hr><h2 id=зоны-и-роли>Зоны и роли</h2><pre tabindex=0><code>Зоны магазина:
+  floor          — торговый зал (все сотрудники)
+  cash           — кассовая зона (только кассиры + старший смены)
+  storage        — склад (кладовщик + старший смены)
+  office         — кабинет директора (только менеджмент)
+  staff_room     — комната персонала (все сотрудники)
+
+Роли:
+  cashier        — кассир: floor + cash + staff_room
+  stocker        — кладовщик: floor + storage + staff_room
+  senior_shift   — старший смены: всё кроме office
+  store_manager  — директор: всё
+  security       — охрана: floor (наблюдение, не доступ в cash/storage)
+  contractor     — подрядчик (уборка, ремонт): временный, floor + staff_room
+</code></pre><hr><h2 id=табель-для-сети-магазинов>Табель для сети магазинов</h2><pre tabindex=0><code>Центральный HR видит:
+  По точке:
+    Точка &#34;ТЦ Мега, стенд 42&#34;
+      Смена 19.10.2026:
+        Аня К.       | 07:45 — 20:02 | 12ч 17м | +1ч17м переработка
+        Сергей В.    | 08:01 — 16:00 | 7ч 59м
+        Мария П.     | 12:00 — 20:00 | 8ч 00м
+        Итого отработано: 28ч 16м / план 24ч
+
+  По сети за месяц:
+    Общий ФОТ-источник (передаётся в 1С для расчёта ЗП)
+</code></pre><hr><h2 id=онбординг-новой-точки>Онбординг новой точки</h2><pre tabindex=0><code>1. Администратор сети создаёт новую точку в веб-панели (10 мин)
+   → Вводит адрес, менеджера, зоны
+   → Печатает QR-коды для считывателей (или заказывает NFC-считыватели)
+
+2. Добавляет сотрудников:
+   → Импорт из 1С (CSV) или вручную
+   → Каждый получает SMS со ссылкой на скачивание приложения / своим QR-кодом
+
+3. Считыватель у входа:
+   → Планшет Android за 4 000 ₽ + стойка + кронштейн
+   → Скачать приложение EventPass Reader, ввести код точки — готово
+</code></pre><hr><h2 id=ценообразование-для-ритейла>Ценообразование для ритейла</h2><table><thead><tr><th>Тариф</th><th>Кол-во точек</th><th>Кол-во сотрудников</th><th>Цена</th></tr></thead><tbody><tr><td>Старт</td><td>1</td><td>до 30</td><td>990 ₽/мес</td></tr><tr><td>Стандарт</td><td>до 10</td><td>до 200</td><td>4 900 ₽/мес</td></tr><tr><td>Сеть</td><td>до 100</td><td>до 2 000</td><td>19 900 ₽/мес</td></tr><tr><td>Enterprise</td><td>без лимита</td><td>без лимита</td><td>договор</td></tr></tbody></table><p>Считыватель покупается отдельно (3 500 ₽ — планшет + стойка + кронштейн) или аренда.</p><hr><h2 id=конкуренты-в-сегменте>Конкуренты в сегменте</h2><table><thead><tr><th>Продукт</th><th>Слабость</th></tr></thead><tbody><tr><td>БОСС Контроль</td><td>Нет физического доступа, дорого для малого бизнеса</td></tr><tr><td>Bitrix24 (СКУД)</td><td>Нет физических считывателей, нет зон</td></tr><tr><td>1С:СКУД</td><td>Требует 1С-специалиста, нет облака</td></tr><tr><td>Faceter</td><td>Только биометрия, дорого</td></tr></tbody></table><p><strong>Наше преимущество</strong>: физический контроль доступа + табель + мобильное приложение — всё в одном, без установки серверов.</p><hr><h2 id=связи>Связи</h2><p>← <a href=/eventpass/>index</a>
+← <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/eventpass/construction/>construction</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

@@ -1,0 +1,47 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Технологический стек · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Технологический стек</span></nav><article class=prose><h1>Технологический стек</h1><h1 id=технологический-стек>Технологический стек</h1><h2 id=схема-уровней>Схема уровней</h2><pre tabindex=0><code>┌─────────────────────────────────────────────────────┐
+│              ИНТЕРФЕЙС                              │
+│  Home Assistant UI  │  Мобильное приложение         │
+│  Голосовой ассистент (локальный — Whisper+Piper)    │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│              АВТОМАТИЗАЦИЯ                          │
+│  Home Assistant (ядро) — автоматизации, сценарии    │
+│  Node-RED — сложная логика, визуальные потоки       │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│              ИНТЕГРАЦИЯ                             │
+│  MQTT (Mosquitto) — универсальная шина              │
+│  Zigbee2MQTT — Zigbee-устройства                    │
+│  Z-Wave JS — Z-Wave-устройства                      │
+│  ESPHome — самодельные ESP32/ESP8266 устройства     │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│              ФИЗИЧЕСКИЕ УСТРОЙСТВА                  │
+│  Датчики │ Актуаторы │ Камеры │ Замки │ Реле        │
+└─────────────────────────────────────────────────────┘
+</code></pre><hr><h2 id=ядро-системы>Ядро системы</h2><h3 id=home-assistant>Home Assistant</h3><p>Центральный контроллер. Запускается на локальном сервере (mini-PC или Raspberry Pi 5).</p><ul><li>Все автоматизации живут здесь</li><li>Интеграция с 2000+ типами устройств</li><li>Локальная база данных (InfluxDB или встроенная SQLite)</li><li>Дашборды для управления</li><li>Приложение на телефоне (удалённый доступ через WireGuard, без облака)</li></ul><p><strong>Рекомендуемое железо</strong>: Intel NUC / Beelink mini-PC (x86) — надёжнее RPi, можно запускать в Docker.</p><h3 id=node-red>Node-RED</h3><p>Визуальное программирование сложной логики (например, «если баня нагрелась до 80°C И кто-то дома → отправить уведомление»). Запускается рядом с HA.</p><hr><h2 id=протоколы>Протоколы</h2><table><thead><tr><th>Протокол</th><th>Применение</th><th>Дальность</th><th>Плюс</th></tr></thead><tbody><tr><td><strong>Zigbee</strong></td><td>Датчики, розетки, свет</td><td>~30 м (mesh)</td><td>Дёшево, экономично, mesh</td></tr><tr><td><strong>Z-Wave</strong></td><td>Замки, термостаты, выключатели</td><td>~30 м (mesh)</td><td>Надёжнее Zigbee, меньше помех</td></tr><tr><td><strong>WiFi (ESPHome)</strong></td><td>Самодельные устройства, реле, ворота</td><td>Маршрутизатор</td><td>Полный контроль кода</td></tr><tr><td><strong>BLE</strong></td><td>Определение присутствия (телефоны, трекеры)</td><td>~10 м</td><td>Пассивное обнаружение</td></tr><tr><td><strong>Wiegand / RS-485</strong></td><td>Считыватели карт на проходной, СКУД-периферия</td><td>~100 м</td><td>Стандарт СКУД</td></tr><tr><td><strong>1-Wire / Modbus</strong></td><td>Датчики температуры по кабелю</td><td>~100 м</td><td>Надёжно для уличных датчиков</td></tr></tbody></table><hr><h2 id=видеонаблюдение>Видеонаблюдение</h2><h3 id=frigate>Frigate</h3><p>Локальный NVR с детекцией объектов через AI (YOLO). Работает без облака.</p><ul><li>Обнаружение: человек, машина, животное</li><li>Уведомления только при реальных объектах (без ложных срабатываний от ветра)</li><li>Хранение: локальный NAS или USB HDD</li><li>Интеграция с Home Assistant</li></ul><p><strong>Требование</strong>: Google Coral USB Accelerator или GPU для realtime AI-детекции.</p><hr><h2 id=доступ-и-замки>Доступ и замки</h2><table><thead><tr><th>Задача</th><th>Решение</th></tr></thead><tbody><tr><td>Ворота / калитка</td><td>ESP32 + реле + RFID считыватель (Wiegand) + Home Assistant</td></tr><tr><td>Дверные замки</td><td>Z-Wave замок (Schlage, Yale) или умный цилиндр (Nuki, Tedee)</td></tr><tr><td>Гаражные ворота</td><td>Умный контроллер (ratgdo / Shelly) поверх существующего привода</td></tr><tr><td>Идентификация</td><td>RFID-карта + PIN / телефон (BLE) / кнопка в приложении</td></tr></tbody></table><hr><h2 id=голосовое-управление-локальное>Голосовое управление (локальное)</h2><p><strong>Wyoming protocol</strong> в Home Assistant:</p><ul><li><strong>Whisper</strong> — распознавание речи (STT) локально</li><li><strong>Piper</strong> — синтез речи (TTS) локально</li><li><strong>satellite</strong> — микрофон на ESP32-S3 в каждой комнате</li></ul><p>Никаких Alexa/Google Home с отправкой голоса в облако.</p><hr><h2 id=сервер>Сервер</h2><pre tabindex=0><code>Рекомендуемая конфигурация:
+  CPU: Intel N100 / N305 (мини-ПК)
+  RAM: 16 GB
+  SSD: 128 GB (система + HA)
+  HDD: 2 TB (видеоархив Frigate)
+  ОС: Debian или Home Assistant OS
+  UPS: ИБП 600–1000 ВА (держать при отключении света)
+</code></pre><p>ИБП критичен: при отключении электричества сервер и роутер должны работать минимум 30 минут.</p><hr><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+→ <a href=/home/hardware/>hardware</a>
+→ <a href=/home/access/>access</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

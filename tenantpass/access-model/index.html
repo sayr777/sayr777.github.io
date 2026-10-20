@@ -1,0 +1,43 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Модель управления доступом · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=tp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp nav__lnk--active">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/tenantpass/>TenantPass</a>
+<span class=crumb__sep>/</span>
+<span>Модель управления доступом</span></nav><article class=prose><h1>Модель управления доступом</h1><h1 id=модель-управления-доступом>Модель управления доступом</h1><p><em>Основа архитектуры TenantPass</em></p><h2 id=слои-модели>Слои модели</h2><div class=mermaid>graph TD
+S["СУБЪЕКТЫ ДОСТУПА\nСотрудник · Подрядчик · Посетитель · Техперсонал"]
+I["СРЕДСТВА ИДЕНТИФИКАЦИИ\nPasskey/FIDO2 · NFC-карта\nBLE-смартфон · Биометрия"]
+K["KEYCLOAK — POLICY ENGINE\nABAC: субъект + ресурс + контекст\ntenant_id · site_id · time · device · amr"]
+E["ИСПОЛНИТЕЛЬ\nДверь/лифт · ПК/принтер"]
+L["ЖУРНАЛ АУДИТА\n(все решения — permit и deny)"]
+S -->|идентификация| I
+I -->|запрос доступа| K
+K -->|permit| E
+K -->|deny| L
+E -->|событие входа| L</div><h2 id=роли-rbac-основа>Роли (RBAC-основа)</h2><table><thead><tr><th>Роль</th><th>Что видит / может</th></tr></thead><tbody><tr><td><code>employee</code></td><td>Только свои отметки, свой табель</td></tr><tr><td><code>site_manager</code></td><td>Сотрудники своего объекта, корректировка явок (в течение 24 ч)</td></tr><tr><td><code>tenant_admin</code></td><td>Управление пользователями своей организации-арендатора</td></tr><tr><td><code>hr</code></td><td>Табели по компании (только чтение), без настройки терминалов</td></tr><tr><td><code>admin</code></td><td>Управление терминалами, правилами, интеграциями</td></tr><tr><td><code>auditor</code></td><td>Только чтение табелей и логов</td></tr></tbody></table><h2 id=атрибуты-abac-расширение>Атрибуты (ABAC-расширение)</h2><h3 id=атрибуты-субъекта>Атрибуты субъекта</h3><ul><li><code>tenant_id</code> — организация-арендатор</li><li><code>site_id</code> — объект/здание</li><li><code>department</code> — подразделение</li><li><code>employment_type</code> — тип занятости (штат / подрядчик / гость)</li></ul><h3 id=атрибуты-ресурса>Атрибуты ресурса</h3><ul><li><code>resource.type</code> — <code>door</code>, <code>elevator</code>, <code>workstation</code>, <code>timesheet</code></li><li><code>resource.tenant_id</code> — кому принадлежит ресурс</li><li><code>resource.site_id</code> — на каком объекте</li><li><code>resource.shift_end</code> — когда закончилась смена (для табеля)</li></ul><h3 id=атрибуты-окружения-контекст>Атрибуты окружения (контекст)</h3><ul><li><code>time</code> — рабочее / нерабочее время</li><li><code>ip</code> / <code>network</code> — корпоративная сеть или нет</li><li><code>amr</code> — метод аутентификации (<code>fido2</code>, <code>nfc</code>, <code>password</code>)</li><li><code>device_trusted</code> — устройство проверено (MDM-сертификат)</li></ul><h2 id=пример-политик>Пример политик</h2><pre tabindex=0><code># Менеджер видит только свой объект своего арендатора
+user.role == &#34;site_manager&#34;
+AND user.tenant_id == resource.tenant_id
+AND user.site_id == resource.site_id
+
+# Вход через дверь только в рабочее время и только по FIDO2/NFC
+resource.type == &#34;door&#34;
+AND time.in(work_hours)
+AND amr contains (&#34;fido2&#34; OR &#34;nfc&#34;)
+
+# Корректировка табеля — только в течение 24 ч после смены
+resource.type == &#34;timesheet&#34;
+AND user.role == &#34;site_manager&#34;
+AND (now - resource.shift_end) &lt; 24h
+</code></pre><h2 id=принципы>Принципы</h2><ul><li><strong>Минимум привилегий</strong>: каждая роль видит только то, что нужно</li><li><strong>Запрет по умолчанию</strong>: всё, что явно не разрешено — запрещено</li><li><strong>Аудит каждого решения</strong>: permit И deny записываются</li><li><strong>Автономность</strong>: при недоступности Keycloak — режим по последним известным разрешениям (для дверей)</li><li><strong>Централизованность</strong>: ни один терминал не принимает решение самостоятельно</li></ul><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/>index</a>
+→ <a href=/tenantpass/abac/>abac</a>
+→ <a href=/tenantpass/deployments/>deployments</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

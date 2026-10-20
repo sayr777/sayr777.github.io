@@ -1,0 +1,53 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Водоснабжение и безопасность · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Водоснабжение и безопасность</span></nav><article class=prose><h1>Водоснабжение и безопасность</h1><h1 id=водоснабжение-и-безопасность>Водоснабжение и безопасность</h1><h2 id=схема>Схема</h2><pre tabindex=0><code>[Скважина / централизованная сеть]
+        │
+   [Реле давления]
+        │
+  [Накопительный бак]
+        │
+  [Умный кран-отсечной]  ◄── Home Assistant (аварийное перекрытие)
+        │
+   [Счётчик воды с импульсным выходом]
+        │
+  ┌─────┴──────┐
+  │            │
+[Холодная]  [Бойлер ГВС]
+  │            │
+  └─────┬──────┘
+        │
+  [Распределение по зонам]
+   Дом │ Баня │ Гостевой дом │ Полив
+</code></pre><hr><h2 id=датчики-утечки>Датчики утечки</h2><p>Датчики воды (Zigbee) размещаются в критических точках:</p><table><thead><tr><th>Место</th><th>Приоритет</th></tr></thead><tbody><tr><td>Под котлом / бойлером</td><td>Высокий</td></tr><tr><td>Под стиральной машиной</td><td>Высокий</td></tr><tr><td>Под посудомоечной машиной</td><td>Высокий</td></tr><tr><td>Под умывальниками (кухня, ванные)</td><td>Средний</td></tr><tr><td>В подвале / техпомещении</td><td>Высокий</td></tr><tr><td>Под сантехникой в бане</td><td>Средний</td></tr></tbody></table><p>При срабатывании датчика → автоматически перекрыть умный кран + Push-уведомление.</p><hr><h2 id=автоматизации>Автоматизации</h2><h3 id=аварийное-перекрытие>Аварийное перекрытие</h3><pre tabindex=0><code>Триггер: датчик утечки сработал
+Действие:
+  1. Немедленно закрыть умный кран-отсечной (&lt; 3 сек)
+  2. Push + SMS хозяину: &#34;Утечка воды! Водоснабжение перекрыто. Зона: кухня&#34;
+  3. Включить свет в зоне утечки
+  4. Запись события в журнал
+  
+Открытие обратно: только вручную (в приложении или физически)
+</code></pre><h3 id=контроль-расхода>Контроль расхода</h3><pre tabindex=0><code>Расход воды считается через импульсный счётчик → HA.
+Аномальный расход (в 3 раза выше нормы за час):
+  → Push: &#34;Повышенный расход воды: 150 л за час. Утечка?&#34;
+  
+Ежемесячный отчёт: расход по месяцам, сравнение с прошлым годом
+</code></pre><h3 id=защита-от-замерзания>Защита от замерзания</h3><pre tabindex=0><code>Триггер: температура на улице &lt; -10°C И насос не работал &gt; 2 ч
+Действие:
+  - Кратковременно прогнать воду через трубы (30 сек)
+  - Уведомление: &#34;Прогон труб, мороз -15°C&#34;
+</code></pre><hr><h2 id=полив>Полив</h2><p>Управление зонами полива через Zigbee-реле на электромагнитные клапаны:</p><table><thead><tr><th>Зона</th><th>Частота</th><th>Время</th></tr></thead><tbody><tr><td>Газон фронт</td><td>Пн, Ср, Пт</td><td>05:30–06:00</td></tr><tr><td>Огород</td><td>Вт, Чт, Сб</td><td>06:00–06:20</td></tr><tr><td>Цветники</td><td>Пн–Пт</td><td>06:20–06:30</td></tr></tbody></table><p>Логика:</p><ul><li>Не поливать если сегодня был дождь (датчик дождя или погодный API)</li><li>Не поливать если прогноз дождя > 80% в ближайшие 6 ч</li><li>Уменьшить время полива если температура &lt; 15°C</li></ul><hr><h2 id=связи>Связи</h2><p>← <a href=/home/systems/heating/>heating</a>
+→ <a href=/home/systems/electricity/>electricity</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

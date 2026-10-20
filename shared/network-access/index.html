@@ -1,0 +1,382 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Сетевой контроль доступа (NAC) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Сетевой контроль доступа (NAC)</span></nav><article class=prose><h1>Сетевой контроль доступа (NAC)</h1><h1 id=сетевой-контроль-доступа-nac>Сетевой контроль доступа (NAC)</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><p>Пользователь подключается к WiFi или проводному порту → система идентифицирует его → автоматически помещает в нужный VLAN с соответствующими правами доступа к внутренним ресурсам и/или интернету.</p><hr><h2 id=общая-архитектура>Общая архитектура</h2><div class=mermaid>graph TD
+subgraph DEVICES["Устройства"]
+PC["Ноутбук / ПК\n802.1X supplicant"]
+PHONE["Телефон\nWPA2-Enterprise"]
+GUEST_DEV["Гостевой девайс\nCapt. Portal / PSK"]
+IOT["IoT-устройство\nMAC auth"]
+end
+subgraph NETWORK["Сетевая инфраструктура"]
+SW["Managed Switch\nCisco / MikroTik / UniFi"]
+AP["WiFi AP\nWPA2/3-Enterprise"]
+FW["Firewall / Router\npfSense / OPNsense"]
+end
+subgraph AUTH["Аутентификация"]
+RADIUS["FreeRADIUS\n802.1X + Dynamic VLAN"]
+KC["Keycloak / LDAP\nпользователи и роли"]
+CP["Captive Portal\nгостевая регистрация"]
+end
+subgraph VLANS["VLAN-сегменты"]
+V_CORP["VLAN Corporate\nвнутренние ресурсы + интернет"]
+V_MEDIA["VLAN Media\nтолько медиа-серверы"]
+V_GUEST["VLAN Guest\nтолько интернет"]
+V_IOT["VLAN IoT\nизолирован"]
+V_MGMT["VLAN Management\nадмин"]
+end
+PC & PHONE -->|802.1X EAP| SW & AP
+GUEST_DEV -->|Captive Portal| CP
+IOT -->|MAC auth| SW
+SW & AP -->|RADIUS Access-Request| RADIUS
+RADIUS -->|LDAP / REST| KC
+RADIUS -->|Access-Accept + VLAN-ID| SW & AP
+SW & AP --> V_CORP & V_MEDIA & V_GUEST & V_IOT & V_MGMT
+V_CORP & V_MEDIA & V_GUEST --> FW
+CP --> V_GUEST</div><hr><h2 id=протокол-8021x--как-работает>Протокол 802.1X — как работает</h2><div class=mermaid>sequenceDiagram
+participant DEV as Устройство (supplicant)
+participant SW as Коммутатор (authenticator)
+participant RAD as FreeRADIUS
+participant KC as Keycloak / LDAP
+DEV->>SW: EAPOL-Start
+SW->>DEV: EAP-Request/Identity
+DEV->>SW: EAP-Response/Identity (логин)
+SW->>RAD: RADIUS Access-Request (EAP)
+RAD->>KC: LDAP Bind / REST check
+KC-->>RAD: пользователь валиден, роль=employee
+RAD-->>SW: Access-Accept\n+ Tunnel-Type=VLAN\n+ Tunnel-Private-Group-Id=20
+SW->>DEV: EAP-Success
+SW->>SW: Port → VLAN 20 (Corporate)
+DEV->>SW: DHCP Request
+SW-->>DEV: IP из пула VLAN 20</div><hr><h2 id=vlan-дизайн-по-проектам>VLAN-дизайн по проектам</h2><h3 id=tenantpass-корпоративный-объект>TenantPass (корпоративный объект)</h3><table><thead><tr><th>VLAN</th><th>ID</th><th>Доступ</th><th>Кому</th></tr></thead><tbody><tr><td>Management</td><td>10</td><td>Только сетевое оборудование</td><td>Только admin</td></tr><tr><td>Corporate</td><td>20</td><td>Внутренние сервисы + интернет</td><td>Сотрудники</td></tr><tr><td>Business</td><td>30</td><td>Только бизнес-системы (без интернета)</td><td>Ограниченные роли</td></tr><tr><td>Contractor</td><td>40</td><td>Только нужные сервисы (whitelist)</td><td>Подрядчики</td></tr><tr><td>Guest</td><td>50</td><td>Только интернет, изолирован</td><td>Посетители</td></tr><tr><td>IoT</td><td>60</td><td>Только Keycloak + СКУД-сервер</td><td>Терминалы, камеры</td></tr><tr><td>Quarantine</td><td>99</td><td>Captive Portal + страница &ldquo;обратитесь к IT&rdquo;</td><td>Неизвестные устройства</td></tr></tbody></table><h3 id=homepass-частный-дом>HomePass (частный дом)</h3><table><thead><tr><th>VLAN</th><th>ID</th><th>Доступ</th><th>Кому</th></tr></thead><tbody><tr><td>Trusted</td><td>10</td><td>Всё (NAS, HA, Plex, интернет)</td><td>Семья</td></tr><tr><td>IoT</td><td>20</td><td>Только Home Assistant (нет интернета)</td><td>Камеры, датчики, ESP32</td></tr><tr><td>Guest</td><td>30</td><td>Только интернет (нет NAS, нет HA)</td><td>Гости, уборщица</td></tr><tr><td>Contractor</td><td>40</td><td>Интернет + конкретный сервис</td><td>Подрядчики</td></tr><tr><td>Management</td><td>99</td><td>Весь стек</td><td>Хозяин (отдельный SSID)</td></tr></tbody></table><h3 id=eventpass-мероприятие>EventPass (мероприятие)</h3><table><thead><tr><th>VLAN</th><th>ID</th><th>Доступ</th><th>Кому</th></tr></thead><tbody><tr><td>Staff</td><td>10</td><td>EventPass API + PA + камеры</td><td>Организаторы, охрана</td></tr><tr><td>AV/Tech</td><td>20</td><td>PA, дисплеи, стриминг (без интернета)</td><td>Тех. персонал</td></tr><tr><td>Payments</td><td>30</td><td>Только PCI-DSS эквайринг (изолирован)</td><td>Кассы</td></tr><tr><td>Attendees</td><td>40</td><td>Только интернет, 5 Мбит/чел</td><td>Гости (Captive Portal)</td></tr><tr><td>Cameras</td><td>50</td><td>Только NVR</td><td>Камеры</td></tr></tbody></table><hr><h2 id=freeradius--конфигурация>FreeRADIUS — конфигурация</h2><h3 id=установка>Установка</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Ubuntu 22.04</span>
+</span></span><span style=display:flex><span>apt-get install freeradius freeradius-ldap freeradius-rest
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Конфиги</span>
+</span></span><span style=display:flex><span>/etc/freeradius/3.0/
+</span></span><span style=display:flex><span>  clients.conf       <span style=color:#75715e># коммутаторы/AP (shared secret)</span>
+</span></span><span style=display:flex><span>  users              <span style=color:#75715e># статические пользователи (тест)</span>
+</span></span><span style=display:flex><span>  mods-enabled/
+</span></span><span style=display:flex><span>    ldap             <span style=color:#75715e># интеграция с Keycloak/LDAP</span>
+</span></span><span style=display:flex><span>    rest             <span style=color:#75715e># интеграция с REST API</span>
+</span></span><span style=display:flex><span>  sites-enabled/
+</span></span><span style=display:flex><span>    default          <span style=color:#75715e># основной virtual server</span>
+</span></span><span style=display:flex><span>    inner-tunnel     <span style=color:#75715e># для PEAP/TTLS</span>
+</span></span></code></pre></div><h3 id=clientsconf--регистрация-коммутаторов-и-ap>clients.conf — регистрация коммутаторов и AP</h3><pre tabindex=0><code># /etc/freeradius/3.0/clients.conf
+
+# Managed switch (Cisco / MikroTik / UniFi)
+client switch-floor1 {
+    ipaddr          = 192.168.1.10
+    secret          = VeryStr0ngSharedSecret!
+    shortname       = switch-floor1
+    nas_type        = cisco
+}
+
+client unifi-ap-office {
+    ipaddr          = 192.168.1.11
+    secret          = VeryStr0ngSharedSecret!
+    shortname       = ap-office
+}
+
+# Подсеть для всех UniFi AP
+client unifi-subnet {
+    ipaddr          = 192.168.1.0/24
+    secret          = VeryStr0ngSharedSecret!
+}
+</code></pre><h3 id=интеграция-с-keycloak-через-ldap>Интеграция с Keycloak через LDAP</h3><p>Keycloak умеет выступать LDAP-провайдером для FreeRADIUS.</p><pre tabindex=0><code># /etc/freeradius/3.0/mods-available/ldap
+
+ldap {
+    server      = &#34;192.168.1.X&#34;      # Keycloak host
+    port        = 389                 # или 636 для TLS
+    identity    = &#34;cn=radius,dc=company,dc=ru&#34;
+    password    = &#34;radius_bind_pass&#34;
+    base_dn     = &#34;dc=company,dc=ru&#34;
+
+    user {
+        base_dn       = &#34;ou=users,${..base_dn}&#34;
+        filter        = &#34;(uid=%{%{Stripped-User-Name}:-%{User-Name}})&#34;
+        # Получаем атрибуты для VLAN
+        get_attribute_defaults = yes
+    }
+
+    group {
+        base_dn   = &#34;ou=groups,${..base_dn}&#34;
+        filter    = &#34;(member=%{control:Ldap-UserDN})&#34;
+        name_attribute = cn
+    }
+
+    # Маппинг LDAP-групп → RADIUS-атрибуты VLAN
+    update {
+        control:Tunnel-Type            := VLAN
+        control:Tunnel-Medium-Type     := IEEE-802
+        control:Tunnel-Private-Group-ID:= &#34;%{LDAP-Group:employees:20}&#34;
+    }
+}
+</code></pre><h3 id=динамический-vlan-через-unlang-политика>Динамический VLAN через unlang (политика)</h3><pre tabindex=0><code># /etc/freeradius/3.0/sites-enabled/default
+# В секции authorize:
+
+authorize {
+    filter_username
+    preprocess
+    
+    # 802.1X: проверяем пользователя
+    ldap
+    if (LDAP-Group == &#34;employees&#34;) {
+        update reply {
+            Tunnel-Type            = VLAN
+            Tunnel-Medium-Type     = IEEE-802
+            Tunnel-Private-Group-ID = 20    # Corporate VLAN
+        }
+    }
+    elsif (LDAP-Group == &#34;contractors&#34;) {
+        update reply {
+            Tunnel-Type            = VLAN
+            Tunnel-Medium-Type     = IEEE-802
+            Tunnel-Private-Group-ID = 40    # Contractor VLAN
+        }
+    }
+    elsif (LDAP-Group == &#34;security_officers&#34;) {
+        update reply {
+            Tunnel-Type            = VLAN
+            Tunnel-Medium-Type     = IEEE-802
+            Tunnel-Private-Group-ID = 20    # Corporate VLAN
+            # + можно добавить bandwidth policy
+        }
+    }
+    else {
+        # Неизвестный пользователь → Quarantine
+        update reply {
+            Tunnel-Type            = VLAN
+            Tunnel-Medium-Type     = IEEE-802
+            Tunnel-Private-Group-ID = 99
+        }
+    }
+    
+    pap
+}
+</code></pre><h3 id=интеграция-с-keycloak-через-rest-альтернатива-ldap>Интеграция с Keycloak через REST (альтернатива LDAP)</h3><pre tabindex=0><code># /etc/freeradius/3.0/mods-available/rest
+
+rest {
+    connect_uri = &#34;http://192.168.1.X:8080&#34;
+
+    authorize {
+        uri  = &#34;${..connect_uri}/realms/tenantpass/protocol/openid-connect/token/introspect&#34;
+        method = &#34;POST&#34;
+        body = &#34;token=%{User-Password}&amp;token_type_hint=access_token&#34;
+        tls = ${..tls}
+    }
+}
+</code></pre><hr><h2 id=коммутаторы--настройка-8021x>Коммутаторы — настройка 802.1X</h2><h3 id=mikrotik-routeros>MikroTik (RouterOS)</h3><pre tabindex=0><code># Создаём VLAN-интерфейсы
+/interface vlan
+add interface=bridge name=vlan-corporate vlan-id=20
+add interface=bridge name=vlan-contractor vlan-id=40
+add interface=bridge name=vlan-guest vlan-id=50
+add interface=bridge name=vlan-iot vlan-id=60
+
+# RADIUS-сервер
+/radius
+add address=192.168.1.X secret=VeryStr0ngSharedSecret! service=dot1x
+
+# 802.1X на портах
+/interface dot1x server
+add interface=ether2 auth-types=dot1x mac-auth=yes \
+    radius-mac-format=XX-XX-XX-XX-XX-XX
+add interface=ether3 auth-types=dot1x mac-auth=yes
+add interface=ether4 auth-types=dot1x mac-auth=yes
+
+# Guest VLAN при неудаче аутентификации
+/interface dot1x server
+set [find interface=ether2] guest-vlan-id=50
+</code></pre><h3 id=cisco-ios-классика>Cisco IOS (классика)</h3><pre tabindex=0><code>! RADIUS
+radius server FreeRADIUS
+  address ipv4 192.168.1.X auth-port 1812 acct-port 1813
+  key VeryStr0ngSharedSecret!
+
+! AAA
+aaa new-model
+aaa authentication dot1x default group radius
+aaa authorization network default group radius
+
+! Включить 802.1X глобально
+dot1x system-auth-control
+
+! На порту
+interface GigabitEthernet0/1
+  switchport mode access
+  dot1x port-control auto
+  dot1x guest-vlan 50       ! VLAN при неудаче
+  dot1x auth-fail vlan 99   ! VLAN при провале
+  spanning-tree portfast
+</code></pre><h3 id=unifi-ubiquiti>UniFi (Ubiquiti)</h3><pre tabindex=0><code>Настройка через UniFi Controller UI:
+
+Settings → Profiles → RADIUS:
+  IP: 192.168.1.X
+  Port: 1812
+  Password: VeryStr0ngSharedSecret!
+
+Networks → Corporate WiFi:
+  Security: WPA2-Enterprise
+  RADIUS Profile: [созданный выше]
+  VLAN: Dynamic (из RADIUS)
+
+Networks → Guest WiFi:
+  Security: WPA2-Personal (PSK) или Open
+  Guest Policy: enabled
+  VLAN: 50
+</code></pre><hr><h2 id=captive-portal--гостевой-доступ>Captive Portal — гостевой доступ</h2><p>Для устройств без 802.1X-клиента (телефоны гостей, IoT).</p><h3 id=вариант-1-pfsense--freeradius-captive-portal>Вариант 1: pfSense + FreeRADIUS Captive Portal</h3><pre tabindex=0><code>pfSense → Services → Captive Portal → Add Zone:
+  Interface: VLAN 50 (guest)
+  Authentication: RADIUS
+  RADIUS Server: 192.168.1.X
+  
+  Vouchers: включить (для EventPass — одноразовые коды)
+  или: Local Users (для HomePass — просто пароль &#34;гость&#34;)
+  или: RADIUS MAC auth (для IoT)
+</code></pre><h3 id=вариант-2-keycloak-как-captive-portal>Вариант 2: Keycloak как Captive Portal</h3><div class=mermaid>sequenceDiagram
+participant G as Гость (телефон)
+participant FW as pfSense / OPNsense
+participant KC as Keycloak
+G->>FW: HTTP запрос (любой сайт)
+FW->>G: Redirect → https://keycloak/captive?redirect=...
+G->>KC: Открывает страницу входа
+G->>KC: Вводит имя + телефон (или QR EventPass)
+KC->>KC: Создаёт сессию + RADIUS CoA
+KC->>FW: RADIUS Change-of-Authorization (разрешить)
+FW->>G: Redirect → исходный сайт
+G->>FW: Теперь трафик разрешён (VLAN Guest)</div><h3 id=вариант-3-eventpass-qr--wifi-доступ>Вариант 3: EventPass QR → WiFi-доступ</h3><pre tabindex=0><code>Участник мероприятия:
+  1. Подключается к WiFi &#34;EventPass-Guest&#34; (открытая сеть)
+  2. Браузер открывает Captive Portal → страница EventPass
+  3. Участник сканирует свой QR или вводит код с билета
+  4. EventPass API → pfSense CoA → разрешить интернет
+  5. Участник получает доступ до конца мероприятия
+
+Реализация (EventPass API):
+  POST /api/v1/events/{event_id}/wifi-auth
+  {
+    &#34;qr_token&#34;: &#34;ep_abc123&#34;,
+    &#34;mac_address&#34;: &#34;AA:BB:CC:DD:EE:FF&#34;
+  }
+  → RADIUS CoA к pfSense: разрешить MAC → VLAN 40
+</code></pre><hr><h2 id=контроль-ресурсов-по-vlan-firewall-rules>Контроль ресурсов по VLAN (Firewall rules)</h2><h3 id=pfsense--opnsense--правила-между-vlan>pfSense / OPNsense — правила между VLAN</h3><pre tabindex=0><code># VLAN Corporate (20) → разрешить всё
+pass out on VLAN20 all
+
+# VLAN Contractor (40) → только whitelist сервисов
+pass in  on VLAN40 proto tcp to 192.168.1.100 port 443  # только ERP
+pass in  on VLAN40 proto tcp to 192.168.1.101 port 443  # только 1С
+block in on VLAN40 all                                   # остальное запрещено
+
+# VLAN Guest (50) → только интернет, запретить LAN
+block in  on VLAN50 to 192.168.0.0/16    # запретить доступ к внутренней сети
+pass  out on VLAN50 proto tcp to any port {80, 443}      # интернет
+pass  out on VLAN50 proto udp to any port 53             # DNS
+
+# VLAN IoT (60) → только к Home Assistant / Keycloak
+pass in on VLAN60 proto tcp to 192.168.1.50 port 8123   # HA
+pass in on VLAN60 proto tcp to 192.168.1.X  port 8080   # Keycloak
+block in on VLAN60 all
+</code></pre><h3 id=ограничение-полосы-пропускания-eventpass-гости>Ограничение полосы пропускания (EventPass гости)</h3><pre tabindex=0><code># pfSense → Firewall → Traffic Shaper → Limiters
+# Лимит для VLAN Attendees: 5 Мбит/с на пользователя
+
+# OPNsense → Traffic Shaper → Pipes:
+  Pipe &#34;guest-down&#34;: 5000 Kbit/s
+  Pipe &#34;guest-up&#34;:   2000 Kbit/s
+
+# Правило для VLAN 40:
+  pass in on VLAN40 all pipe guest-up
+  pass out on VLAN40 all pipe guest-down
+</code></pre><hr><h2 id=сегрегация-внутренних-ресурсов>Сегрегация внутренних ресурсов</h2><h3 id=медиа-ресурсы-vlan-mediatrusted>Медиа-ресурсы (VLAN Media/Trusted)</h3><pre tabindex=0><code>Plex Media Server:   192.168.1.200:32400
+  → Доступен: VLAN Trusted / Corporate
+  → Недоступен: VLAN Guest / Contractor / IoT
+
+NAS (Samba):         192.168.1.201
+  → Доступен: VLAN Trusted / Corporate (конкретные шары)
+  → Недоступен: все остальные
+
+Home Assistant:      192.168.1.50:8123
+  → Доступен: VLAN Trusted + VLAN IoT (только API)
+  → Недоступен: VLAN Guest
+</code></pre><h3 id=бизнес-ресурсы-tenantpass>Бизнес-ресурсы (TenantPass)</h3><pre tabindex=0><code>Keycloak:            192.168.1.X:8080
+  → Доступен: все внутренние VLAN (для авторизации)
+  → Из VLAN Guest: только через обратный прокси (Nginx)
+
+1С / ERP:            192.168.1.100
+  → Доступен: VLAN Corporate + VLAN Contractor (whitelist)
+  → Недоступен: все остальные
+
+TimeTracking API:    192.168.1.101
+  → Доступен: VLAN Corporate + VLAN IoT (терминалы)
+  → Недоступен: VLAN Guest / Contractor
+</code></pre><hr><h2 id=mac-аутентификация-для-iot>MAC-аутентификация для IoT</h2><p>Устройства без 802.1X (ESP32, камеры, датчики) — аутентифицируются по MAC-адресу.</p><pre tabindex=0><code>FreeRADIUS — MAB (MAC Authentication Bypass):
+
+# /etc/freeradius/3.0/mods-enabled/files
+users:
+  # Камера Frigate
+  &#34;AA-BB-CC-DD-EE-01&#34; Cleartext-Password := &#34;AA-BB-CC-DD-EE-01&#34;
+      Tunnel-Type = VLAN,
+      Tunnel-Medium-Type = IEEE-802,
+      Tunnel-Private-Group-ID = 60    # IoT VLAN
+
+  # ESP32 датчик
+  &#34;AA-BB-CC-DD-EE-02&#34; Cleartext-Password := &#34;AA-BB-CC-DD-EE-02&#34;
+      Tunnel-Type = VLAN,
+      Tunnel-Medium-Type = IEEE-802,
+      Tunnel-Private-Group-ID = 60
+
+  # Неизвестное устройство — Quarantine
+  DEFAULT
+      Tunnel-Type = VLAN,
+      Tunnel-Medium-Type = IEEE-802,
+      Tunnel-Private-Group-ID = 99
+</code></pre><hr><h2 id=интеграция-с-keycloak-tenantpass>Интеграция с Keycloak (TenantPass)</h2><p>При увольнении сотрудника — немедленный отзыв сетевого доступа:</p><div class=mermaid>sequenceDiagram
+participant ADMIN as tenant_admin
+participant KC as Keycloak
+participant TP as TenantPass API
+participant RAD as FreeRADIUS
+participant SW as Коммутатор
+ADMIN->>KC: Деактивировать пользователя
+KC->>TP: Webhook: user.disabled
+TP->>RAD: Disconnect-Request (CoA)\nUser-Name=ivanov
+RAD->>SW: RADIUS Disconnect-Request
+SW->>SW: Принудительно завершить сессию порта
+SW-->>RAD: Disconnect-ACK
+note over SW: Порт → Quarantine VLAN 99\nдо повторной аутентификации</div><h3 id=radius-coa-change-of-authorization-из-кода>RADIUS CoA (Change of Authorization) из кода</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#f92672>import</span> socket<span style=color:#f92672>,</span> struct
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>radius_coa_disconnect</span>(nas_ip: str, shared_secret: bytes, username: str):
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Отправить CoA Disconnect-Request на коммутатор&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Формирование RADIUS Disconnect-Request (код 40)</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># ... (требует реализации или библиотеки pyrad)</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#f92672>from</span> pyrad.client <span style=color:#f92672>import</span> Client
+</span></span><span style=display:flex><span>    <span style=color:#f92672>from</span> pyrad.dictionary <span style=color:#f92672>import</span> Dictionary
+</span></span><span style=display:flex><span>    <span style=color:#f92672>import</span> pyrad.packet
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    client <span style=color:#f92672>=</span> Client(
+</span></span><span style=display:flex><span>        server<span style=color:#f92672>=</span>nas_ip,
+</span></span><span style=display:flex><span>        coaport<span style=color:#f92672>=</span><span style=color:#ae81ff>3799</span>,
+</span></span><span style=display:flex><span>        secret<span style=color:#f92672>=</span>shared_secret,
+</span></span><span style=display:flex><span>        dict<span style=color:#f92672>=</span>Dictionary(<span style=color:#e6db74>&#34;dictionary&#34;</span>)
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    request <span style=color:#f92672>=</span> client<span style=color:#f92672>.</span>CreateCoAPacket(
+</span></span><span style=display:flex><span>        code<span style=color:#f92672>=</span>pyrad<span style=color:#f92672>.</span>packet<span style=color:#f92672>.</span>DisconnectRequest
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    request[<span style=color:#e6db74>&#34;User-Name&#34;</span>] <span style=color:#f92672>=</span> username
+</span></span><span style=display:flex><span>    reply <span style=color:#f92672>=</span> client<span style=color:#f92672>.</span>SendPacket(request)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> reply<span style=color:#f92672>.</span>code <span style=color:#f92672>==</span> pyrad<span style=color:#f92672>.</span>packet<span style=color:#f92672>.</span>DisconnectACK
+</span></span></code></pre></div><hr><h2 id=оборудование-по-проектам>Оборудование по проектам</h2><h3 id=homepass--рекомендуемый-стек>HomePass — рекомендуемый стек</h3><table><thead><tr><th>Роль</th><th>Устройство</th><th>Цена</th></tr></thead><tbody><tr><td>Роутер / Firewall</td><td>MikroTik hAP ax3</td><td>~8 000 ₽</td></tr><tr><td>Managed Switch</td><td>MikroTik CSS326 (24 порта PoE)</td><td>~12 000 ₽</td></tr><tr><td>WiFi AP</td><td>UniFi U6-Lite × 2</td><td>~10 000 ₽</td></tr><tr><td>RADIUS сервер</td><td>На том же сервере HA (FreeRADIUS)</td><td>0 ₽</td></tr></tbody></table><h3 id=tenantpass-on-premise>TenantPass on-premise</h3><table><thead><tr><th>Роль</th><th>Устройство</th><th>Цена</th></tr></thead><tbody><tr><td>Firewall</td><td>pfSense / Cisco ASA</td><td>15–200 К ₽</td></tr><tr><td>Core Switch</td><td>Cisco Catalyst / MikroTik CRS</td><td>30–150 К ₽</td></tr><tr><td>Access Switch</td><td>Cisco SG550 / MikroTik</td><td>10–30 К ₽</td></tr><tr><td>WiFi Controller</td><td>UniFi Dream Machine Pro</td><td>~30 К ₽</td></tr><tr><td>RADIUS</td><td>FreeRADIUS на VM (2 vCPU, 4 GB)</td><td>на своём железе</td></tr></tbody></table><h3 id=eventpass--мобильный-стек>EventPass — мобильный стек</h3><table><thead><tr><th>Роль</th><th>Устройство</th><th>Цена</th></tr></thead><tbody><tr><td>Firewall / Router</td><td>MikroTik RouterBOARD</td><td>~5 000 ₽</td></tr><tr><td>WiFi AP (на батарее)</td><td>UniFi U6-Mesh × N</td><td>~10 К ₽/шт</td></tr><tr><td>Managed Switch</td><td>MikroTik CRS112</td><td>~8 000 ₽</td></tr><tr><td>RADIUS</td><td>FreeRADIUS на ноутбуке организатора</td><td>0 ₽</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/tenantpass/>index</a>
+← <a href=/home/index/>index</a>
+← <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/shared/sip-server/>sip-server</a>
+→ <a href=/shared/video-surveillance/>video-surveillance</a>
+→ <a href=/tenantpass/access-model/>access-model</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

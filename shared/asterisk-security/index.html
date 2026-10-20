@@ -1,0 +1,170 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Безопасность Asterisk: изоляция контекстов (замечание 12) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Безопасность Asterisk: изоляция контекстов (замечание 12)</span></nav><article class=prose><h1>Безопасность Asterisk: изоляция контекстов (замечание 12)</h1><h1 id=безопасность-asterisk-изоляция-контекстов-замечание-12>Безопасность Asterisk: изоляция контекстов (замечание 12)</h1><p><em>Разделение PA / телефонии / скрытых микрофонов</em></p><hr><h2 id=проблема>Проблема</h2><p>Один Asterisk для трёх use-case:</p><ul><li>PA-оповещения (публичные объявления)</li><li>Телефония (внутренняя АТС)</li><li>Скрытые микрофоны (ChanSpy/MixMonitor — прослушивание зон)</li></ul><p>Если злоумышленник получает SIP-учётку PA-спикера → может через <code>ChanSpy</code> прослушать любой канал.</p><hr><h2 id=решение-изолированные-контексты--отдельные-credentials>Решение: изолированные контексты + отдельные credentials</h2><div class=mermaid>graph TD
+subgraph PA_CTX["Контекст: pa-only"]
+PA_EP["PA-колонки\n(sip: pa-zone-1..N)"]
+PA_DIAL["Только исходящий\nDialPlan → PA group"]
+end
+subgraph PHONE_CTX["Контекст: internal-phones"]
+PHONE_EP["Телефоны сотрудников\n(sip: phone-XXX)"]
+DOOR_EP["Домофоны\n(sip: door-XXX)"]
+end
+subgraph MIC_CTX["Контекст: zone-monitors (МАКСИМУМ ОГРАНИЧЕНИЙ)"]
+MIC_EP["Скрытые микрофоны\n(sip: mic-zone-XXX)"]
+CHANSPY["ChanSpy / MixMonitor\nТолько для авторизованных"]
+end
+subgraph AMI_CTX["AMI: разные учётки"]
+AMI_PA["ami-pa-user\nТолько: Originate в PA"]
+AMI_MONITOR["ami-monitor-user\nТолько: Monitor, не ChanSpy"]
+AMI_ADMIN["ami-admin\nПолный доступ (только localhost)"]
+end
+PA_CTX -.->|NO CROSS-CONTEXT| PHONE_CTX
+PHONE_CTX -.->|NO CROSS-CONTEXT| MIC_CTX</div><hr><h2 id=extensionsconf--строгая-изоляция>extensions.conf — строгая изоляция</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/extensions.conf</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === PA КОНТЕКСТ ===</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; PA-колонки могут только принять вызов, не могут звонить наружу</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[pa-only]</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Входящий вызов от AMI → проиграть аудио</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _pa-*,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _pa-*,n,Playback(${ARG1})</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _pa-*,n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; PA-колонка не может инициировать исходящий → контекст не содержит таких правил</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Попытка позвонить → invalid extension → Hangup</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === ТЕЛЕФОНИЯ КОНТЕКСТ ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[internal-phones]</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Внутренние звонки</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _1XX,1,Dial(PJSIP/${EXTEN},30)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _1XX,n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Домофон → звонок охраннику / владельцу</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; door-entrance,1,Dial(PJSIP/guard&amp;PJSIP/mobile,30)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; door-entrance,n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Явно запрещаем ChanSpy из этого контекста</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; (нет extension → Asterisk не найдёт и отклонит)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === КОНТЕКСТ МОНИТОРИНГА ЗОН ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[zone-monitors]</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Микрофон зоны регистрируется здесь и немедленно начинает запись</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _mic-*,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _mic-*,n,Set(ZONE_ID=${EXTEN})</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _mic-*,n,MixMonitor(/var/spool/asterisk/monitor/${ZONE_ID}-${STRFTIME(%Y%m%d_%H%M%S,UTC,)}.wav)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _mic-*,n,Wait(86400)  ; ждём 24ч (автоматическая ротация)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _mic-*,n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ChanSpy только через явный protected extension</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Доступен ТОЛЬКО из AMI ami-monitor-user (не из SIP)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; spy-authorized,1,ChanSpy(PJSIP/mic-${ARG1},qE(beep))</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; spy-authorized,n,Hangup()</span>
+</span></span></code></pre></div><hr><h2 id=pjsipconf--разные-пароли-и-контексты>pjsip.conf — разные пароли и контексты</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/pjsip.conf</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === PA КОЛОНКИ ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[pa-zone-1]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>pa-only          ; ← изолированный контекст</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth</span><span style=color:#f92672>=</span><span style=color:#e6db74>pa-zone-1-auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>aors</span><span style=color:#f92672>=</span><span style=color:#e6db74>pa-zone-1-aor</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>disallow</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>allow</span><span style=color:#f92672>=</span><span style=color:#e6db74>ulaw,alaw</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[pa-zone-1-auth]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth_type</span><span style=color:#f92672>=</span><span style=color:#e6db74>userpass</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>username</span><span style=color:#f92672>=</span><span style=color:#e6db74>pa-zone-1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>password</span><span style=color:#f92672>=</span><span style=color:#e6db74>Xk9mP2qL8nRv    ; уникальный длинный пароль</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === ТЕЛЕФОНЫ ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[phone-101]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>internal-phones   ; ← отдельный контекст</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth</span><span style=color:#f92672>=</span><span style=color:#e6db74>phone-101-auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>aors</span><span style=color:#f92672>=</span><span style=color:#e6db74>phone-101-aor</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === МИКРОФОНЫ ЗОН ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[mic-zone-lobby]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>zone-monitors    ; ← отдельный контекст</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth</span><span style=color:#f92672>=</span><span style=color:#e6db74>mic-zone-lobby-auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>aors</span><span style=color:#f92672>=</span><span style=color:#e6db74>mic-zone-lobby-aor</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ДОПОЛНИТЕЛЬНО: только с конкретного IP (сам микрофон)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[mic-zone-lobby-auth]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>auth</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>auth_type</span><span style=color:#f92672>=</span><span style=color:#e6db74>userpass</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>username</span><span style=color:#f92672>=</span><span style=color:#e6db74>mic-zone-lobby</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>password</span><span style=color:#f92672>=</span><span style=color:#e6db74>Yt7vQ3sN6wXm    ; отдельный пароль, не совпадает с PA</span>
+</span></span></code></pre></div><hr><h2 id=managerconf--ограниченные-ami-учётки>manager.conf — ограниченные AMI-учётки</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/manager.conf</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[general]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>enabled</span><span style=color:#f92672>=</span><span style=color:#e6db74>yes</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>bindaddr</span><span style=color:#f92672>=</span><span style=color:#e6db74>127.0.0.1      ; только localhost! Никакого 0.0.0.0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === AMI для PA-системы (HA/автоматизация) ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[ami-pa-user]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>secret</span><span style=color:#f92672>=</span><span style=color:#e6db74>pa-ami-secret-long</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>deny</span><span style=color:#f92672>=</span><span style=color:#e6db74>0.0.0.0/0.0.0.0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>permit</span><span style=color:#f92672>=</span><span style=color:#e6db74>127.0.0.1/255.255.255.255</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>permit</span><span style=color:#f92672>=</span><span style=color:#e6db74>192.168.1.100/255.255.255.255  ; только HA-сервер</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>read</span><span style=color:#f92672>=</span><span style=color:#e6db74>system,call</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>write</span><span style=color:#f92672>=</span><span style=color:#e6db74>originate           ; ТОЛЬКО Originate — ничего другого</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === AMI для мониторинга ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[ami-monitor-user]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>secret</span><span style=color:#f92672>=</span><span style=color:#e6db74>monitor-ami-secret-long</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>deny</span><span style=color:#f92672>=</span><span style=color:#e6db74>0.0.0.0/0.0.0.0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>permit</span><span style=color:#f92672>=</span><span style=color:#e6db74>127.0.0.1/255.255.255.255</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>read</span><span style=color:#f92672>=</span><span style=color:#e6db74>system,call</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>write</span><span style=color:#f92672>=</span>                    <span style=color:#e6db74>; только чтение! Никакого write</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Monitor через AMI-действие Monitor → разрешено через read=call</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; === AMI для администрирования ===</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[ami-admin]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>secret</span><span style=color:#f92672>=</span><span style=color:#e6db74>admin-ami-very-long-secret</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>deny</span><span style=color:#f92672>=</span><span style=color:#e6db74>0.0.0.0/0.0.0.0</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>permit</span><span style=color:#f92672>=</span><span style=color:#e6db74>127.0.0.1/255.255.255.255  ; только localhost</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>read</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>write</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span></code></pre></div><hr><h2 id=fail2ban-для-asterisk-sip>Fail2ban для Asterisk SIP</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/fail2ban/jail.local</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[asterisk]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>enabled</span>  <span style=color:#f92672>=</span> <span style=color:#e6db74>true</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>port</span>     <span style=color:#f92672>=</span> <span style=color:#e6db74>5060,5061</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>filter</span>   <span style=color:#f92672>=</span> <span style=color:#e6db74>asterisk</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>logpath</span>  <span style=color:#f92672>=</span> <span style=color:#e6db74>/var/log/asterisk/full</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>maxretry</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>5</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>bantime</span>  <span style=color:#f92672>=</span> <span style=color:#e6db74>3600</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>findtime</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>300</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; /etc/fail2ban/filter.d/asterisk.conf</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[Definition]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>failregex</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>NOTICE.* &lt;HOST&gt; failed to authenticate
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            NOTICE.* Registration from .* failed for &lt;HOST&gt;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            NOTICE.* &lt;HOST&gt;.* No matching peer found</span>
+</span></span></code></pre></div><hr><h2 id=проверка-изоляции>Проверка изоляции</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Тест: PA-колонка не может позвонить на внутренний телефон</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># (должна получить отбой, не соединение)</span>
+</span></span><span style=display:flex><span>asterisk -rx <span style=color:#e6db74>&#34;channel originate PJSIP/pa-zone-1 extension 101@internal-phones&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Ожидаемый результат: INVALID EXTENSION или BUSY</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Тест: телефон не может инициировать ChanSpy</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># (контекст internal-phones не содержит ChanSpy extensions)</span>
+</span></span><span style=display:flex><span>asterisk -rx <span style=color:#e6db74>&#34;channel originate PJSIP/phone-101 extension spy-authorized@internal-phones&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Ожидаемый результат: INVALID EXTENSION</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/sip-server/>sip-server</a>
+← <a href=/shared/sip-audio/>sip-audio</a>
+← <a href=/shared/hardware-stack/>hardware-stack</a>
+→ <a href=/shared/backup-strategy/>backup-strategy</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

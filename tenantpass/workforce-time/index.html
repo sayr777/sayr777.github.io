@@ -1,0 +1,228 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Система управления рабочим временем (СУРВ) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=tp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp nav__lnk--active">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/tenantpass/>TenantPass</a>
+<span class=crumb__sep>/</span>
+<span>Система управления рабочим временем (СУРВ)</span></nav><article class=prose><h1>Система управления рабочим временем (СУРВ)</h1><h1 id=система-управления-рабочим-временем-сурв>Система управления рабочим временем (СУРВ)</h1><p><em>TenantPass Corporate — учёт рабочего времени, табель, интеграции</em></p><hr><h2 id=обзор>Обзор</h2><p>СУРВ — вторая ключевая функция TenantPass (рядом со СКУД). Собирает события из СКУД (вход/выход через турникет), формирует табель рабочего времени, интегрируется с 1С:ЗУП.</p><div class=mermaid>graph TD
+subgraph INPUT["Источники событий"]
+TURNSTILE["Турникет / СКУД\nвход/выход + timestamp"]
+MOBILE["Мобильное приложение\nгеолокационная отметка (разъездной персонал)"]
+MANUAL["Ручная корректировка\nHR в веб-интерфейсе"]
+SCHEDULE["Расписание смен\nграфики работы"]
+end
+subgraph ENGINE["Движок СУРВ"]
+COLLECTOR["Event Collector\nсбор сырых событий"]
+RULES["Rules Engine\nправила расчёта (опоздание, сверхурочные)"]
+TABEL["Табель\n(ТШ-форма, Т-12, Т-13)"]
+REPORT["Отчёты\nHR-аналитика, посещаемость"]
+end
+subgraph EXPORT["Выгрузки"]
+C1["1С:ЗУП\nXML / HTTP API"]
+EXCEL["Excel\nТ-13 форма"]
+PDF["PDF\nподписанные табели"]
+end
+INPUT --> ENGINE
+ENGINE --> EXPORT</div><hr><h2 id=типы-рабочих-расписаний>Типы рабочих расписаний</h2><table><thead><tr><th>Тип</th><th>Описание</th><th>Пример</th></tr></thead><tbody><tr><td>Стандартное</td><td>5/2, 8:00–17:00</td><td>Офис</td></tr><tr><td>Сменное</td><td>2/2, 3 смены</td><td>Охрана, производство</td></tr><tr><td>Гибкое (флекс)</td><td>Ядро 11:00–15:00, остальное свободно</td><td>IT-компания</td></tr><tr><td>Проектное</td><td>Нет фиксированного графика, задачи</td><td>Консалтинг</td></tr><tr><td>Разъездное</td><td>Отметка по геолокации</td><td>Торговые представители</td></tr><tr><td>Дистанционное</td><td>Нет контроля прихода</td><td>Remote-сотрудники</td></tr></tbody></table><hr><h2 id=модель-данных>Модель данных</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Расписание смены</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>schedule</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>id</span>: <span style=color:#e6db74>&#34;shift-2x2-day&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;2/2 дневная&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>days_on</span>: <span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>days_off</span>: <span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>shifts</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;День&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>start</span>: <span style=color:#e6db74>&#34;08:00&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>end</span>: <span style=color:#e6db74>&#34;20:00&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>break_minutes</span>: <span style=color:#ae81ff>60</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>overtime_threshold_minutes</span>: <span style=color:#ae81ff>720</span>   <span style=color:#75715e># 12 ч = начало сверхурочных</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Правило расчёта опоздания</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>rule</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>late_arrival</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>grace_period_minutes</span>: <span style=color:#ae81ff>15</span>    <span style=color:#75715e># до 15 мин — не считается</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>mark_as</span>: <span style=color:#ae81ff>late              </span> <span style=color:#75715e># или absent_partial</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Правило сверхурочных</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>rule</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>type</span>: <span style=color:#ae81ff>overtime</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>min_duration_minutes</span>: <span style=color:#ae81ff>30</span>    <span style=color:#75715e># меньше 30 мин не считается</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>rate_multiplier</span>: <span style=color:#ae81ff>1.5</span>        <span style=color:#75715e># коэффициент оплаты</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>requires_approval</span>: <span style=color:#66d9ef>true</span>     <span style=color:#75715e># нужно согласование руководителя</span>
+</span></span></code></pre></div><hr><h2 id=табель-рабочего-времени>Табель рабочего времени</h2><p>Формат совместим с унифицированными формами Т-12 / Т-13 (Постановление Госкомстата РФ №1).</p><pre tabindex=0><code>Обозначения:
+  Я   — рабочий день (явка)
+  В   — выходной
+  ОТ  — отпуск
+  К   — командировка
+  Б   — больничный
+  НН  — неявка по невыясненным причинам (опоздание &gt; N мин)
+  С   — сверхурочные
+  ОЖ  — отпуск по уходу за ребёнком
+  Р   — отпуск по беременности и родам
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># tabel_generator.py — формирование табеля по событиям СКУД</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> dataclasses <span style=color:#f92672>import</span> dataclass
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> date, datetime, timedelta
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> typing <span style=color:#f92672>import</span> Optional
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> json
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@dataclass</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>AttendanceEvent</span>:
+</span></span><span style=display:flex><span>    employee_id: str
+</span></span><span style=display:flex><span>    timestamp: datetime
+</span></span><span style=display:flex><span>    event_type: str   <span style=color:#75715e># &#34;in&#34; | &#34;out&#34;</span>
+</span></span><span style=display:flex><span>    door_id: str
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@dataclass</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>DayRecord</span>:
+</span></span><span style=display:flex><span>    date: date
+</span></span><span style=display:flex><span>    first_in: Optional[datetime]
+</span></span><span style=display:flex><span>    last_out: Optional[datetime]
+</span></span><span style=display:flex><span>    scheduled_start: datetime
+</span></span><span style=display:flex><span>    scheduled_end: datetime
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@property</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>worked_minutes</span>(self) <span style=color:#f92672>-&gt;</span> int:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> self<span style=color:#f92672>.</span>first_in <span style=color:#f92672>or</span> <span style=color:#f92672>not</span> self<span style=color:#f92672>.</span>last_out:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> int((self<span style=color:#f92672>.</span>last_out <span style=color:#f92672>-</span> self<span style=color:#f92672>.</span>first_in)<span style=color:#f92672>.</span>total_seconds() <span style=color:#f92672>/</span> <span style=color:#ae81ff>60</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@property</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>tabel_code</span>(self) <span style=color:#f92672>-&gt;</span> str:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> self<span style=color:#f92672>.</span>first_in:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#e6db74>&#34;НН&#34;</span>
+</span></span><span style=display:flex><span>        late_minutes <span style=color:#f92672>=</span> (self<span style=color:#f92672>.</span>first_in <span style=color:#f92672>-</span> self<span style=color:#f92672>.</span>scheduled_start)<span style=color:#f92672>.</span>total_seconds() <span style=color:#f92672>/</span> <span style=color:#ae81ff>60</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> late_minutes <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>60</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#e6db74>&#34;НН&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>worked_minutes <span style=color:#f92672>&gt;</span> (self<span style=color:#f92672>.</span>scheduled_minutes <span style=color:#f92672>+</span> <span style=color:#ae81ff>30</span>):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#e6db74>&#34;С&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#e6db74>&#34;Я&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@property</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>scheduled_minutes</span>(self) <span style=color:#f92672>-&gt;</span> int:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> int((self<span style=color:#f92672>.</span>scheduled_end <span style=color:#f92672>-</span> self<span style=color:#f92672>.</span>scheduled_start)<span style=color:#f92672>.</span>total_seconds() <span style=color:#f92672>/</span> <span style=color:#ae81ff>60</span>) <span style=color:#f92672>-</span> <span style=color:#ae81ff>60</span>  <span style=color:#75715e># - обед</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>build_tabel</span>(employee_id: str, month: int, year: int,
+</span></span><span style=display:flex><span>                events: list[AttendanceEvent], schedule) <span style=color:#f92672>-&gt;</span> list[DayRecord]:
+</span></span><span style=display:flex><span>    records <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> day <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>32</span>):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>            d <span style=color:#f92672>=</span> date(year, month, day)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>ValueError</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>break</span>
+</span></span><span style=display:flex><span>        day_events <span style=color:#f92672>=</span> [e <span style=color:#66d9ef>for</span> e <span style=color:#f92672>in</span> events <span style=color:#66d9ef>if</span> e<span style=color:#f92672>.</span>timestamp<span style=color:#f92672>.</span>date() <span style=color:#f92672>==</span> d]
+</span></span><span style=display:flex><span>        ins  <span style=color:#f92672>=</span> [e <span style=color:#66d9ef>for</span> e <span style=color:#f92672>in</span> day_events <span style=color:#66d9ef>if</span> e<span style=color:#f92672>.</span>event_type <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;in&#34;</span>]
+</span></span><span style=display:flex><span>        outs <span style=color:#f92672>=</span> [e <span style=color:#66d9ef>for</span> e <span style=color:#f92672>in</span> day_events <span style=color:#66d9ef>if</span> e<span style=color:#f92672>.</span>event_type <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;out&#34;</span>]
+</span></span><span style=display:flex><span>        shift <span style=color:#f92672>=</span> schedule<span style=color:#f92672>.</span>get_shift(employee_id, d)
+</span></span><span style=display:flex><span>        records<span style=color:#f92672>.</span>append(DayRecord(
+</span></span><span style=display:flex><span>            date<span style=color:#f92672>=</span>d,
+</span></span><span style=display:flex><span>            first_in<span style=color:#f92672>=</span>min(ins, key<span style=color:#f92672>=</span><span style=color:#66d9ef>lambda</span> e: e<span style=color:#f92672>.</span>timestamp)<span style=color:#f92672>.</span>timestamp <span style=color:#66d9ef>if</span> ins <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>None</span>,
+</span></span><span style=display:flex><span>            last_out<span style=color:#f92672>=</span>max(outs, key<span style=color:#f92672>=</span><span style=color:#66d9ef>lambda</span> e: e<span style=color:#f92672>.</span>timestamp)<span style=color:#f92672>.</span>timestamp <span style=color:#66d9ef>if</span> outs <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>None</span>,
+</span></span><span style=display:flex><span>            scheduled_start<span style=color:#f92672>=</span>datetime<span style=color:#f92672>.</span>combine(d, shift<span style=color:#f92672>.</span>start) <span style=color:#66d9ef>if</span> shift <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>None</span>,
+</span></span><span style=display:flex><span>            scheduled_end<span style=color:#f92672>=</span>datetime<span style=color:#f92672>.</span>combine(d, shift<span style=color:#f92672>.</span>end) <span style=color:#66d9ef>if</span> shift <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>None</span>,
+</span></span><span style=display:flex><span>        ))
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> records
+</span></span></code></pre></div><hr><h2 id=rest-api-сурв>REST API СУРВ</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Endpoints (TenantPass Event API)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>GET  /api/v1/tabel/{employee_id}?month=2026-10</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># → { employee: ..., days: [{date, code, in, out, worked_minutes}] }</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>POST /api/v1/tabel/{employee_id}/correct</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Body: { date: &#34;2026-10-15&#34;, code: &#34;К&#34;, comment: &#34;Командировка Москва&#34; }</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Требует роль: hr, manager</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>GET  /api/v1/reports/attendance?from=2026-10-01&amp;to=2026-10-31&amp;department=sales</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># → Сводный отчёт по отделу</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>GET  /api/v1/reports/overtime?from=2026-10-01&amp;to=2026-10-31</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># → Сверхурочные по всем сотрудникам</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>POST /api/v1/schedules/{employee_id}</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Назначить расписание</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>GET  /api/v1/realtime/presence</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># → Кто сейчас в офисе (live)</span>
+</span></span></code></pre></div><hr><h2 id=интеграция-с-1сзуп>Интеграция с 1С:ЗУП</h2><p>Ежедневная или ежемесячная выгрузка табеля в 1С для расчёта зарплаты.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># zup_export.py — генерация XML для 1С:ЗУП</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> xml.etree.ElementTree <span style=color:#66d9ef>as</span> ET
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> date
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>generate_tabel_xml</span>(records: list[DayRecord], org_id: str) <span style=color:#f92672>-&gt;</span> str:
+</span></span><span style=display:flex><span>    root <span style=color:#f92672>=</span> ET<span style=color:#f92672>.</span>Element(<span style=color:#e6db74>&#34;TabelXML&#34;</span>)
+</span></span><span style=display:flex><span>    root<span style=color:#f92672>.</span>set(<span style=color:#e6db74>&#34;xmlns&#34;</span>, <span style=color:#e6db74>&#34;urn:1c.ru:ZUP.Tabel.v1&#34;</span>)
+</span></span><span style=display:flex><span>    root<span style=color:#f92672>.</span>set(<span style=color:#e6db74>&#34;OrganizationID&#34;</span>, org_id)
+</span></span><span style=display:flex><span>    root<span style=color:#f92672>.</span>set(<span style=color:#e6db74>&#34;Month&#34;</span>, records[<span style=color:#ae81ff>0</span>]<span style=color:#f92672>.</span>date<span style=color:#f92672>.</span>strftime(<span style=color:#e6db74>&#34;%Y-%m&#34;</span>))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> rec <span style=color:#f92672>in</span> records:
+</span></span><span style=display:flex><span>        row <span style=color:#f92672>=</span> ET<span style=color:#f92672>.</span>SubElement(root, <span style=color:#e6db74>&#34;Row&#34;</span>)
+</span></span><span style=display:flex><span>        ET<span style=color:#f92672>.</span>SubElement(row, <span style=color:#e6db74>&#34;EmployeeID&#34;</span>)<span style=color:#f92672>.</span>text <span style=color:#f92672>=</span> rec<span style=color:#f92672>.</span>employee_id
+</span></span><span style=display:flex><span>        ET<span style=color:#f92672>.</span>SubElement(row, <span style=color:#e6db74>&#34;Date&#34;</span>)<span style=color:#f92672>.</span>text <span style=color:#f92672>=</span> str(rec<span style=color:#f92672>.</span>date)
+</span></span><span style=display:flex><span>        ET<span style=color:#f92672>.</span>SubElement(row, <span style=color:#e6db74>&#34;Code&#34;</span>)<span style=color:#f92672>.</span>text <span style=color:#f92672>=</span> rec<span style=color:#f92672>.</span>tabel_code
+</span></span><span style=display:flex><span>        ET<span style=color:#f92672>.</span>SubElement(row, <span style=color:#e6db74>&#34;Hours&#34;</span>)<span style=color:#f92672>.</span>text <span style=color:#f92672>=</span> str(round(rec<span style=color:#f92672>.</span>worked_minutes <span style=color:#f92672>/</span> <span style=color:#ae81ff>60</span>, <span style=color:#ae81ff>1</span>))
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> rec<span style=color:#f92672>.</span>first_in:
+</span></span><span style=display:flex><span>            ET<span style=color:#f92672>.</span>SubElement(row, <span style=color:#e6db74>&#34;TimeIn&#34;</span>)<span style=color:#f92672>.</span>text  <span style=color:#f92672>=</span> rec<span style=color:#f92672>.</span>first_in<span style=color:#f92672>.</span>strftime(<span style=color:#e6db74>&#34;%H:%M&#34;</span>)
+</span></span><span style=display:flex><span>            ET<span style=color:#f92672>.</span>SubElement(row, <span style=color:#e6db74>&#34;TimeOut&#34;</span>)<span style=color:#f92672>.</span>text <span style=color:#f92672>=</span> rec<span style=color:#f92672>.</span>last_out<span style=color:#f92672>.</span>strftime(<span style=color:#e6db74>&#34;%H:%M&#34;</span>) <span style=color:#66d9ef>if</span> rec<span style=color:#f92672>.</span>last_out <span style=color:#66d9ef>else</span> <span style=color:#e6db74>&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> ET<span style=color:#f92672>.</span>tostring(root, encoding<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;unicode&#34;</span>, xml_declaration<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Отправка в 1С через HTTP</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>push_to_1c</span>(xml_data: str, c1_url: str, token: str):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> client:
+</span></span><span style=display:flex><span>        resp <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> client<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>c1_url<span style=color:#e6db74>}</span><span style=color:#e6db74>/TabelImport&#34;</span>,
+</span></span><span style=display:flex><span>            content<span style=color:#f92672>=</span>xml_data,
+</span></span><span style=display:flex><span>            headers<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;Content-Type&#34;</span>: <span style=color:#e6db74>&#34;application/xml&#34;</span>, <span style=color:#e6db74>&#34;Authorization&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Bearer </span><span style=color:#e6db74>{</span>token<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>},
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> resp<span style=color:#f92672>.</span>status_code <span style=color:#f92672>==</span> <span style=color:#ae81ff>200</span>
+</span></span></code></pre></div><hr><h2 id=аналитика-и-дашборды>Аналитика и дашборды</h2><div class=mermaid>graph LR
+HA_EVENTS["HA / СКУД события\n(MQTT)"] --> COLLECTOR["Event API"]
+COLLECTOR --> DB["PostgreSQL\ntable: attendance_events"]
+DB --> GRAFANA["Grafana\nдашборд посещаемости"]
+DB --> CLICKHOUSE["ClickHouse\nдолгосрочная аналитика"]
+DB --> REPORT_API["Report API\n→ HR-интерфейс"]</div><p><strong>Ключевые метрики на дашборде:</strong></p><ul><li>Средний процент присутствия по отделу / за период</li><li>Топ по опозданиям / прогулам</li><li>Количество сверхурочных часов</li><li>Реалтайм: кто сейчас в офисе</li><li>Тепловая карта: загруженность по дням недели и часам</li></ul><hr><h2 id=уведомления-и-эскалации>Уведомления и эскалации</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Автоматические уведомления</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>triggers</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Опоздание &gt; 30 мин → SMS/push сотруднику</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>late_arrival_30min</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>notify</span>: <span style=color:#ae81ff>employee</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Зафиксировано опоздание на {{ minutes }} мин. Если нужно — сделайте корректировку.&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Неявка без уведомления → эскалация к руководителю</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>no_show_by_10am</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>notify</span>: <span style=color:#ae81ff>manager</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;{{ employee }} не появился к 10:00. Свяжитесь с сотрудником.&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Сверхурочные &gt; 4 ч → уведомление HR</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>overtime_4h</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>notify</span>: <span style=color:#ae81ff>hr</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;{{ employee }} работает сверхурочно {{ hours }} ч — нужно согласование.&#34;</span>
+</span></span></code></pre></div><hr><h2 id=мобильная-отметка-разъездной-персонал>Мобильная отметка (разъездной персонал)</h2><p>Для сотрудников без фиксированного рабочего места: геолокационная отметка через мобильное приложение.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Flutter mobile app: кнопка &#34;Я на месте&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Фиксирует: timestamp + GPS-координаты + фото (опционально)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Проверка: в радиусе N метров от разрешённой точки</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>checkin_policy</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>allowed_locations</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Офис Москва&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>lat</span>: <span style=color:#ae81ff>55.7558</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>lon</span>: <span style=color:#ae81ff>37.6173</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>radius_meters</span>: <span style=color:#ae81ff>100</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Склад&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>lat</span>: <span style=color:#ae81ff>55.8000</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>lon</span>: <span style=color:#ae81ff>37.5000</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>radius_meters</span>: <span style=color:#ae81ff>50</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>out_of_zone_allowed</span>: <span style=color:#66d9ef>true</span>   <span style=color:#75715e># разрешить отметку вне зоны с пометкой</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>require_photo</span>: <span style=color:#66d9ef>false</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/>index</a>
+← <a href=/tenantpass/corporate/>corporate</a>
+← <a href=/tenantpass/access-model/>access-model</a>
+→ <a href=/tenantpass/api-agents/>api-agents</a>
+→ <a href=/shared/billing/>billing</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

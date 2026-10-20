@@ -1,0 +1,95 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>EventPass — Архитектура · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=ep><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep nav__lnk--active">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/eventpass/>EventPass</a>
+<span class=crumb__sep>/</span>
+<span>EventPass — Архитектура</span></nav><article class=prose><h1>EventPass — Архитектура</h1><h1 id=eventpass--архитектура>EventPass — Архитектура</h1><h2 id=принципы>Принципы</h2><p><strong>Облако = единственный вариант.</strong> Нет серверного оборудования у клиента. Максимум — мобильный считыватель или планшет на входе.</p><p><strong>Жизненный цикл тенанта</strong>: создан → активен → архивирован. Мероприятие живёт часы или недели, а не годы.</p><p><strong>Идентификация без инфраструктуры</strong>: QR-код на экране телефона / распечатанный на билете. Нет Wiegand-турникетов в большинстве случаев (исключение — стройплощадка и стадион).</p><hr><h2 id=компонентная-схема>Компонентная схема</h2><div class=mermaid>graph TD
+subgraph CLOUD["EventPass Cloud (Yandex Cloud / Cloud.ru)"]
+KC["Keycloak\nOrganizations per event"]
+API["Event API\nFastAPI"]
+NOTIF["Notification Service\nPush / SMS / Email"]
+DB[("Event Store\nPostgreSQL + Redis")]
+QR["QR Service\ngen / validate"]
+ANAL["Analytics\nClickhouse"]
+S3["Media Storage\nS3 — фото с входа"]
+API --> DB & KC & QR & NOTIF & ANAL & S3
+end
+APP["Мобильное приложение\nFlutter"]
+WEB["Веб-панель организатора\nNext.js"]
+SCAN["Считыватель\nAndroid / ESP32 + 4G"]
+APP & WEB & SCAN --> API</div><hr><h2 id=тенант--мероприятие>Тенант = Мероприятие</h2><p>Каждое мероприятие — отдельная <strong>Keycloak Organization</strong>.</p><pre tabindex=0><code>Организатор &#34;Стадион Лужники&#34;:
+  Organization: luzhniki
+    └── Event: match-2026-10-20   (тенант)
+         ├── Realm Groups: fans, vip, press, staff, security
+         └── Zones: sector_a, sector_b, vip_lounge, backstage
+
+Организатор &#34;Стройкомпания Альфа&#34;:
+  Organization: alpha-stroy
+    └── Event: site-spb-2026      (тенант)
+         ├── Realm Groups: brigade_1, brigade_2, contractors, management
+         └── Zones: zone_a, zone_b, office, danger_zone
+</code></pre><p>После архивирования данные тенанта доступны только для чтения (аналитика).</p><hr><h2 id=жизненный-цикл-мероприятия>Жизненный цикл мероприятия</h2><pre tabindex=0><code>1. SETUP (T-7 дней до мероприятия)
+   Организатор создаёт мероприятие:
+     - Название, дата, продолжительность
+     - Описание зон и правил доступа
+     - Список участников (CSV / интеграция с билетной системой)
+
+2. ONBOARDING (T-1 день — T-2 часа)
+   Участники получают QR-коды:
+     - Email / SMS / push в приложении организатора
+     - Мобильная регистрация (selfie + имя + телефон)
+     - Групповая регистрация через организатора
+
+3. ACTIVE (во время мероприятия)
+   Считыватели на входе сканируют QR:
+     - Онлайн: запрос в EventPass API → permit/deny
+     - Оффлайн: кэш разрешений за последние 15 мин
+
+4. COOLDOWN (T+2 часа после окончания)
+   - Новые входы блокируются
+   - Данные доступны для скачивания 30 дней
+
+5. ARCHIVE (T+30 дней)
+   - Автоматическое архивирование
+   - PII-данные удаляются (GDPR / 152-ФЗ)
+   - Агрегированная статистика хранится 1 год
+</code></pre><hr><h2 id=считыватель-на-входе>Считыватель на входе</h2><h3 id=вариант-1-планшет-с-приложением-self-service>Вариант 1: Планшет с приложением (self-service)</h3><pre tabindex=0><code>Android-планшет (10&#34;) + QR-считыватель (USB/Bluetooth)
+Крепление: стойка или барьер
+
+Возможности:
+  - Сканирует QR → мгновенный ответ (зелёный/красный экран + звук)
+  - Фото при входе (опционально, с согласия)
+  - Самостоятельная регистрация (участник вводит код из SMS)
+  - Оффлайн-режим: кэш до 15 минут, 10 000 разрешений
+</code></pre><h3 id=вариант-2-портативный-считыватель-стройка--спорт>Вариант 2: Портативный считыватель (стройка / спорт)</h3><pre tabindex=0><code>ESP32 + 4G-модем + QR-сканер + LED-индикатор
+Питание: аккумулятор 12 ч
+Крепление: турникет, шлагбаум, ручной сканер охраны
+
+REST API:
+  POST /api/v1/events/{event_id}/check-in
+  {
+    &#34;qr_token&#34;: &#34;ep_abc123&#34;,
+    &#34;zone_id&#34;: &#34;sector_a&#34;,
+    &#34;device_id&#34;: &#34;scanner-042&#34;
+  }
+  →  {&#34;status&#34;: &#34;permit&#34;, &#34;name&#34;: &#34;Иван И.&#34;, &#34;zone&#34;: &#34;Сектор A&#34;}
+  →  {&#34;status&#34;: &#34;deny&#34;, &#34;reason&#34;: &#34;wrong_zone&#34;, &#34;allowed&#34;: [&#34;sector_b&#34;]}
+</code></pre><h3 id=вариант-3-nfc-браслет-фестиваль--корпоратив>Вариант 3: NFC-браслет (фестиваль / корпоратив)</h3><pre tabindex=0><code>RFID/NFC браслет с балансом (для оплаты на мероприятии) + доступ к зонам
+Выдаётся на входе при регистрации, привязывается к QR-заявке
+</code></pre><hr><h2 id=интеграции>Интеграции</h2><table><thead><tr><th>Система</th><th>Протокол</th><th>Назначение</th></tr></thead><tbody><tr><td>Яндекс Билеты / Ticketland</td><td>Webhook / REST API</td><td>Импорт заявок на входе</td></tr><tr><td>1С:Предприятие</td><td>XML / REST</td><td>Список сотрудников (корпоратив, стройка)</td></tr><tr><td>Система СКУД площадки</td><td>Wiegand / OSDP</td><td>Стадионные турникеты</td></tr><tr><td>Telegram-бот</td><td>Bot API</td><td>Уведомления организатору</td></tr><tr><td>SMS-шлюз (МТС / Beeline)</td><td>REST</td><td>Одноразовые коды</td></tr><tr><td>S3-совместимое хранилище</td><td>S3 API</td><td>Фото с регистрации</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/eventpass/>index</a>
+→ <a href=/eventpass/retail/>retail</a>
+→ <a href=/eventpass/construction/>construction</a>
+→ <a href=/eventpass/mass-event/>mass-event</a>
+→ <a href=/eventpass/corporate/>corporate</a>
+→ <a href=/eventpass/sports/>sports</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

@@ -1,0 +1,185 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Offline-режим сканеров EventPass (замечания 7+8) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=ep><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep nav__lnk--active">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/eventpass/>EventPass</a>
+<span class=crumb__sep>/</span>
+<span>Offline-режим сканеров EventPass (замечания 7+8)</span></nav><article class=prose><h1>Offline-режим сканеров EventPass (замечания 7+8)</h1><h1 id=offline-режим-сканеров-eventpass-замечания-78>Offline-режим сканеров EventPass (замечания 7+8)</h1><p><em>EventPass — автономная валидация QR при потере 4G</em></p><hr><h2 id=проблема>Проблема</h2><p>ESP32+4G сканер → при потере связи → нет доступа к Event API → не может проверить QR → блокада на входе. На стройке или стадионе 4G может пропасть в любой момент.</p><hr><h2 id=решение-jwt-rs256--offline-кэш>Решение: JWT RS256 + offline-кэш</h2><p>Вместо HMAC (symmetric) — ассиметричный JWT (RS256). Публичный ключ загружается в сканер при инициализации. Сканер валидирует подпись без обращения к серверу.</p><div class=mermaid>sequenceDiagram
+participant C as ESP32 Scanner
+participant S as Event API
+participant QR as QR-код (JWT)
+note over C,S: Инициализация (при наличии связи)
+C->>S: GET /api/v1/scanner/init
+S-->>C: {public_key_pem, event_id, valid_zones, revocation_list}
+C->>C: Сохранить в flash (SPIFFS)
+note over C,QR: Нормальная работа (с 4G)
+QR-->>C: scan QR → JWT token
+C->>C: verify JWT signature (public key)
+C->>C: check claims (event_id, zone, exp, jti)
+C->>S: POST /api/v1/scan {jti, scanner_id, ts}
+S-->>C: {valid, person_name, access_level}
+C->>C: пометить jti как использованный (local set)
+C->>C: sync used_jti to server
+note over C,QR: Offline режим (нет 4G)
+QR-->>C: scan QR → JWT token
+C->>C: verify JWT signature (public key из flash)
+C->>C: check exp, event_id, zone
+C->>C: check jti NOT IN local_used_set
+C->>C: ✅ Allow / ❌ Deny (без сервера)
+C->>C: queue scan event for later sync</div><hr><h2 id=структура-jwt-токена-qr-билет>Структура JWT-токена (QR-билет)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;header&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;alg&#34;</span>: <span style=color:#e6db74>&#34;RS256&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;kid&#34;</span>: <span style=color:#e6db74>&#34;eventpass-2026-10&#34;</span>
+</span></span><span style=display:flex><span>  },
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;payload&#34;</span>: {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;iss&#34;</span>: <span style=color:#e6db74>&#34;eventpass.ru&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;sub&#34;</span>: <span style=color:#e6db74>&#34;user-uuid-...&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;jti&#34;</span>: <span style=color:#e6db74>&#34;550e8400-e29b-41d4-a716-446655440000&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;iat&#34;</span>: <span style=color:#ae81ff>1729296000</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;exp&#34;</span>: <span style=color:#ae81ff>1729382400</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;event_id&#34;</span>: <span style=color:#e6db74>&#34;concert-2026-10-19&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;zone&#34;</span>: [<span style=color:#e6db74>&#34;main_entrance&#34;</span>, <span style=color:#e6db74>&#34;floor_a&#34;</span>],
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;access_level&#34;</span>: <span style=color:#e6db74>&#34;standard&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&#34;name&#34;</span>: <span style=color:#e6db74>&#34;Иванов И.И.&#34;</span>
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><h2 id=key-rotation-замечание-8>Key rotation (замечание 8)</h2><p>Каждое мероприятие — отдельная ключевая пара. Компрометация ключа одного события не затрагивает другие.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># eventpass/key_manager.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> cryptography.hazmat.primitives.asymmetric <span style=color:#f92672>import</span> rsa
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> cryptography.hazmat.primitives <span style=color:#f92672>import</span> serialization
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> datetime, timedelta
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> uuid
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>EventKeyManager</span>:
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>create_event_keypair</span>(self, event_id: str) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Создать ключевую пару для мероприятия&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        private_key <span style=color:#f92672>=</span> rsa<span style=color:#f92672>.</span>generate_private_key(
+</span></span><span style=display:flex><span>            public_exponent<span style=color:#f92672>=</span><span style=color:#ae81ff>65537</span>,
+</span></span><span style=display:flex><span>            key_size<span style=color:#f92672>=</span><span style=color:#ae81ff>2048</span>,
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        kid <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>event_id<span style=color:#e6db74>}</span><span style=color:#e6db74>-</span><span style=color:#e6db74>{</span>uuid<span style=color:#f92672>.</span>uuid4()<span style=color:#f92672>.</span>hex[:<span style=color:#ae81ff>8</span>]<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        private_pem <span style=color:#f92672>=</span> private_key<span style=color:#f92672>.</span>private_bytes(
+</span></span><span style=display:flex><span>            encoding<span style=color:#f92672>=</span>serialization<span style=color:#f92672>.</span>Encoding<span style=color:#f92672>.</span>PEM,
+</span></span><span style=display:flex><span>            format<span style=color:#f92672>=</span>serialization<span style=color:#f92672>.</span>PrivateFormat<span style=color:#f92672>.</span>PKCS8,
+</span></span><span style=display:flex><span>            encryption_algorithm<span style=color:#f92672>=</span>serialization<span style=color:#f92672>.</span>NoEncryption()
+</span></span><span style=display:flex><span>        )<span style=color:#f92672>.</span>decode()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        public_pem <span style=color:#f92672>=</span> private_key<span style=color:#f92672>.</span>public_key()<span style=color:#f92672>.</span>private_bytes(
+</span></span><span style=display:flex><span>            encoding<span style=color:#f92672>=</span>serialization<span style=color:#f92672>.</span>Encoding<span style=color:#f92672>.</span>PEM,
+</span></span><span style=display:flex><span>            format<span style=color:#f92672>=</span>serialization<span style=color:#f92672>.</span>PublicFormat<span style=color:#f92672>.</span>SubjectPublicKeyInfo,
+</span></span><span style=display:flex><span>        )<span style=color:#f92672>.</span>decode()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Сохранить в БД (приватный — зашифрованный, публичный — открыто)</span>
+</span></span><span style=display:flex><span>        db<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            INSERT INTO event_keys (event_id, kid, public_key_pem, private_key_enc, created_at)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            VALUES ($1, $2, $3, encrypt($4, $5), NOW())
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;&#34;&#34;</span>, event_id, kid, public_pem, private_pem, KEY_ENCRYPTION_SECRET)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;kid&#34;</span>: kid, <span style=color:#e6db74>&#34;public_key_pem&#34;</span>: public_pem}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>rotate_key</span>(self, event_id: str, reason: str) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Экстренная ротация при подозрении на компрометацию&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 1. Создать новую пару</span>
+</span></span><span style=display:flex><span>        new_key <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>create_event_keypair(event_id)
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 2. Старые ключи — деактивировать (токены с old kid → rejected)</span>
+</span></span><span style=display:flex><span>        db<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;UPDATE event_keys SET revoked_at=NOW(), revoke_reason=$1 WHERE event_id=$2 AND revoked_at IS NULL&#34;</span>,
+</span></span><span style=display:flex><span>                   reason, event_id)
+</span></span><span style=display:flex><span>        <span style=color:#75715e># 3. Уведомить все сканеры — перезагрузить ключи</span>
+</span></span><span style=display:flex><span>        scanner_notify<span style=color:#f92672>.</span>broadcast(event_id, {<span style=color:#e6db74>&#34;action&#34;</span>: <span style=color:#e6db74>&#34;reload_key&#34;</span>, <span style=color:#e6db74>&#34;new_kid&#34;</span>: new_key[<span style=color:#e6db74>&#34;kid&#34;</span>]})
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> new_key
+</span></span></code></pre></div><hr><h2 id=esp32-offline-jwt-validation>ESP32: offline JWT validation</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#75715e>// src/jwt_validator.cpp
+</span></span></span><span style=display:flex><span><span style=color:#75715e>// Библиотека: arduino-jwt (или собственная RS256)
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;ArduinoJson.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;mbedtls/rsa.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#include</span> <span style=color:#75715e>&lt;mbedtls/sha256.h&gt;</span><span style=color:#75715e>
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>bool</span> <span style=color:#a6e22e>validateJWT</span>(<span style=color:#66d9ef>const</span> String<span style=color:#f92672>&amp;</span> token, <span style=color:#66d9ef>const</span> String<span style=color:#f92672>&amp;</span> publicKeyPEM,
+</span></span><span style=display:flex><span>                 <span style=color:#66d9ef>const</span> String<span style=color:#f92672>&amp;</span> expectedEventId, <span style=color:#66d9ef>const</span> String<span style=color:#f92672>&amp;</span> scannerZone) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// 1. Разбить токен на 3 части
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>int</span> dot1 <span style=color:#f92672>=</span> token.indexOf(<span style=color:#e6db74>&#39;.&#39;</span>);
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>int</span> dot2 <span style=color:#f92672>=</span> token.lastIndexOf(<span style=color:#e6db74>&#39;.&#39;</span>);
+</span></span><span style=display:flex><span>    String header_b64  <span style=color:#f92672>=</span> token.substring(<span style=color:#ae81ff>0</span>, dot1);
+</span></span><span style=display:flex><span>    String payload_b64 <span style=color:#f92672>=</span> token.substring(dot1<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>, dot2);
+</span></span><span style=display:flex><span>    String sig_b64     <span style=color:#f92672>=</span> token.substring(dot2<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// 2. Проверить подпись RS256
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (<span style=color:#f92672>!</span>verifyRS256Signature(header_b64 <span style=color:#f92672>+</span> <span style=color:#e6db74>&#34;.&#34;</span> <span style=color:#f92672>+</span> payload_b64, sig_b64, publicKeyPEM)) {
+</span></span><span style=display:flex><span>        Serial.println(<span style=color:#e6db74>&#34;JWT: invalid signature&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> false;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// 3. Декодировать payload
+</span></span></span><span style=display:flex><span>    String payload_json <span style=color:#f92672>=</span> base64url_decode(payload_b64);
+</span></span><span style=display:flex><span>    DynamicJsonDocument doc(<span style=color:#ae81ff>512</span>);
+</span></span><span style=display:flex><span>    deserializeJson(doc, payload_json);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// 4. Проверить exp
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>long</span> exp <span style=color:#f92672>=</span> doc[<span style=color:#e6db74>&#34;exp&#34;</span>];
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (exp <span style=color:#f92672>&lt;</span> getCurrentUnixTime()) {
+</span></span><span style=display:flex><span>        Serial.println(<span style=color:#e6db74>&#34;JWT: expired&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> false;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// 5. Проверить event_id
+</span></span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (doc[<span style=color:#e6db74>&#34;event_id&#34;</span>].as<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span>() <span style=color:#f92672>!=</span> expectedEventId) {
+</span></span><span style=display:flex><span>        Serial.println(<span style=color:#e6db74>&#34;JWT: wrong event&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> false;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// 6. Проверить zone
+</span></span></span><span style=display:flex><span>    JsonArray zones <span style=color:#f92672>=</span> doc[<span style=color:#e6db74>&#34;zone&#34;</span>].as<span style=color:#f92672>&lt;</span>JsonArray<span style=color:#f92672>&gt;</span>();
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>bool</span> zoneAllowed <span style=color:#f92672>=</span> false;
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> (JsonVariant z : zones) {
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> (z.as<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span>() <span style=color:#f92672>==</span> scannerZone) { zoneAllowed <span style=color:#f92672>=</span> true; <span style=color:#66d9ef>break</span>; }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (<span style=color:#f92672>!</span>zoneAllowed) {
+</span></span><span style=display:flex><span>        Serial.println(<span style=color:#e6db74>&#34;JWT: zone not allowed&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> false;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e>// 7. Проверить одноразовость (jti в локальном наборе)
+</span></span></span><span style=display:flex><span>    String jti <span style=color:#f92672>=</span> doc[<span style=color:#e6db74>&#34;jti&#34;</span>].as<span style=color:#f92672>&lt;</span>String<span style=color:#f92672>&gt;</span>();
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (usedJtiSet.contains(jti)) {
+</span></span><span style=display:flex><span>        Serial.println(<span style=color:#e6db74>&#34;JWT: already used (anti-replay)&#34;</span>);
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> false;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    usedJtiSet.insert(jti);   <span style=color:#75715e>// Set&lt;String&gt; в PSRAM
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> true;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><h2 id=синхронизация-при-восстановлении-связи>Синхронизация при восстановлении связи</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># eventpass/scanner_sync.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ESP32 накапливает события → при появлении 4G отправляет пачкой</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>sync_offline_events</span>(scanner_id: str, events: list[dict]):
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    events: [{jti, scan_ts, decision, person_name_from_jwt}]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Сервер: записать в БД, обновить статистику, проверить replay
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> event <span style=color:#f92672>in</span> sorted(events, key<span style=color:#f92672>=</span><span style=color:#66d9ef>lambda</span> e: e[<span style=color:#e6db74>&#34;scan_ts&#34;</span>]):
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Проверить: не было ли этот jti использован на другом сканере</span>
+</span></span><span style=display:flex><span>        existing <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> db<span style=color:#f92672>.</span>fetchval(<span style=color:#e6db74>&#34;SELECT id FROM scan_events WHERE jti=$1&#34;</span>, event[<span style=color:#e6db74>&#34;jti&#34;</span>])
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> existing:
+</span></span><span style=display:flex><span>            <span style=color:#75715e># Replay attack: один билет — два входа</span>
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> alert_security(scanner_id, event, <span style=color:#e6db74>&#34;replay_detected&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> db<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>                INSERT INTO scan_events (jti, scanner_id, scan_ts, decision, synced_at)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>                VALUES ($1, $2, $3, $4, NOW())
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            &#34;&#34;&#34;</span>, event[<span style=color:#e6db74>&#34;jti&#34;</span>], scanner_id, event[<span style=color:#e6db74>&#34;scan_ts&#34;</span>], event[<span style=color:#e6db74>&#34;decision&#34;</span>])
+</span></span></code></pre></div><hr><h2 id=offline-ttl--как-долго-работает-без-сети>Offline TTL — как долго работает без сети</h2><table><thead><tr><th>TTL токена</th><th>Offline-способность сканера</th><th>Риск</th></tr></thead><tbody><tr><td>1 ч</td><td>Только 1 час автономии</td><td>Мало — стадион не успеет заполниться</td></tr><tr><td>12 ч</td><td>Весь день мероприятия</td><td>Умеренный</td></tr><tr><td>24 ч</td><td>День + ночь</td><td>Нужна ротация revocation_list</td></tr><tr><td>7 дней</td><td>Стройплощадка</td><td>Обязательна revocation_list с sync</td></tr></tbody></table><p><strong>Рекомендация</strong>: JWT exp = длительность мероприятия + 2 ч буфер.</p><hr><h2 id=связи>Связи</h2><p>← <a href=/eventpass/architecture/>architecture</a>
+← <a href=/eventpass/mass-event/>mass-event</a>
+→ <a href=/eventpass/analytics-pipeline/>analytics-pipeline</a>
+→ <a href=/shared/keycloak-topology/>keycloak-topology</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

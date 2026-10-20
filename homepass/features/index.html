@@ -1,0 +1,51 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>HomePass — Feature Map · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>HomePass — Feature Map</span></nav><article class=prose><h1>HomePass — Feature Map</h1><h1 id=homepass--feature-map>HomePass — Feature Map</h1><p>БОСС Контроль создан для бизнеса, но домашний проект решает похожие задачи в меньшем масштабе: кто на территории, кто и когда приходил, контроль доступа нанятого персонала.</p><hr><h2 id=1-идентификация-людей-на-территории>1. Идентификация людей на территории</h2><h3 id=что-нужно-дома>Что нужно дома</h3><p>Семья, гости, уборщица, подрядчики — все входят по-разному.</p><table><thead><tr><th>Метод</th><th>Кто использует</th><th>Статус</th></tr></thead><tbody><tr><td>RFID-карта / брелок</td><td>Семья, уборщица</td><td>✅</td></tr><tr><td>PIN-код (временный)</td><td>Гости, подрядчики</td><td>✅</td></tr><tr><td>BLE-смартфон</td><td>Хозяин, семья</td><td>✅ автооткрытие</td></tr><tr><td>RFID-метка на машине</td><td>Хозяин, семья</td><td>✅ ворота</td></tr><tr><td>Видеодомофон + кнопка</td><td>Курьеры, незнакомцы</td><td>✅</td></tr><tr><td>QR-код (разовый)</td><td>Курьеры при отсутствии</td><td>✅</td></tr><tr><td>Биометрия</td><td>❌ Избыточно для дома</td><td>—</td></tr></tbody></table><hr><h2 id=2-журнал-посещений-аналог-табеля>2. Журнал посещений (аналог табеля)</h2><p>Кто пришёл, кто ушёл и когда — для нанятого персонала.</p><pre tabindex=0><code>Журнал в Home Assistant:
+  10:23 | Уборщица (Мария) вошла | калитка | RFID
+  13:01 | Уборщица (Мария) вышла | калитка | RFID
+  Итого: 2 ч 38 мин
+
+  14:00 | Сантехник (код 7823) вошёл | калитка | PIN
+  15:30 | Сантехник вышел | калитка | кнопка изнутри
+  Итого: 1 ч 30 мин
+</code></pre><p><strong>Зачем</strong>: спорные ситуации с оплатой. Точное время без «я был 4 часа».</p><h3 id=экспорт>Экспорт</h3><ul><li>PDF / Excel за период</li><li>Простой — нет интеграции с 1С (не нужна)</li></ul><hr><h2 id=3-реальное-время-кто-на-территории>3. Реальное время: кто на территории</h2><pre tabindex=0><code>Виджет в приложении HA:
+  ✅ Семья дома: Анна (14:30), Дети (16:00)
+  ✅ Персонал на территории: Уборщица (с 10:23)
+  ✅ Гости в гостевом доме: Иванов Сергей (с вчера)
+  ✅ Подрядчики: нет
+</code></pre><hr><h2 id=4-физический-контроль-доступа>4. Физический контроль доступа</h2><p>Главное отличие от БОСС Контроль — дом умеет открывать двери.</p><table><thead><tr><th>Точка</th><th>Управление</th></tr></thead><tbody><tr><td>Ворота въезд</td><td>BLE-автооткрытие + кнопка + пульт</td></tr><tr><td>Калитка</td><td>RFID + PIN + кнопка в приложении</td></tr><tr><td>Входная дверь дома</td><td>RFID + BLE + механический ключ</td></tr><tr><td>Гостевой дом</td><td>PIN (индивидуальный на каждого гостя)</td></tr><tr><td>Баня</td><td>RFID + кнопка в приложении</td></tr><tr><td>Гараж</td><td>Автоматика + кнопка</td></tr></tbody></table><hr><h2 id=5-расписание-и-временные-ограничения>5. Расписание и временные ограничения</h2><pre tabindex=0><code>Уборщица:
+  Дни: пн–пт
+  Время: 09:00–18:00
+  Зона: только дом
+  При нарушении: отказ + Push хозяину
+
+Подрядчик:
+  Конкретная дата + временное окно
+  Конкретная зона (котельная, баня, крыша)
+  Автоудаление по истечении
+</code></pre><hr><h2 id=6-уведомления>6. Уведомления</h2><p>Адаптированные «табельные» уведомления для дома:</p><table><thead><tr><th>Событие</th><th>Уведомление</th></tr></thead><tbody><tr><td>Уборщица пришла</td><td>Push: &ldquo;Мария вошла в дом, 10:23&rdquo;</td></tr><tr><td>Подрядчик вошёл</td><td>Push: &ldquo;Сантехник вошёл через калитку&rdquo;</td></tr><tr><td>Посторонний ночью</td><td>Push с фото: &ldquo;Движение у калитки, 02:34&rdquo;</td></tr><tr><td>Дверь открыта > 5 мин</td><td>Push: &ldquo;Входная дверь открыта&rdquo;</td></tr><tr><td>Гость не ушёл после valid_until</td><td>Push: &ldquo;Иванов на территории, PIN истёк&rdquo;</td></tr><tr><td>Уборщица в выходной день</td><td>Push + отказ в доступе</td></tr></tbody></table><hr><h2 id=7-документы-персонала>7. Документы персонала</h2><p>Упрощённый аналог «просроченных медкнижек»:</p><pre tabindex=0><code>Для уборщицы и регулярных подрядчиков:
+  Поле &#34;Договор до: 2026-12-31&#34;
+  За 14 дней → Push хозяину: &#34;Договор с Марией истекает через 14 дней&#34;
+  При истечении → RFID-карта всё ещё работает (не блокируем автоматически,
+                   хозяин сам решает)
+</code></pre><hr><h2 id=8-видеонаблюдение-как-часть-учёта>8. Видеонаблюдение как часть «учёта»</h2><pre tabindex=0><code>Frigate сохраняет клип при каждом входе/выходе:
+  → привязывается к записи в журнале
+  → если PIN введён, но лицо не совпадает с привязанным — алерт
+  → &#34;Мария вошла: 10:23&#34; + миниатюра кадра
+</code></pre><hr><h2 id=9-отчёты>9. Отчёты</h2><table><thead><tr><th>Отчёт</th><th>Как часто</th><th>Кому</th></tr></thead><tbody><tr><td>Кто и когда был дома (за месяц)</td><td>По запросу</td><td>Хозяин</td></tr><tr><td>Время работы персонала</td><td>По запросу / авто в конце месяца</td><td>Хозяин</td></tr><tr><td>Журнал тревог и инцидентов</td><td>По запросу</td><td>Хозяин</td></tr><tr><td>Потребление энергии + присутствие</td><td>Авто воскресенье</td><td>Хозяин</td></tr></tbody></table><hr><h2 id=10-чего-нет-и-не-нужно>10. Чего нет (и не нужно)</h2><table><thead><tr><th>Фича БОСС Контроль</th><th>Дома</th></tr></thead><tbody><tr><td>Мультиарендаторность</td><td>❌ Один дом — одна семья</td></tr><tr><td>Интеграция с 1С / ERP</td><td>❌</td></tr><tr><td>Расчёт зарплаты</td><td>❌ (только время, деньги вручную)</td></tr><tr><td>Комплаенс ФСТЭК/ФСБ</td><td>❌</td></tr><tr><td>Корпоративные роли</td><td>❌ Упрощённо: хозяин / семья / персонал</td></tr><tr><td>Масштабирование</td><td>❌ Один объект, 10–20 человек максимум</td></tr></tbody></table><hr><h2 id=сводная-таблица-босс-контроль-vs-homepass>Сводная таблица: БОСС Контроль vs HomePass</h2><table><thead><tr><th>Фича</th><th style=text-align:center>БОСС Контроль</th><th style=text-align:center>HomePass</th></tr></thead><tbody><tr><td>Идентификация по лицу</td><td style=text-align:center>✅</td><td style=text-align:center>❌ (избыточно)</td></tr><tr><td>RFID / PIN</td><td style=text-align:center>✅</td><td style=text-align:center>✅</td></tr><tr><td>BLE-автооткрытие</td><td style=text-align:center>❌</td><td style=text-align:center>✅</td></tr><tr><td>Журнал прихода/ухода</td><td style=text-align:center>✅</td><td style=text-align:center>✅</td></tr><tr><td>Реальное время кто на месте</td><td style=text-align:center>✅</td><td style=text-align:center>✅</td></tr><tr><td>Физическое открытие дверей</td><td style=text-align:center>❌</td><td style=text-align:center>✅</td></tr><tr><td>Временные ограничения (уборщица)</td><td style=text-align:center>✅</td><td style=text-align:center>✅</td></tr><tr><td>Просроченные документы</td><td style=text-align:center>✅</td><td style=text-align:center>✅ (упрощённо)</td></tr><tr><td>Видеоклип к событию</td><td style=text-align:center>❌</td><td style=text-align:center>✅ (Frigate)</td></tr><tr><td>Уведомления</td><td style=text-align:center>✅ (были жалобы на спам)</td><td style=text-align:center>✅ opt-in</td></tr><tr><td>Работает локально (без облака)</td><td style=text-align:center>❌</td><td style=text-align:center>✅</td></tr><tr><td>Цена</td><td style=text-align:center>8 700 ₽/мес</td><td style=text-align:center>~15 000 ₽ железо + 0 ₽/мес</td></tr></tbody></table><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+← <a href=/home/access/>access</a>
+→ <a href=/home/cameras/>cameras</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

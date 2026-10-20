@@ -1,0 +1,1579 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>HomePass on DN·Pass</title><link>https://sayr777.github.io/homepass/</link><description>Recent content in HomePass on DN·Pass</description><generator>Hugo</generator><language>ru-RU</language><atom:link href="https://sayr777.github.io/homepass/index.xml" rel="self" type="application/rss+xml"/><item><title>HomePass — Feature Map</title><link>https://sayr777.github.io/homepass/features/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/features/</guid><description>&lt;h1 id="homepass--feature-map"&gt;HomePass — Feature Map&lt;/h1&gt;
+&lt;p&gt;БОСС Контроль создан для бизнеса, но домашний проект решает похожие задачи в меньшем масштабе: кто на территории, кто и когда приходил, контроль доступа нанятого персонала.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="1-идентификация-людей-на-территории"&gt;1. Идентификация людей на территории&lt;/h2&gt;
+&lt;h3 id="что-нужно-дома"&gt;Что нужно дома&lt;/h3&gt;
+&lt;p&gt;Семья, гости, уборщица, подрядчики — все входят по-разному.&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Метод&lt;/th&gt;
+					&lt;th&gt;Кто использует&lt;/th&gt;
+					&lt;th&gt;Статус&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;RFID-карта / брелок&lt;/td&gt;
+					&lt;td&gt;Семья, уборщица&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;PIN-код (временный)&lt;/td&gt;
+					&lt;td&gt;Гости, подрядчики&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;BLE-смартфон&lt;/td&gt;
+					&lt;td&gt;Хозяин, семья&lt;/td&gt;
+					&lt;td&gt;✅ автооткрытие&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;RFID-метка на машине&lt;/td&gt;
+					&lt;td&gt;Хозяин, семья&lt;/td&gt;
+					&lt;td&gt;✅ ворота&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Видеодомофон + кнопка&lt;/td&gt;
+					&lt;td&gt;Курьеры, незнакомцы&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;QR-код (разовый)&lt;/td&gt;
+					&lt;td&gt;Курьеры при отсутствии&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Биометрия&lt;/td&gt;
+					&lt;td&gt;❌ Избыточно для дома&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="2-журнал-посещений-аналог-табеля"&gt;2. Журнал посещений (аналог табеля)&lt;/h2&gt;
+&lt;p&gt;Кто пришёл, кто ушёл и когда — для нанятого персонала.&lt;/p&gt;</description></item><item><title>Видеонаблюдение</title><link>https://sayr777.github.io/homepass/cameras/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/cameras/</guid><description>&lt;h1 id="видеонаблюдение"&gt;Видеонаблюдение&lt;/h1&gt;
+&lt;h2 id="концепция-запись-только-по-событиям"&gt;Концепция: запись только по событиям&lt;/h2&gt;
+&lt;p&gt;Не пишем непрерывно. Запись только когда:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Чужой человек&lt;/strong&gt; на территории (AI-детекция: незнакомое лицо или просто человек в зоне без хозяина)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Машина&lt;/strong&gt; въехала / выехала&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Аварийная ситуация&lt;/strong&gt; — датчик дыма, утечка воды, сигнализация&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Ночное движение&lt;/strong&gt; на периметре&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Это экономит место и позволяет быстро найти нужное событие.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="стек"&gt;Стек&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;[IP-камеры] ──RTSP──► [Frigate NVR] ──MQTT──► [Home Assistant]
+ │
+ [Google Coral] ← AI-детекция объектов
+ (или GPU/NPU)
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;&lt;strong&gt;Frigate&lt;/strong&gt; — локальный NVR с нейросетевой детекцией (YOLO). Без облака, без подписок.
+&lt;strong&gt;Google Coral USB&lt;/strong&gt; — аппаратный ускоритель для realtime AI ($60), снимает нагрузку с CPU.&lt;/p&gt;</description></item><item><title>Водоснабжение и безопасность</title><link>https://sayr777.github.io/homepass/systems/water/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/systems/water/</guid><description>&lt;h1 id="водоснабжение-и-безопасность"&gt;Водоснабжение и безопасность&lt;/h1&gt;
+&lt;h2 id="схема"&gt;Схема&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;[Скважина / централизованная сеть]
+ │
+ [Реле давления]
+ │
+ [Накопительный бак]
+ │
+ [Умный кран-отсечной] ◄── Home Assistant (аварийное перекрытие)
+ │
+ [Счётчик воды с импульсным выходом]
+ │
+ ┌─────┴──────┐
+ │ │
+[Холодная] [Бойлер ГВС]
+ │ │
+ └─────┬──────┘
+ │
+ [Распределение по зонам]
+ Дом │ Баня │ Гостевой дом │ Полив
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="датчики-утечки"&gt;Датчики утечки&lt;/h2&gt;
+&lt;p&gt;Датчики воды (Zigbee) размещаются в критических точках:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Место&lt;/th&gt;
+					&lt;th&gt;Приоритет&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Под котлом / бойлером&lt;/td&gt;
+					&lt;td&gt;Высокий&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Под стиральной машиной&lt;/td&gt;
+					&lt;td&gt;Высокий&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Под посудомоечной машиной&lt;/td&gt;
+					&lt;td&gt;Высокий&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Под умывальниками (кухня, ванные)&lt;/td&gt;
+					&lt;td&gt;Средний&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;В подвале / техпомещении&lt;/td&gt;
+					&lt;td&gt;Высокий&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Под сантехникой в бане&lt;/td&gt;
+					&lt;td&gt;Средний&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;При срабатывании датчика → автоматически перекрыть умный кран + Push-уведомление.&lt;/p&gt;</description></item><item><title>Ворота и калитка</title><link>https://sayr777.github.io/homepass/buildings/gates/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/buildings/gates/</guid><description>&lt;h1 id="ворота-и-калитка"&gt;Ворота и калитка&lt;/h1&gt;
+&lt;p&gt;Главная точка входа на территорию. Самая приоритетная зона автоматизации.&lt;/p&gt;
+&lt;h2 id="ворота-въезд-для-машин"&gt;Ворота (въезд для машин)&lt;/h2&gt;
+&lt;h3 id="железо"&gt;Железо&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;[Привод ворот] ← существующий (CAME, NICE, DoorHan и т.п.)
+ │
+ [Сухой контакт / реле управления]
+ │
+ [ESP32 + ESPHome] ──WiFi──► Home Assistant
+ │
+ [Датчик положения] — открыто / закрыто (герконовый или концевик)
+ [Датчик препятствия] — фотоэлемент (обычно встроен в привод)
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Не заменять привод — подключаться через реле к управляющим входам существующего привода.&lt;/p&gt;
+&lt;h3 id="методы-открытия"&gt;Методы открытия&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Метод&lt;/th&gt;
+					&lt;th&gt;Кто&lt;/th&gt;
+					&lt;th&gt;Как&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Пульт (стандартный)&lt;/td&gt;
+					&lt;td&gt;Семья&lt;/td&gt;
+					&lt;td&gt;Штатный пульт привода&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Кнопка в приложении HA&lt;/td&gt;
+					&lt;td&gt;Хозяин&lt;/td&gt;
+					&lt;td&gt;Tap → открыть/закрыть&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;BLE / геозона&lt;/td&gt;
+					&lt;td&gt;Хозяин&lt;/td&gt;
+					&lt;td&gt;Автоматически при подъезде&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;RFID-метка на машине&lt;/td&gt;
+					&lt;td&gt;Семья&lt;/td&gt;
+					&lt;td&gt;Метка у лобового стекла → считыватель у ворот&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Домофон → кнопка&lt;/td&gt;
+					&lt;td&gt;Гость&lt;/td&gt;
+					&lt;td&gt;Видеозвонок → хозяин нажимает «открыть»&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;PIN&lt;/td&gt;
+					&lt;td&gt;Подрядчик&lt;/td&gt;
+					&lt;td&gt;Вводит код на панели&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="автоматизации"&gt;Автоматизации&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Автооткрытие (хозяин):
+ Триггер: геозона &amp;#34;Рядом&amp;#34; (500 м) + время суток 6:00–23:00
+ Условие: хозяин отсутствовал &amp;gt; 10 мин (не случайный выход из геозоны)
+ Действие: открыть ворота
+ Таймаут: закрыть через 3 мин если машина уже въехала (датчик движения во дворе)
+
+Автозакрытие:
+ Триггер: ворота открыты &amp;gt; 5 мин
+ Условие: нет движения в воротах (ИК-датчик)
+ Действие: закрыть + Push &amp;#34;Ворота закрыты автоматически&amp;#34;
+
+Ночная блокировка:
+ 23:00 — 06:00: автооткрытие по геозоне отключено
+ Открытие только через приложение (с подтверждением)
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="калитка-пешеходный-вход"&gt;Калитка (пешеходный вход)&lt;/h2&gt;
+&lt;h3 id="железо-1"&gt;Железо&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;[Электромеханический замок] — нормально закрытый (открывается подачей тока)
+ │
+ [ESP32 + ESPHome] ──WiFi──► Home Assistant
+ │
+ ├── [RFID считыватель Wiegand 26]
+ ├── [Кнопка выхода] (изнутри — всегда открыть)
+ ├── [PIN-панель]
+ └── [Видеодомофон] ──► интеграция в HA (SIP / RTSP)
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="методы-открытия-1"&gt;Методы открытия&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Метод&lt;/th&gt;
+					&lt;th&gt;Кто&lt;/th&gt;
+					&lt;th&gt;Особенность&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;RFID-карта / брелок&lt;/td&gt;
+					&lt;td&gt;Семья, уборщица&lt;/td&gt;
+					&lt;td&gt;Постоянный доступ&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;PIN-код&lt;/td&gt;
+					&lt;td&gt;Гости, подрядчики&lt;/td&gt;
+					&lt;td&gt;Временный, с ограничением&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Кнопка в приложении&lt;/td&gt;
+					&lt;td&gt;Хозяин&lt;/td&gt;
+					&lt;td&gt;Удалённо&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Видеодомофон → кнопка&lt;/td&gt;
+					&lt;td&gt;Хозяин&lt;/td&gt;
+					&lt;td&gt;Видит кто стоит&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Кнопка изнутри&lt;/td&gt;
+					&lt;td&gt;Все&lt;/td&gt;
+					&lt;td&gt;Всегда открывает&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="esphome-конфиг-упрощённо"&gt;ESPHome конфиг (упрощённо)&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ESP32 контроллер калитки&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;switch&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO26&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gate_lock&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Калитка&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;restore_mode&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;ALWAYS_OFF &lt;/span&gt; &lt;span style="color:#75715e"&gt;# нормально закрыт&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;on_turn_on&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;delay&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;5s &lt;/span&gt; &lt;span style="color:#75715e"&gt;# держать открытой 5 секунд&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_off&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gate_lock&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;wiegand&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;d0_pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO18&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;d1_pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO19&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;on_tag&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;homeassistant.event&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;event&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;esphome.rfid_scan&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;tag&lt;/span&gt;: !&lt;span style="color:#ae81ff"&gt;lambda &amp;#39;return x;&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="автоматизации-1"&gt;Автоматизации&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;При сканировании карты:
+ HA проверяет: карта в базе? + активна? + время разрешено?
+ Да → открыть замок + записать событие
+ Нет → отказ + Push хозяину &amp;#34;Неизвестная карта: UID 4A3B2C&amp;#34;
+
+Ночной режим (23:00–07:00):
+ RFID и PIN работают
+ Уведомление хозяину при каждом входе
+
+Забытая открытая калитка:
+ Датчик положения (геркон) сигнализирует: открыта &amp;gt; 2 мин
+ Push: &amp;#34;Калитка открыта&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="видеодомофон"&gt;Видеодомофон&lt;/h2&gt;
+&lt;p&gt;Рекомендация: &lt;strong&gt;Hikvision DS-KV8113&lt;/strong&gt; или &lt;strong&gt;RTSP-совместимый домофон&lt;/strong&gt;.&lt;/p&gt;</description></item><item><title>Голосовой помощник</title><link>https://sayr777.github.io/homepass/voice-assistant/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/voice-assistant/</guid><description>&lt;h1 id="голосовой-помощник"&gt;Голосовой помощник&lt;/h1&gt;
+&lt;h2 id="концепция"&gt;Концепция&lt;/h2&gt;
+&lt;p&gt;Полностью локальный голосовой помощник — никакой Алисы, никакого Google Home, никакой отправки голоса в облако. Работает без интернета.&lt;/p&gt;
+&lt;div class="mermaid"&gt;graph LR
+ MIC["Микрофон\nESP32-S3"]
+ STT["Whisper STT"]
+ LLM["LLM / Intent\nopenWakeWord"]
+ HA["Home Assistant"]
+ TTS["Piper TTS"]
+ SPK["Динамик\nESP32-S3"]
+ TV["ТВ / дашборд"]
+
+ MIC --&gt;|аудио| STT --&gt;|текст| LLM --&gt;|команда| HA
+ HA --&gt;|ответ / действие| TTS --&gt; SPK
+ HA --&gt; TV&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="стек"&gt;Стек&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Назначение&lt;/th&gt;
+					&lt;th&gt;Технология&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Микрофон-сателлит&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Слушает в каждой комнате&lt;/td&gt;
+					&lt;td&gt;ESP32-S3 + INMP441 / reSpeaker&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Wake word&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;«Привет, дом» / «Окей, умный дом»&lt;/td&gt;
+					&lt;td&gt;openWakeWord (локально)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;STT&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Голос → текст&lt;/td&gt;
+					&lt;td&gt;Whisper (faster-whisper, модель &lt;code&gt;small&lt;/code&gt; или &lt;code&gt;medium&lt;/code&gt;)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Intent / NLU&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Понять команду&lt;/td&gt;
+					&lt;td&gt;HA Conversation + LLM (опционально)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;LLM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Сложные вопросы и отчёты&lt;/td&gt;
+					&lt;td&gt;Ollama + Llama3 / Mistral локально&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;TTS&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Ответ голосом&lt;/td&gt;
+					&lt;td&gt;Piper (русские голоса: &lt;code&gt;ru_RU-ruslan-medium&lt;/code&gt;)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Динамик&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Воспроизвести ответ&lt;/td&gt;
+					&lt;td&gt;ESP32-S3 + I2S усилитель или умная колонка&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="сателлит-в-каждой-комнате"&gt;Сателлит в каждой комнате&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Схема сателлита (ESP32-S3 DIY):
+ INMP441 микрофон (I2S)
+ MAX98357 усилитель + динамик (I2S)
+ LED-кольцо (статус: слушает / думает / отвечает)
+ Питание USB-C
+
+Прошивка: ESPHome + Wyoming Satellite
+Связь с HA: WiFi → Wyoming protocol
+
+Стоимость одного сателлита: ~1 500–2 500 ₽
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Готовые альтернативы: &lt;strong&gt;M5Stack Echo&lt;/strong&gt; или &lt;strong&gt;Home Assistant Voice PE&lt;/strong&gt; (~$65).&lt;/p&gt;</description></item><item><title>Калькулятор HomePass — умный дом</title><link>https://sayr777.github.io/homepass/calculator/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/calculator/</guid><description>&lt;div class="calc-wrap"&gt;
+&lt;div class="calc-box hp" id="calc-hp"&gt;
+ &lt;h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px"&gt;Калькулятор HomePass&lt;/h2&gt;
+ &lt;p style="color:var(--muted);font-size:.875rem;margin-bottom:28px"&gt;Подберите конфигурацию под свой дом и бюджет.&lt;/p&gt;
+
+ &lt;div style="margin-bottom:24px"&gt;
+ &lt;div style="font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:12px"&gt;Что хотите получить?&lt;/div&gt;
+ &lt;div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px" id="hp-tiers"&gt;
+ &lt;label class="hp-tier"&gt;
+ &lt;input type="radio" name="hp-tier" value="security" checked onchange="calcHP()"&gt;
+ &lt;div class="hp-tier-box"&gt;
+ &lt;div style="font-size:1.4rem;margin-bottom:6px"&gt;🔒&lt;/div&gt;
+ &lt;div style="font-weight:700;font-size:.9rem"&gt;Безопасность&lt;/div&gt;
+ &lt;div style="color:var(--muted);font-size:.78rem;margin-top:4px"&gt;Камеры, сигнализация, замки&lt;/div&gt;
+ &lt;div style="color:var(--accent);font-weight:700;margin-top:8px;font-size:.9rem"&gt;от 62 000 ₽&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;/label&gt;
+ &lt;label class="hp-tier"&gt;
+ &lt;input type="radio" name="hp-tier" value="smart" onchange="calcHP()"&gt;
+ &lt;div class="hp-tier-box"&gt;
+ &lt;div style="font-size:1.4rem;margin-bottom:6px"&gt;⚡&lt;/div&gt;
+ &lt;div style="font-weight:700;font-size:.9rem"&gt;Умный дом&lt;/div&gt;
+ &lt;div style="color:var(--muted);font-size:.78rem;margin-top:4px"&gt;Климат, свет, автоматизация&lt;/div&gt;
+ &lt;div style="color:var(--accent);font-weight:700;margin-top:8px;font-size:.9rem"&gt;от 95 000 ₽&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;/label&gt;
+ &lt;label class="hp-tier"&gt;
+ &lt;input type="radio" name="hp-tier" value="full" onchange="calcHP()"&gt;
+ &lt;div class="hp-tier-box"&gt;
+ &lt;div style="font-size:1.4rem;margin-bottom:6px"&gt;🏠&lt;/div&gt;
+ &lt;div style="font-weight:700;font-size:.9rem"&gt;Всё вместе&lt;/div&gt;
+ &lt;div style="color:var(--muted);font-size:.78rem;margin-top:4px"&gt;Полный умный дом&lt;/div&gt;
+ &lt;div style="color:var(--accent);font-weight:700;margin-top:8px;font-size:.9rem"&gt;от 150 000 ₽&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;/label&gt;
+ &lt;label class="hp-tier"&gt;
+ &lt;input type="radio" name="hp-tier" value="remote" onchange="calcHP()"&gt;
+ &lt;div class="hp-tier-box"&gt;
+ &lt;div style="font-size:1.4rem;margin-bottom:6px"&gt;📡&lt;/div&gt;
+ &lt;div style="font-weight:700;font-size:.9rem"&gt;Мониторинг дачи&lt;/div&gt;
+ &lt;div style="color:var(--muted);font-size:.78rem;margin-top:4px"&gt;Удалённый объект&lt;/div&gt;
+ &lt;div style="color:var(--accent);font-weight:700;margin-top:8px;font-size:.9rem"&gt;от 45 000 ₽&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;/label&gt;
+ &lt;/div&gt;
+ &lt;/div&gt;
+
+ &lt;div class="calc-grid"&gt;
+ &lt;div class="calc-field"&gt;
+ &lt;label&gt;Камеры: &lt;span class="val" id="hp-cams-v"&gt;4&lt;/span&gt;&lt;/label&gt;
+ &lt;input type="range" id="hp-cams" min="0" max="20" value="4" oninput="calcHP()"&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-field"&gt;
+ &lt;label&gt;Точки доступа (замки/домофоны): &lt;span class="val" id="hp-doors-v"&gt;2&lt;/span&gt;&lt;/label&gt;
+ &lt;input type="range" id="hp-doors" min="1" max="10" value="2" oninput="calcHP()"&gt;
+ &lt;/div&gt;
+ &lt;/div&gt;
+
+ &lt;div style="margin-bottom:24px"&gt;
+ &lt;div style="font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px"&gt;Дополнения&lt;/div&gt;
+ &lt;div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px"&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="hp-voice" onchange="calcHP()"&gt; Голосовой ассистент &lt;span style="color:var(--muted);font-size:.8rem"&gt;+8 000 ₽&lt;/span&gt;&lt;/label&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="hp-energy" onchange="calcHP()"&gt; Учёт электроэнергии &lt;span style="color:var(--muted);font-size:.8rem"&gt;+5 000 ₽&lt;/span&gt;&lt;/label&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="hp-install" onchange="calcHP()"&gt; Монтаж и настройка &lt;span style="color:var(--muted);font-size:.8rem"&gt;8 000 ₽/день&lt;/span&gt;&lt;/label&gt;
+ &lt;/div&gt;
+ &lt;/div&gt;
+
+ &lt;div class="calc-result" id="hp-result"&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="hp-r-hw"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Оборудование&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="hp-r-work"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Монтаж&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="hp-r-total" style="font-size:2.2rem"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Итого&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="hp-r-sub" style="font-size:1.6rem;color:#16a34a"&gt;0 ₽&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Подписка в месяц&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;/div&gt;
+ &lt;p style="font-size:.78rem;color:var(--muted);margin-top:12px"&gt;* Оборудование покупается один раз. Никаких обязательных подписок — всё работает локально.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;style&gt;
+.hp-tier { cursor:pointer; }
+.hp-tier input[type=radio] { display:none; }
+.hp-tier-box {
+ padding:16px; border:2px solid var(--border); border-radius:var(--r);
+ transition:border-color .15s,background .15s; text-align:center;
+}
+.hp-tier input:checked + .hp-tier-box {
+ border-color:var(--accent); background:var(--accent-lt);
+}
+.hp-tier-box:hover { border-color:var(--accent); }
+&lt;/style&gt;
+
+&lt;script&gt;
+(function(){
+const TIERS = {
+ security: { server:12000, camBase:4, doorBase:1, hw:37360 },
+ smart: { server:12000, camBase:2, doorBase:2, hw:55000 },
+ full: { server:16000, camBase:4, doorBase:3, hw:90000 },
+ remote: { server:8000, camBase:4, doorBase:1, hw:30000 },
+};
+window.calcHP = function() {
+ const tier = document.querySelector('input[name="hp-tier"]:checked').value;
+ const cams = +document.getElementById('hp-cams').value;
+ const doors = +document.getElementById('hp-doors').value;
+ const t = TIERS[tier];
+
+ document.getElementById('hp-cams-v').textContent = cams;
+ document.getElementById('hp-doors-v').textContent = doors;
+
+ const extraCams = Math.max(0, cams - t.camBase) * 3500;
+ const extraDoors = Math.max(0, doors - t.doorBase) * 5500;
+ let hw = t.hw + t.server + extraCams + extraDoors;
+ if (document.getElementById('hp-voice').checked) hw += 8000;
+ if (document.getElementById('hp-energy').checked) hw += 5000;
+
+ const installDays = tier === 'full' ? 4 : tier === 'smart' ? 3 : 2;
+ const work = document.getElementById('hp-install').checked ? installDays * 8000 : 0;
+
+ document.getElementById('hp-r-hw').textContent = fmt(hw);
+ document.getElementById('hp-r-work').textContent = work ? fmt(work) : 'Самостоятельно';
+ document.getElementById('hp-r-total').textContent = fmt(hw + work);
+};
+function fmt(n){
+ if(n&gt;=1000000) return (n/1000000).toFixed(1).replace('.0','') + ' млн ₽';
+ if(n&gt;=1000) return Math.round(n/1000) + ' тыс ₽';
+ return n + ' ₽';
+}
+calcHP();
+})();
+&lt;/script&gt;
+
+&lt;hr&gt;
+&lt;h1 id="калькулятор-homepass--умный-дом"&gt;Калькулятор HomePass — умный дом&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Подберите конфигурацию под свой дом и бюджет&lt;/em&gt;&lt;/p&gt;</description></item><item><title>Контроль доступа</title><link>https://sayr777.github.io/homepass/access/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/access/</guid><description>&lt;h1 id="контроль-доступа"&gt;Контроль доступа&lt;/h1&gt;
+&lt;h2 id="роли-жителей"&gt;Роли жителей&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Роль&lt;/th&gt;
+					&lt;th&gt;Кто&lt;/th&gt;
+					&lt;th&gt;Доступ&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;owner&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Хозяин&lt;/td&gt;
+					&lt;td&gt;Всё, всегда&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;family&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Члены семьи&lt;/td&gt;
+					&lt;td&gt;Дом, гараж, баня, гостевой дом&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;guest&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Гости&lt;/td&gt;
+					&lt;td&gt;Дом (пока дома хозяин) или гостевой дом (по коду)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;housekeeper&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Уборщица, садовник&lt;/td&gt;
+					&lt;td&gt;Только дом, только в рабочее время (пн-пт 9:00–18:00)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;contractor&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Сантехник, электрик&lt;/td&gt;
+					&lt;td&gt;Конкретная зона, конкретный день, однократно или ограниченный срок&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;delivery&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Курьер&lt;/td&gt;
+					&lt;td&gt;Только ворота → крытый тамбур, без входа в дом&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="точки-доступа"&gt;Точки доступа&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ STREET[Улица]
+ INTERCOM["Видеодомофон\nвызов → телефон хозяина"]
+ GATE["Ворота\nRFID-метка · приложение · пульт"]
+ WICKET["Калитка\nRFID · PIN · BLE · приложение"]
+ TERRITORY[Территория]
+ HOUSE["Дом — входная дверь\nRFID · PIN · телефон"]
+ GARAGE["Гараж\nRFID · телефон\n(изнутри всегда открыто)"]
+ SAUNA["Баня\nRFID · PIN"]
+ GUEST["Гостевой дом\nPIN (меняется на гостя) · RFID"]
+
+ STREET --&gt; INTERCOM
+ STREET --&gt; GATE --&gt; TERRITORY
+ STREET --&gt; WICKET --&gt; TERRITORY
+ TERRITORY --&gt; HOUSE
+ TERRITORY --&gt; GARAGE
+ TERRITORY --&gt; SAUNA
+ TERRITORY --&gt; GUEST&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="сценарии-доступа"&gt;Сценарии доступа&lt;/h2&gt;
+&lt;h3 id="хозяин-возвращается-домой"&gt;Хозяин возвращается домой&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Телефон с BLE / геозона подъезжает к дому
+2. Home Assistant обнаруживает приближение за 200 м
+3. За 50 м: ворота открываются автоматически
+4. Машина въехала → ворота закрываются через 30 сек
+5. Подход к двери дома → замок разблокируется
+6. Сценарий «Дома»: включается свет в прихожей, отопление переходит в комфортный режим
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="гость-в-гостевом-доме"&gt;Гость в гостевом доме&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Хозяин создаёт PIN-код в приложении: например 4829, действует 3 дня
+2. Отправляет гостю через мессенджер
+3. Гость вводит PIN на калитке → проходит на территорию
+4. Вводит тот же PIN на двери гостевого дома → входит
+5. После истечения срока PIN деактивируется автоматически
+6. Гость не имеет доступа в основной дом или баню
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="уборщица"&gt;Уборщица&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Уборщица имеет постоянную RFID-карту
+2. Доступ разрешён: пн-пт, 9:00–18:00, только дом
+3. При входе → уведомление хозяину: &amp;#34;Уборщица вошла в дом, 10:23&amp;#34;
+4. При выходе → &amp;#34;Уборщица вышла, пробыла 2 ч 15 мин&amp;#34;
+5. Если пришла в выходной → отказ + уведомление хозяину
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="подрядчик-например-сантехник"&gt;Подрядчик (например, сантехник)&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Хозяин в приложении: &amp;#34;Добавить подрядчика&amp;#34;
+ → выбирает зону (котельная), дату (сегодня), время (10:00–14:00)
+2. Подрядчик получает временный PIN
+3. В назначенное время PIN работает → доступ только в котельную
+4. За пределами времени — отказ
+5. После визита PIN автоматически истекает
+6. Хозяин получает полный лог визита
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="доставка"&gt;Доставка&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Курьер звонит в домофон
+2. Хозяин видит видео на телефоне
+3. Нажимает &amp;#34;Открыть калитку&amp;#34; → курьер входит на территорию
+4. Оставляет посылку в крытом тамбуре
+5. Калитка закрывается через 2 минуты
+6. Доступ в дом курьер не получает
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="методы-идентификации"&gt;Методы идентификации&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Метод&lt;/th&gt;
+					&lt;th&gt;Применение&lt;/th&gt;
+					&lt;th&gt;Надёжность&lt;/th&gt;
+					&lt;th&gt;Удобство&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;RFID-карта / брелок&lt;/td&gt;
+					&lt;td&gt;Семья, уборщица, постоянные&lt;/td&gt;
+					&lt;td&gt;Высокая&lt;/td&gt;
+					&lt;td&gt;Высокое&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;RFID-метка на машине&lt;/td&gt;
+					&lt;td&gt;Ворота&lt;/td&gt;
+					&lt;td&gt;Высокая&lt;/td&gt;
+					&lt;td&gt;Максимальное&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;PIN-код&lt;/td&gt;
+					&lt;td&gt;Гости, подрядчики&lt;/td&gt;
+					&lt;td&gt;Средняя&lt;/td&gt;
+					&lt;td&gt;Высокое&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;BLE (телефон)&lt;/td&gt;
+					&lt;td&gt;Хозяин, семья&lt;/td&gt;
+					&lt;td&gt;Высокая&lt;/td&gt;
+					&lt;td&gt;Максимальное&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Видеодомофон + кнопка в приложении&lt;/td&gt;
+					&lt;td&gt;Курьеры, незнакомцы&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+					&lt;td&gt;Среднее&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;QR-код (разовый)&lt;/td&gt;
+					&lt;td&gt;Курьеры при отсутствии хозяина&lt;/td&gt;
+					&lt;td&gt;Средняя&lt;/td&gt;
+					&lt;td&gt;Высокое&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="уведомления"&gt;Уведомления&lt;/h2&gt;
+&lt;p&gt;Все события доступа → Push на телефон хозяина:&lt;/p&gt;</description></item><item><title>Определение присутствия</title><link>https://sayr777.github.io/homepass/automation/presence/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/automation/presence/</guid><description>&lt;h1 id="определение-присутствия"&gt;Определение присутствия&lt;/h1&gt;
+&lt;p&gt;Ключевой компонент: вся автоматизация строится на понимании «кто дома».&lt;/p&gt;
+&lt;h2 id="методы-в-порядке-надёжности"&gt;Методы (в порядке надёжности)&lt;/h2&gt;
+&lt;h3 id="1-геозона-gps-телефона--грубое-присутствие"&gt;1. Геозона (GPS телефона) — грубое присутствие&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Геозоны в HA:
+ - &amp;#34;Дом&amp;#34; — радиус 100 м (точное присутствие на территории)
+ - &amp;#34;Рядом&amp;#34; — радиус 500 м (едет домой, готовить ворота)
+ - &amp;#34;Работа&amp;#34; — для понимания когда ожидать возвращения
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Плюс: работает без оборудования дома.
+Минус: задержка 30–60 сек, разряжает батарею.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3 id="2-wifi-ping-устройств--уточнение"&gt;2. WiFi (ping устройств) — уточнение&lt;/h3&gt;
+&lt;p&gt;Home Assistant pingает телефоны в локальной сети.
+Появился IP → дома. Пропал → ушёл.&lt;/p&gt;</description></item><item><title>Отказоустойчивость HomePass (замечания 4+5+6)</title><link>https://sayr777.github.io/homepass/resilience/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/resilience/</guid><description>&lt;h1 id="отказоустойчивость-homepass-замечания-456"&gt;Отказоустойчивость HomePass (замечания 4+5+6)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;DIY-минималистичный подход: никаких облаков, максимум самодельного&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="принцип-ha-управляет-но-не-является-точкой-отказа"&gt;Принцип: HA управляет, но не является точкой отказа&lt;/h2&gt;
+&lt;p&gt;Критические системы (котёл, замки, пожарная сигнализация) работают &lt;strong&gt;без HA&lt;/strong&gt;. HA добавляет удобство и аналитику, но не является условием работы.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="замечание-4-ha-как-spof--котёл-и-замки"&gt;Замечание 4: HA как SPOF — котёл и замки&lt;/h2&gt;
+&lt;h3 id="котёл--автономная-термостатная-логика"&gt;Котёл — автономная термостатная логика&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/boiler-controller.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ESP32 рядом с котлом — работает полностью автономно&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;dallas_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;address&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0x1c3c01d6076bf128&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Температура улица&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;outdoor_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;dallas_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;address&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0xf83c01d607923c28&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Температура дом&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;indoor_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;switch&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Котёл — запуск горелки&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;boiler_relay&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO26&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Локальный термостат: работает без HA&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Если HA недоступен — котёл всё равно греет по setpoint&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;thermostat&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;pid&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Термостат котла&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;indoor_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;default_target_temperature&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;21&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;cool&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_off&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;boiler_relay&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;heat&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_on&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;boiler_relay&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;control_parameters&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;kp&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0.3&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;ki&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0.001&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;kd&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0.0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Аппаратный watchdog: если ESP32 завис — перезагрузится сам&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;esphome&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;on_boot&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;priority&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;600&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;then&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;lambda&lt;/span&gt;: |-&lt;span style="color:#e6db74"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; esp_task_wdt_init(30, true); // 30 сек watchdog, panic=true
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; esp_task_wdt_add(NULL);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="замки--failsafe-без-ha"&gt;Замки — failsafe без HA&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Все замки используют fail-safe политику самого устройства (не HA)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Электрозащёлки: fail-open (нет питания = открыто)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Для каждого ESP32-контроллера двери: локальная кнопка выхода работает всегда&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/door-entrance.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;binary_sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Кнопка выхода&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;number&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO19&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;mode&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;INPUT_PULLUP&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;inverted&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;on_press&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Работает без HA — напрямую через ESPHome&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_on&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;door_lock_relay&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;delay&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;5s&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_off&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;door_lock_relay&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="ha-сервер-watchdog-и-питание"&gt;HA сервер: watchdog и питание&lt;/h2&gt;
+&lt;h3 id="diy-ups-на-esp32-без-покупного-ибп"&gt;DIY UPS на ESP32 (без покупного ИБП)&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Схема DIY UPS для Raspberry Pi / мини-ПК (5В):
+ 220В → TP4056 зарядное → Li-Ion 18650 × 2 (последовательно = 8.4В)
+ → MP1584 step-down 8.4В→5В → Raspberry Pi
+ 
+При пропадании 220В: батарея берёт нагрузку автоматически
+Ёмкость 2×3000 мАч = 6000 мАч → RPi4 (~3Вт) ≈ 8 часов
+
+Мониторинг батареи: ESP32 ADC → HA sensor.ups_voltage
+&lt;/code&gt;&lt;/pre&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/ups-monitor.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;adc&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO34&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;UPS — напряжение батареи&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;ups_voltage&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;filters&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;multiply&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;3.3&lt;/span&gt; &lt;span style="color:#75715e"&gt;# делитель напряжения 1:3&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;unit_of_measurement&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;V&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;attenuation&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;11db&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;binary_sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;UPS — сеть 220В&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO35&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;power&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automation&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - alias: &amp;#34;UPS: низкий заряд&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# trigger: numeric_state entity_id: sensor.ups_voltage below: 6.8&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# action: notify + graceful shutdown&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="ha-supervisor-watchdog"&gt;HA Supervisor watchdog&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# /etc/systemd/system/homeassistant.service&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Добавить (если bare metal, не HassOS):&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;[&lt;span style="color:#ae81ff"&gt;Service]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#ae81ff"&gt;Restart=always&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#ae81ff"&gt;RestartSec=10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#ae81ff"&gt;WatchdogSec=60&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Или в HassOS: Settings → System → Repair → уже встроен&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Дополнительно: Watchdog add-on из HACS (ping HA каждые N секунд)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="замечание-5-ota-для-50-устройств-esphome"&gt;Замечание 5: OTA для 50+ устройств ESPHome&lt;/h2&gt;
+&lt;h3 id="esphome-dashboard--единая-точка-ota"&gt;ESPHome Dashboard — единая точка OTA&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ESPHome Dashboard встроен в HA add-on:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Settings → Add-ons → ESPHome → Install&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# &lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Возможности:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - Список всех устройств с версиями прошивки&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - OTA update одной кнопкой&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - Компиляция и flash через браузер&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# - Валидация YAML перед прошивкой&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Все конфиги хранятся в /config/esphome/*.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Структура:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# boiler-controller.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# door-entrance.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# temp-sensors.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# secrets.yaml ← пароли, не в git&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="групповое-обновление-скриптом"&gt;Групповое обновление скриптом&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;#!/bin/bash
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# update-all-esphome.sh — обновить все устройства&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Запускать из /config/esphome/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;DEVICES&lt;span style="color:#f92672"&gt;=(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; boiler-controller
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; door-entrance
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; door-garage
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; temp-sensors
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; motion-living-room
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; energy-meter
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;for&lt;/span&gt; device in &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#e6db74"&gt;${&lt;/span&gt;DEVICES[@]&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;; &lt;span style="color:#66d9ef"&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; echo &lt;span style="color:#e6db74"&gt;&amp;#34;=== Updating: &lt;/span&gt;$device&lt;span style="color:#e6db74"&gt; ===&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; esphome run &lt;span style="color:#e6db74"&gt;&amp;#34;&lt;/span&gt;&lt;span style="color:#e6db74"&gt;${&lt;/span&gt;device&lt;span style="color:#e6db74"&gt;}&lt;/span&gt;&lt;span style="color:#e6db74"&gt;.yaml&amp;#34;&lt;/span&gt; --device &lt;span style="color:#e6db74"&gt;&amp;#34;api&amp;#34;&lt;/span&gt; &lt;span style="color:#75715e"&gt;# OTA через API&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; sleep &lt;span style="color:#ae81ff"&gt;10&lt;/span&gt; &lt;span style="color:#75715e"&gt;# дать устройству перезагрузиться&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;done&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Версионирование прошивок в YAML&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/_version.yaml — общий для всех устройств&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;substitutions&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;fw_version&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;2026.10.1&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Каждое устройство импортирует:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# packages:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# version: !include _version.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="замечание-6-топология-сети--diy-минимализм"&gt;Замечание 6: топология сети — DIY минимализм&lt;/h2&gt;
+&lt;h3 id="правило-один-протокол--одна-задача"&gt;Правило: один протокол = одна задача&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;WiFi (2.4 ГГц): → ESPHome устройства с реле (питание от сети, не батарейки)
+Zigbee: → Батарейные датчики (движение, температура, открытие)
+BLE (ESPresense): → Определение чьего телефона в комнате
+Проводной PoE: → IP-камеры (надёжнее WiFi)
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;&lt;strong&gt;Z-Wave не используем&lt;/strong&gt; — дорого, сложно, не нужно для DIY.&lt;/p&gt;</description></item><item><title>Отопление и климат</title><link>https://sayr777.github.io/homepass/systems/heating/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/systems/heating/</guid><description>&lt;h1 id="отопление-и-климат"&gt;Отопление и климат&lt;/h1&gt;
+&lt;h2 id="состав-системы"&gt;Состав системы&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;[Котёл] ──► [Коллектор] ──┬──► Контур 1: тёплый пол (1 этаж)
+ ├──► Контур 2: тёплый пол (2 этаж)
+ ├──► Контур 3: радиаторы
+ ├──► Контур 4: баня (бойлер / тёплый пол)
+ └──► Контур 5: гостевой дом
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="управление-в-home-assistant"&gt;Управление в Home Assistant&lt;/h2&gt;
+&lt;h3 id="термостаты-по-зонам"&gt;Термостаты по зонам&lt;/h3&gt;
+&lt;p&gt;Каждая зона = отдельный термостат в HA:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Зона&lt;/th&gt;
+					&lt;th&gt;Устройство&lt;/th&gt;
+					&lt;th&gt;Протокол&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Гостиная&lt;/td&gt;
+					&lt;td&gt;Датчик температуры Zigbee + сервопривод на коллекторе&lt;/td&gt;
+					&lt;td&gt;Zigbee&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Спальня&lt;/td&gt;
+					&lt;td&gt;Датчик + сервопривод&lt;/td&gt;
+					&lt;td&gt;Zigbee&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Детская&lt;/td&gt;
+					&lt;td&gt;Датчик + сервопривод&lt;/td&gt;
+					&lt;td&gt;Zigbee&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Баня&lt;/td&gt;
+					&lt;td&gt;Датчик + реле на бойлер&lt;/td&gt;
+					&lt;td&gt;Zigbee&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Гостевой дом&lt;/td&gt;
+					&lt;td&gt;Датчик + сервопривод&lt;/td&gt;
+					&lt;td&gt;Zigbee&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="котёл"&gt;Котёл&lt;/h3&gt;
+&lt;p&gt;Управление котлом через OpenTherm-адаптер (например, Ihor Melnyk OpenTherm или DIY на ESPHome):&lt;/p&gt;</description></item><item><title>Подвал</title><link>https://sayr777.github.io/homepass/buildings/basement/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/buildings/basement/</guid><description>&lt;h1 id="подвал"&gt;Подвал&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;HomePass — зона технического обслуживания и хранения&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="зоны-подвала"&gt;Зоны подвала&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph BASEMENT["Подвал"]
+ BOILER["Котельная\nкотёл, бойлер, коллектор"]
+ STORAGE["Кладовая\nконсервация, инструмент"]
+ TECH["Техзона\nщиток, счётчики, UPS"]
+ WINE["Погреб / хранение\nовощи, вино"]
+ LAUNDRY["Прачечная\nстиралка, сушилка"]
+ end
+
+ HOUSE["Дом\n(1 этаж)"] --&gt;|лестница| BASEMENT
+ GARAGE["Гараж"] --&gt;|проход| BASEMENT&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="котельная"&gt;Котельная&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Система&lt;/th&gt;
+					&lt;th&gt;Компонент&lt;/th&gt;
+					&lt;th&gt;Управление&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Котёл&lt;/td&gt;
+					&lt;td&gt;Газовый / твердотопливный&lt;/td&gt;
+					&lt;td&gt;HA → реле запуска&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Бойлер ГВС&lt;/td&gt;
+					&lt;td&gt;Накопительный электро&lt;/td&gt;
+					&lt;td&gt;Shelly 1PM, ночной тариф&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Коллектор тёплого пола&lt;/td&gt;
+					&lt;td&gt;6–8 зон с сервоприводами&lt;/td&gt;
+					&lt;td&gt;ESP32 + реле × N&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Расширительный бак&lt;/td&gt;
+					&lt;td&gt;Давление системы&lt;/td&gt;
+					&lt;td&gt;Датчик давления 0–6 бар&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Циркуляционный насос&lt;/td&gt;
+					&lt;td&gt;Контур отопления&lt;/td&gt;
+					&lt;td&gt;Shelly 1PM + мониторинг&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ESPHome: котельная — датчики и реле&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Температура котла (DS18B20)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;dallas_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;address&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0x1c3c01d6076bf128&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Котёл — температура подачи&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;dallas_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;address&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0xf83c01d607923c28&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Котёл — температура обратки&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Давление в системе&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;adc&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO34&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Давление системы&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;filters&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;lambda&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;return (x * 6.0); &lt;/span&gt; &lt;span style="color:#75715e"&gt;# 0–3.3В → 0–6 бар&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;unit_of_measurement&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;bar&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# ΔT (КПД котла)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;template&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Котёл ΔT&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;lambda&lt;/span&gt;: &amp;gt;&lt;span style="color:#e6db74"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; return id(boiler_supply).state - id(boiler_return).state;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;unit_of_measurement&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;°C&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;switch&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Циркуляционный насос&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO26&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Зона 1 — гостиная&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO27&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Зона 2 — спальня&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO14&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="электрощит-и-учёт"&gt;Электрощит и учёт&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Подвал — вводной щит&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;Компоненты&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;SDM630 (трёхфазный вводной)&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#ae81ff"&gt;→ sensor.energy_main (HA Energy Dashboard)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;PZEM-004T × 4 (субсчётчики)&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#ae81ff"&gt;→ sensor.energy_house&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#ae81ff"&gt;→ sensor.energy_garage&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#ae81ff"&gt;→ sensor.energy_guest&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#ae81ff"&gt;→ sensor.energy_sauna&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;UPS / АКБ (12В 100 Ач)&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#ae81ff"&gt;→ PZEM-017 DC мониторинг&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#ae81ff"&gt;→ Зарядка от солнечных панелей (MPPT)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="сенсоры-безопасности"&gt;Сенсоры безопасности&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Подвал требует отдельного мониторинга&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;binary_sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Датчик затопления (утечка воды)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал: затопление&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;moisture&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;number&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO35&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;mode&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;INPUT_PULLUP&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Датчик угарного газа (CO)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал: угарный газ (CO)&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gas&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO32&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;on_press&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;homeassistant.event&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;event&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;esphome.basement_co_alert&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Движение в кладовой&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал: движение&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;motion&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO33&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automations&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал: затопление&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;binary_sensor.basement_flood&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;to&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;on&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;title&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Затопление в подвале!&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Проверьте немедленно&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.turn_off&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.pump_circulation &lt;/span&gt; &lt;span style="color:#75715e"&gt;# остановить насос&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал: угарный газ&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;event&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;event_type&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;esphome.basement_co_alert&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;title&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;УГАРНЫЙ ГАЗ в подвале!&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Немедленно проветрить и покинуть помещение&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;siren.turn_on&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;siren.alarm&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="вентиляция-подвала"&gt;Вентиляция подвала&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ESP32: вентилятор вытяжной (влажность / CO2)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;bme680&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;humidity&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал — влажность&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;basement_humidity&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;gas_resistance&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал — воздух&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;switch&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Вентилятор подвал&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO25&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automation: вентиляция&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Подвал: вентиляция по влажности&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;numeric_state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;sensor.basement_humidity&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;above&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;75&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.turn_on&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.fan_basement&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/home/index/"&gt;index&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/home/buildings/house/"&gt;house&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/home/systems/heating/"&gt;heating&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/home/systems/electricity/"&gt;electricity&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/smart-meter-energy/"&gt;smart-meter-energy&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/smart-meter-temp/"&gt;smart-meter-temp&lt;/a&gt;&lt;/p&gt;</description></item><item><title>Сигнализация и охранный контур</title><link>https://sayr777.github.io/homepass/alarm/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/alarm/</guid><description>&lt;h1 id="сигнализация-и-охранный-контур"&gt;Сигнализация и охранный контур&lt;/h1&gt;
+&lt;h2 id="концепция"&gt;Концепция&lt;/h2&gt;
+&lt;p&gt;Три рубежа охраны — каждый следующий означает более серьёзную угрозу:&lt;/p&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Рубеж 1 — ПЕРИМЕТР ТЕРРИТОРИИ
+ Забор, ворота, калитка
+ → обнаружение: кто-то зашёл на территорию без авторизации
+ → реакция: тихий алерт
+
+Рубеж 2 — ПЕРИМЕТР СТРОЕНИЙ
+ Входные двери, окна, гараж
+ → обнаружение: попытка проникнуть в строение
+ → реакция: сирена + Push + уведомление соседям
+
+Рубеж 3 — ВНУТРЕННИЙ КОНТУР
+ Движение внутри дома когда никого не должно быть
+ → обнаружение: уже внутри
+ → реакция: сирена + звонок + МВД
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="режимы-охраны"&gt;Режимы охраны&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Режим&lt;/th&gt;
+					&lt;th&gt;Когда&lt;/th&gt;
+					&lt;th&gt;Что охраняется&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Снято&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Все дома, день&lt;/td&gt;
+					&lt;td&gt;Ничего — только мониторинг&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Периметр&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Все дома, ночь&lt;/td&gt;
+					&lt;td&gt;Только рубеж 1 + 2 (снаружи); движение внутри игнорируется&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Полная охрана&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Никого нет дома&lt;/td&gt;
+					&lt;td&gt;Все три рубежа&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Тихая охрана&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Хозяин уехал, в доме остались дети / гости&lt;/td&gt;
+					&lt;td&gt;Рубеж 1 + 2; внутри — только запись без сирены&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Тревога&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Сработало любое из условий&lt;/td&gt;
+					&lt;td&gt;Сирена + Push + звонок&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Переключение режимов:&lt;/p&gt;</description></item><item><title>Сценарии автоматизации</title><link>https://sayr777.github.io/homepass/automation/scenes/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/automation/scenes/</guid><description>&lt;h1 id="сценарии-автоматизации"&gt;Сценарии автоматизации&lt;/h1&gt;
+&lt;p&gt;Сценарий (scene) = набор действий по одному триггеру. Все сценарии живут в Home Assistant.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="ключевые-сценарии"&gt;Ключевые сценарии&lt;/h2&gt;
+&lt;h3 id="утро"&gt;Утро&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Триггер: будильник сработал (интеграция с телефоном) ИЛИ 07:00 в будний день
+
+Действия:
+ - Спальня: свет медленно нарастает (5 мин, от 0% до 40%, тёплый белый)
+ - Ванная: включить свет + тёплый пол если &amp;lt; 22°C
+ - Кухня: включить чайник (умная розетка) если хозяин встал (шаги / движение)
+ - Отопление: переключить в дневной режим
+ - Шторы спальни: открыть на 50% (если электропривод)
+ - Уведомление: прогноз погоды на день + температура на улице
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="все-ушли--никого-нет"&gt;Все ушли / никого нет&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Триггер: все телефоны вышли из геозоны (500 м)
+
+Действия:
+ - Свет: выключить всё
+ - Отопление: режим отсутствия (12°C)
+ - Умные розетки: отключить телевизоры в standby
+ - Охрана: включить режим охраны
+ - Ворота/замки: проверить что заперты → уведомление если нет
+ - Уведомление: &amp;#34;Режим отсутствия. Дом под охраной&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="кто-то-вернулся-домой"&gt;Кто-то вернулся домой&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Триггер: первый телефон вошёл в геозону (200 м)
+
+Действия:
+ - Ворота: открыть (если хозяин)
+ - Отопление: комфортный режим
+ - Прихожая: включить свет (если темно)
+ - Охрана: снять при входе через дверь (30 сек задержка)
+ - Уведомление остальным: &amp;#34;[Имя] вернулся домой&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="вечер--кино"&gt;Вечер / кино&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Триггер: кнопка &amp;#34;Кино&amp;#34; в приложении ИЛИ включился телевизор после 20:00
+
+Действия:
+ - Гостиная: свет 10%, тёплый оттенок
+ - Другие комнаты: без изменений
+ - Шторы: закрыть
+ - Уведомление: не беспокоить (сборка уведомлений)
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="ночь--все-спят"&gt;Ночь / все спят&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Триггер: 23:00 ИЛИ кнопка &amp;#34;Спокойной ночи&amp;#34;
+
+Действия:
+ - Весь свет: выключить кроме ночника в коридоре (5%)
+ - Отопление: ночной режим
+ - Охрана периметра: включить движение снаружи
+ - Если дверь / окно открыто → предупреждение
+ - Бойлер ГВС: включить нагрев (ночной тариф)
+ - Уведомление: &amp;#34;Спокойной ночи. На улице -3°C&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="гости-приехали"&gt;Гости приехали&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Триггер: кнопка &amp;#34;Гости&amp;#34; в приложении
+
+Действия:
+ - Гостиная + кухня: яркий приятный свет
+ - Отопление: +2°C к текущему
+ - Музыка: фоновая (локальный сервер Navidrome)
+ - Гостевой туалет: включить свет
+ - Ворота: режим &amp;#34;открыто для гостей&amp;#34; на 30 мин
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="пожарная-тревога"&gt;Пожарная тревога&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Триггер: датчик дыма ИЛИ датчик CO сработал
+
+Действия (немедленно):
+ 1. Сирена (все зоны)
+ 2. Включить весь свет на 100%
+ 3. Открыть все двери (замки разблокировать)
+ 4. Push + звонок хозяину
+ 5. Отключить газовый котёл
+ 6. Включить вентиляцию на максимум
+ 7. Через 5 мин — звонок в МЧС (если тревога не снята)
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="управление-сценариями"&gt;Управление сценариями&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Приложение HA&lt;/strong&gt; — кнопки для ручного запуска&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Физические кнопки&lt;/strong&gt; — Zigbee-выключатели у кровати, у входной двери&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Голос&lt;/strong&gt; — «Окей, ночной режим» (локальный Whisper)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Автоматически&lt;/strong&gt; — по времени, геозоне, состоянию устройств&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/home/index/"&gt;index&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/home/automation/presence/"&gt;presence&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/home/systems/heating/"&gt;heating&lt;/a&gt;&lt;/p&gt;</description></item><item><title>ТВ-панель: отчёты, видеоинструкции и анализ событий</title><link>https://sayr777.github.io/homepass/tv-dashboard/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/tv-dashboard/</guid><description>&lt;h1 id="тв-панель-отчёты-видеоинструкции-и-анализ-событий"&gt;ТВ-панель: отчёты, видеоинструкции и анализ событий&lt;/h1&gt;
+&lt;h2 id="концепция"&gt;Концепция&lt;/h2&gt;
+&lt;p&gt;Телевизор — большой экран в гостиной. По голосовой команде или расписанию он становится:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Панелью отчётов&lt;/strong&gt; (кто приходил, что происходило, энергия)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Центром безопасности&lt;/strong&gt; (события с камер, клипы, фото)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Экраном инструкций&lt;/strong&gt; (как что включить, статус систем)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Дашбордом умного дома&lt;/strong&gt; (температура, присутствие, состояние)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Всё управляется из Home Assistant. Контент генерируется локально.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектура"&gt;Архитектура&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ TRIGGER["Голосовая команда\nРасписание · Событие"]
+ HA["Home Assistant"]
+ GEN["Генератор контента"]
+ DASH["HA Dashboard HTML"]
+ FRIGATE["Frigate\nклипы и фото"]
+ GRAFANA["Grafana\nграфики"]
+ OLLAMA["Ollama LLM\nтекст / анализ"]
+ TV["media_player.tv"]
+ CAST["Chromecast / ATV\nSmart TV · Fire TV"]
+
+ TRIGGER --&gt; HA
+ HA --&gt; GEN &amp; TV
+ GEN --&gt; DASH &amp; FRIGATE &amp; GRAFANA &amp; OLLAMA
+ TV --&gt; CAST&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="способы-вывода-на-тв"&gt;Способы вывода на ТВ&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Устройство&lt;/th&gt;
+					&lt;th&gt;Интеграция в HA&lt;/th&gt;
+					&lt;th&gt;Метод&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Chromecast / Google TV&lt;/td&gt;
+					&lt;td&gt;✅ Нативно&lt;/td&gt;
+					&lt;td&gt;cast dashboard / URL&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Apple TV&lt;/td&gt;
+					&lt;td&gt;✅ ATV integration&lt;/td&gt;
+					&lt;td&gt;open app / URL&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Android TV / Fire TV&lt;/td&gt;
+					&lt;td&gt;✅ ADB / интеграция&lt;/td&gt;
+					&lt;td&gt;intent / ADB&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Smart TV (Samsung/LG)&lt;/td&gt;
+					&lt;td&gt;✅ SSDP/WebOS&lt;/td&gt;
+					&lt;td&gt;open URL / приложение&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;HDMI-стик (общий)&lt;/td&gt;
+					&lt;td&gt;✅ через ADB&lt;/td&gt;
+					&lt;td&gt;push URL&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Рекомендация&lt;/strong&gt;: Chromecast with Google TV ($50) — простая интеграция, стабильная.&lt;/p&gt;</description></item><item><title>Технологический стек</title><link>https://sayr777.github.io/homepass/stack/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/stack/</guid><description>&lt;h1 id="технологический-стек"&gt;Технологический стек&lt;/h1&gt;
+&lt;h2 id="схема-уровней"&gt;Схема уровней&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;┌─────────────────────────────────────────────────────┐
+│ ИНТЕРФЕЙС │
+│ Home Assistant UI │ Мобильное приложение │
+│ Голосовой ассистент (локальный — Whisper+Piper) │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ АВТОМАТИЗАЦИЯ │
+│ Home Assistant (ядро) — автоматизации, сценарии │
+│ Node-RED — сложная логика, визуальные потоки │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ ИНТЕГРАЦИЯ │
+│ MQTT (Mosquitto) — универсальная шина │
+│ Zigbee2MQTT — Zigbee-устройства │
+│ Z-Wave JS — Z-Wave-устройства │
+│ ESPHome — самодельные ESP32/ESP8266 устройства │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ ФИЗИЧЕСКИЕ УСТРОЙСТВА │
+│ Датчики │ Актуаторы │ Камеры │ Замки │ Реле │
+└─────────────────────────────────────────────────────┘
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="ядро-системы"&gt;Ядро системы&lt;/h2&gt;
+&lt;h3 id="home-assistant"&gt;Home Assistant&lt;/h3&gt;
+&lt;p&gt;Центральный контроллер. Запускается на локальном сервере (mini-PC или Raspberry Pi 5).&lt;/p&gt;</description></item><item><title>Хозяйственные постройки</title><link>https://sayr777.github.io/homepass/buildings/utility/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/buildings/utility/</guid><description>&lt;h1 id="хозяйственные-постройки"&gt;Хозяйственные постройки&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;HomePass — подсобные строения на территории&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="состав-хозяйственной-зоны"&gt;Состав хозяйственной зоны&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph UTIL["Хозяйственная зона"]
+ SHED["Сарай / хозблок\nинструмент, велосипеды"]
+ GREENHOUSE["Теплица\nавтополив, климат"]
+ PERGOLA["Беседка / навес\nосвещение, розетки"]
+ WELL["Колодец / скважина\nнасосная станция"]
+ COMPOST["Компостная яма\n(нет автоматики)"]
+ end
+
+ TERRITORY["Территория"] --&gt; UTIL&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="сарай--хозблок"&gt;Сарай / Хозблок&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Что автоматизировать&lt;/th&gt;
+					&lt;th&gt;Устройство&lt;/th&gt;
+					&lt;th&gt;Логика&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Освещение&lt;/td&gt;
+					&lt;td&gt;Sonoff ZBMINIL2&lt;/td&gt;
+					&lt;td&gt;По закату + по движению&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Розетка инструмента&lt;/td&gt;
+					&lt;td&gt;Shelly Plug S&lt;/td&gt;
+					&lt;td&gt;Выключить через 4 ч (забыли)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Замок&lt;/td&gt;
+					&lt;td&gt;Электрозащёлка + ESP32&lt;/td&gt;
+					&lt;td&gt;RFID / PIN-код&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Датчик движения&lt;/td&gt;
+					&lt;td&gt;PIR HC-SR501&lt;/td&gt;
+					&lt;td&gt;Алерт ночью&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Температура зимой&lt;/td&gt;
+					&lt;td&gt;DS18B20&lt;/td&gt;
+					&lt;td&gt;Алерт &amp;lt; 0°C (если есть вода)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automations: хозблок&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Хозблок: выключить инструмент (таймер)&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.plug_tool_shed&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;to&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;on&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;for&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;04:00:00&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.turn_off&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;switch.plug_tool_shed&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Хозблок: розетка инструмента выключена (4 часа)&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Хозблок: движение ночью&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;binary_sensor.motion_shed&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;to&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;on&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;condition&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;condition&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;time&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;after&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;23:00:00&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;before&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;06:00:00&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;title&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Движение в хозблоке!&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Ночью зафиксировано движение&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;light.turn_on&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;light.outdoor_flood_light&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="теплица"&gt;Теплица&lt;/h2&gt;
+&lt;p&gt;Теплица требует постоянного контроля: полив, вентиляция, освещение при пасмурной погоде.&lt;/p&gt;</description></item><item><title>Чердак / Мансарда</title><link>https://sayr777.github.io/homepass/buildings/attic/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/buildings/attic/</guid><description>&lt;h1 id="чердак--мансарда"&gt;Чердак / Мансарда&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;HomePass — техническое пространство и жилая мансарда&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="типы-использования-чердака"&gt;Типы использования чердака&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph ATTIC["Чердак"]
+ TECH_ATTIC["Техзона\nвентиляция, кабели, антенны"]
+ STORAGE_ATTIC["Хранение\nсезонные вещи, архив"]
+ MANSARDA["Мансарда\nжилая / гостевая комната"]
+ SOLAR["Солнечные панели\n(кровля)"]
+ end
+
+ HOUSE["Дом"] --&gt;|лестница / люк| ATTIC
+ SOLAR --&gt;|кабель DC| TECH_ATTIC&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="техзона-кабели-и-коммуникации"&gt;Техзона: кабели и коммуникации&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Чердак — узловая точка прокладки кабелей:
+ Антенна GSM / WiFi-сектор (OpenWrt AP)
+ PoE-свитч для IP-камер кровли
+ Кросс-панель (витая пара к комнатам)
+ ИК-ретранслятор для управления кондиционерами
+ Трубы вентиляции (выходят через кровлю)
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="мансарда-если-жилая"&gt;Мансарда (если жилая)&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Зона&lt;/th&gt;
+					&lt;th&gt;Автоматизация&lt;/th&gt;
+					&lt;th&gt;Устройство&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Климат&lt;/td&gt;
+					&lt;td&gt;Термостат + кондиционер&lt;/td&gt;
+					&lt;td&gt;Aqara E1 + Шторки ИК&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Освещение&lt;/td&gt;
+					&lt;td&gt;По присутствию&lt;/td&gt;
+					&lt;td&gt;Sonoff ZBMINIL2&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Мансардные окна&lt;/td&gt;
+					&lt;td&gt;Закрыть при дожде&lt;/td&gt;
+					&lt;td&gt;ESP32 + сервопривод&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Доступ (люк)&lt;/td&gt;
+					&lt;td&gt;Замок на люке&lt;/td&gt;
+					&lt;td&gt;Электромагнитный&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="сенсоры-чердака"&gt;Сенсоры чердака&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# esphome/attic.yaml&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Температура (DS18B20 под коньком — критично летом)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;dallas_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;address&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0x283c01d607923c32&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Чердак — температура&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;attic_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Влажность (BME280 — риск конденсата и грибка)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;bme280_i2c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;temperature&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Мансарда — температура&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;humidity&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Мансарда — влажность&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;attic_humidity&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;address&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;0x76&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;binary_sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Движение (охрана, если чердак жилой)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Чердак: движение&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;motion&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO33&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#75715e"&gt;# Люк открыт/закрыт&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Люк чердака: открыт&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;device_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;door&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;pin&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;number&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;GPIO34&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;mode&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;INPUT_PULLUP&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;inverted&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="солнечные-панели-на-кровле"&gt;Солнечные панели (на кровле)&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Мониторинг солнечных панелей через PZEM-017 (DC)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;pzem004t &lt;/span&gt; &lt;span style="color:#75715e"&gt;# PZEM-017 DC вариант&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Солнечная панель — мощность&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;power&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Солнце — мощность&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;energy&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Солнце — выработка&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;state_class&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;total_increasing&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;voltage&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Солнце — напряжение&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;current&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Солнце — ток&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automation: оповещение о перегреве кровли&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Чердак: перегрев&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;numeric_state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;sensor.attic_temp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;above&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;55&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Чердак: {{ states(&amp;#39;sensor.attic_temp&amp;#39;) }}°C — риск перегрева кровли&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automation: высокая влажность → грибок риск&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Чердак: высокая влажность&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;numeric_state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;sensor.attic_humidity&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;above&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;80&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;notify.mobile_app_owner&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;data&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;message&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Чердак: влажность {{ states(&amp;#39;sensor.attic_humidity&amp;#39;) }}% — риск конденсата&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="мансардные-окна-автоматика"&gt;Мансардные окна (автоматика)&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# ESP32: автоматическое закрытие при дожде / граде&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;binary_sensor&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;homeassistant&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Погода: идёт дождь&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;binary_sensor.rain_sensor&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;cover&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;gpio&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Мансардное окно&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;open_action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_on&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;servo_open&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;delay&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;10s&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_off&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;servo_open&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;close_action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_on&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;servo_close&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;delay&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;10s&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;switch.turn_off&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;servo_close&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# HA automation&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;- &lt;span style="color:#f92672"&gt;alias&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Мансарда: закрыть окно при дожде&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;trigger&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;platform&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;state&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;binary_sensor.rain_sensor&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;to&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;on&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;action&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;service&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;cover.close_cover&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;target&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;entity_id&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;cover.mansarda_window&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/home/index/"&gt;index&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/home/buildings/house/"&gt;house&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/home/systems/ventilation/"&gt;ventilation&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/smart-meter-energy/"&gt;smart-meter-energy&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/smart-meter-temp/"&gt;smart-meter-temp&lt;/a&gt;&lt;/p&gt;</description></item><item><title>Электричество и энергия</title><link>https://sayr777.github.io/homepass/systems/electricity/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/homepass/systems/electricity/</guid><description>&lt;h1 id="электричество-и-энергия"&gt;Электричество и энергия&lt;/h1&gt;
+&lt;h2 id="мониторинг-потребления"&gt;Мониторинг потребления&lt;/h2&gt;
+&lt;h3 id="умный-счётчик--токовые-клещи"&gt;Умный счётчик / токовые клещи&lt;/h3&gt;
+&lt;p&gt;Варианты подключения к HA:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Умный счётчик Меркурий / Нева&lt;/strong&gt; с Modbus/RS-485 → ESPHome-адаптер → HA&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Shelly EM&lt;/strong&gt; — токовые клещи на вводном кабеле, WiFi, мгновенные данные&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Separate circuit monitoring&lt;/strong&gt;: по группам (розетки, свет, котёл, бойлер, гараж)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Метрики:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Мощность в реальном времени (Вт)&lt;/li&gt;
+&lt;li&gt;Потребление (кВт·ч) по дням / месяцам&lt;/li&gt;
+&lt;li&gt;Напряжение и частота сети&lt;/li&gt;
+&lt;li&gt;Cos φ (качество электроэнергии)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="резервное-питание"&gt;Резервное питание&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;[Сеть 220В]
+ │
+ [АВР — автоматический ввод резерва]
+ ├── при наличии сети → питание от сети
+ └── при пропадании сети (&amp;gt; 3 сек) → переключение на генератор/АКБ
+
+[Генератор] ─── для длительных отключений (&amp;gt; 2–4 ч)
+[ИБП/АКБ] ─── для кратких отключений (&amp;lt; 1 ч), сервер + роутер + насос
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;&lt;strong&gt;Приоритеты при работе от резерва:&lt;/strong&gt;&lt;/p&gt;</description></item></channel></rss>

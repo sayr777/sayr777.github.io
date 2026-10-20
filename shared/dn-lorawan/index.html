@@ -1,0 +1,155 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>DN·LoRaWAN — IoT-датчики дальнего радиуса · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>DN·LoRaWAN — IoT-датчики дальнего радиуса</span></nav><article class=prose><h1>DN·LoRaWAN — IoT-датчики дальнего радиуса</h1><h1 id=dnlorawan--iot-датчики-дальнего-радиуса>DN·LoRaWAN — IoT-датчики дальнего радиуса</h1><p><em>Интеграция DN·LoRaWAN в TenantPass, HomePass, EventPass</em></p><hr><h2 id=что-такое-dnlorawan>Что такое DN·LoRaWAN</h2><p>Промышленные IoT-устройства на <strong>Semtech SX1262 + nRF52840</strong> (RAK4631). Протокол LoRaWAN 1.1 OTAA, диапазон RU868 (864–870 МГц). Без SIM-карт и абонентских платежей. Дальность до 20 км, батарея до 10 лет, шифрование AES-128.</p><table><thead><tr><th>Параметр</th><th>Значение</th></tr></thead><tbody><tr><td>Протокол</td><td>LoRaWAN 1.1 OTAA</td></tr><tr><td>Частота</td><td>RU868 (864–870 МГц)</td></tr><tr><td>Дальность</td><td>до 20 км в открытой местности</td></tr><tr><td>Батарея</td><td>до 10 лет (ER14505 Li-SOCl₂)</td></tr><tr><td>Шифрование</td><td>AES-128 (NwkSKey + AppSKey)</td></tr><tr><td>Чип</td><td>Semtech SX1262 + nRF52840</td></tr></tbody></table><hr><h2 id=ключевое-преимущество-нет-wifi--нет-проблем>Ключевое преимущество: нет WiFi — нет проблем</h2><pre tabindex=0><code>WiFi (ESPHome):   нужен роутер рядом, ~50 м в помещении
+4G (ESP32+4G):    SIM-карта, ~500 ₽/мес абонплата
+LoRaWAN:          один гейтвей на 2 км городской застройки
+                  покрывает стройплощадку, периметр, удалённые здания
+                  без абонплаты, 10 лет батарея
+</code></pre><hr><h2 id=lorawan-инфраструктура>LoRaWAN-инфраструктура</h2><div class=mermaid>graph TD
+subgraph DEVICES["DN·LoRaWAN устройства"]
+TRACK["Трекер\n(GPS + LoRa)"]
+ENV["Датчик среды\n(темп, CO, CO2, пыль)"]
+ENERGY_LW["Счётчик энергии\n(без WiFi)"]
+DOOR_LW["Датчик открытия двери\n(удалённый объект)"]
+FLOOD_LW["Датчик затопления\n(подвал, люк)"]
+end
+subgraph GW["LoRaWAN Gateway"]
+RAK7268["RAK7268 (indoor)\nили RAK7244 (outdoor)"]
+CHIRPSTACK["ChirpStack NS\n(Network Server)"]
+end
+subgraph BACKEND["Интеграция"]
+MQTT_LW["MQTT broker\n(ChirpStack → MQTT)"]
+HA_LW["Home Assistant\n(HomePass)"]
+TP_API["TenantPass API"]
+EP_API["EventPass API"]
+end
+DEVICES -->|LoRa RF| RAK7268 --> CHIRPSTACK
+CHIRPSTACK -->|MQTT| MQTT_LW
+MQTT_LW --> HA_LW & TP_API & EP_API</div><hr><h2 id=chirpstack-open-source-lorawan-network-server>ChirpStack: open-source LoRaWAN Network Server</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.lorawan.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>chirpstack</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>chirpstack/chirpstack:4</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>POSTGRESQL__DSN</span>: <span style=color:#ae81ff>postgres://chirpstack:secret@postgres/chirpstack</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>REDIS__SERVERS</span>: <span style=color:#ae81ff>redis:6379</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>NETWORK__NET_ID</span>: <span style=color:#e6db74>&#34;000000&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>NETWORK__ENABLED_REGIONS</span>: <span style=color:#ae81ff>ru868</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8080:8080&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>chirpstack-gateway-bridge</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>chirpstack/chirpstack-gateway-bridge:4</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>INTEGRATION__MQTT__EVENT_TOPIC_TEMPLATE</span>: <span style=color:#e6db74>&#34;eu868/gateway/{{ .GatewayID }}/event/{{ .EventType }}&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;1700:1700/udp&#34;</span>   <span style=color:#75715e># UDP от гейтвея (Semtech Packet Forwarder)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># ChirpStack публикует данные в MQTT:</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># topic: application/{app_id}/device/{dev_eui}/event/up</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># payload: JSON с decoded data</span>
+</span></span></code></pre></div><hr><h2 id=интеграция-chirpstack--home-assistant>Интеграция ChirpStack → Home Assistant</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># configuration.yaml (HA)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>mqtt</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>    <span style=color:#75715e># DN·LoRaWAN датчик температуры на удалённом объекте</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Теплица: температура (LoRa)&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state_topic</span>: <span style=color:#e6db74>&#34;application/1/device/+/event/up&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>value_template</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        {% set payload = value_json.object %}
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        {{ payload.temperature }}</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#e6db74>&#34;°C&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>temperature</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Датчик открытия ворот на дальнем периметре</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Периметр: ворота открыты (LoRa)&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state_topic</span>: <span style=color:#e6db74>&#34;application/1/device/abc123def456/event/up&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>value_template</span>: <span style=color:#e6db74>&#34;{{ value_json.object.door_open }}&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>payload_on</span>: <span style=color:#e6db74>&#34;true&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>payload_off</span>: <span style=color:#e6db74>&#34;false&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>door</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># lorawan_bridge.py — универсальный обработчик</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> paho.mqtt.client <span style=color:#66d9ef>as</span> mqtt
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> json
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>on_message</span>(client, userdata, msg):
+</span></span><span style=display:flex><span>    payload <span style=color:#f92672>=</span> json<span style=color:#f92672>.</span>loads(msg<span style=color:#f92672>.</span>payload)
+</span></span><span style=display:flex><span>    device_eui <span style=color:#f92672>=</span> payload[<span style=color:#e6db74>&#34;deviceInfo&#34;</span>][<span style=color:#e6db74>&#34;devEui&#34;</span>]
+</span></span><span style=display:flex><span>    data <span style=color:#f92672>=</span> payload<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;object&#34;</span>, {})
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Маршрутизация по типу данных</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#e6db74>&#34;temperature&#34;</span> <span style=color:#f92672>in</span> data:
+</span></span><span style=display:flex><span>        ha_client<span style=color:#f92672>.</span>set_state(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;sensor.lorawan_</span><span style=color:#e6db74>{</span>device_eui<span style=color:#e6db74>}</span><span style=color:#e6db74>_temp&#34;</span>, data[<span style=color:#e6db74>&#34;temperature&#34;</span>])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#e6db74>&#34;gps&#34;</span> <span style=color:#f92672>in</span> data:
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Обновить GPS-координаты в HA / TenantPass</span>
+</span></span><span style=display:flex><span>        lat, lon <span style=color:#f92672>=</span> data[<span style=color:#e6db74>&#34;gps&#34;</span>][<span style=color:#e6db74>&#34;latitude&#34;</span>], data[<span style=color:#e6db74>&#34;gps&#34;</span>][<span style=color:#e6db74>&#34;longitude&#34;</span>]
+</span></span><span style=display:flex><span>        ha_client<span style=color:#f92672>.</span>call_service(<span style=color:#e6db74>&#34;device_tracker.see&#34;</span>, {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;dev_id&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;lorawan_</span><span style=color:#e6db74>{</span>device_eui<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;gps&#34;</span>: [lat, lon]
+</span></span><span style=display:flex><span>        })
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#e6db74>&#34;co_ppm&#34;</span> <span style=color:#f92672>in</span> data <span style=color:#f92672>and</span> data[<span style=color:#e6db74>&#34;co_ppm&#34;</span>] <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>50</span>:
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Опасный уровень CO → тревога</span>
+</span></span><span style=display:flex><span>        ha_client<span style=color:#f92672>.</span>call_service(<span style=color:#e6db74>&#34;notify.all_users&#34;</span>, {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;title&#34;</span>: <span style=color:#e6db74>&#34;ТРЕВОГА: CO!&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;message&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Уровень CO: </span><span style=color:#e6db74>{</span>data[<span style=color:#e6db74>&#39;co_ppm&#39;</span>]<span style=color:#e6db74>}</span><span style=color:#e6db74> ppm&#34;</span>
+</span></span><span style=display:flex><span>        })
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>mqtt_client <span style=color:#f92672>=</span> mqtt<span style=color:#f92672>.</span>Client()
+</span></span><span style=display:flex><span>mqtt_client<span style=color:#f92672>.</span>on_message <span style=color:#f92672>=</span> on_message
+</span></span><span style=display:flex><span>mqtt_client<span style=color:#f92672>.</span>connect(<span style=color:#e6db74>&#34;192.168.1.100&#34;</span>)
+</span></span><span style=display:flex><span>mqtt_client<span style=color:#f92672>.</span>subscribe(<span style=color:#e6db74>&#34;application/+/device/+/event/up&#34;</span>)
+</span></span><span style=display:flex><span>mqtt_client<span style=color:#f92672>.</span>loop_forever()
+</span></span></code></pre></div><hr><h2 id=homepass-где-lorawan-лучше-wifi>HomePass: где LoRaWAN лучше WiFi</h2><table><thead><tr><th>Точка</th><th>Проблема WiFi</th><th>DN·LoRaWAN решение</th></tr></thead><tbody><tr><td>Теплица (50 м от дома)</td><td>Нестабильный WiFi</td><td>LoRa датчик темп/влажность</td></tr><tr><td>Колодец / скважина</td><td>Нет WiFi под землёй</td><td>LoRa датчик уровня воды</td></tr><tr><td>Периметр (100+ м)</td><td>Нужно несколько AP</td><td>LoRa датчик движения/открытия</td></tr><tr><td>Уличная метеостанция</td><td>Нужен кабель питания</td><td>LoRa + батарея 10 лет</td></tr><tr><td>Дальний хозблок / сарай</td><td>WiFi не добивает</td><td>LoRa + NB-IoT</td></tr></tbody></table><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automation: уровень воды в колодце</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Колодец: низкий уровень воды&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.lorawan_well_water_level</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>below</span>: <span style=color:#ae81ff>30</span>   <span style=color:#75715e># %</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Колодец: уровень воды {{ states(&#39;sensor.lorawan_well_water_level&#39;) }}%&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.well_pump  </span> <span style=color:#75715e># не качать воздух</span>
+</span></span></code></pre></div><hr><h2 id=tenantpass-lorawan-на-объектах-без-сети>TenantPass: LoRaWAN на объектах без сети</h2><h3 id=датчики-окружающей-среды-в-серверной--щитовой>Датчики окружающей среды в серверной / щитовой</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># На объектах без сети (или с ненадёжным интернетом):</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># DN·LoRaWAN датчик → локальный gateway → ChirpStack → MQTT → HA</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Сценарий: пожарная безопасность серверной</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Датчик: CO2 + темп + дым → LoRa → тревога даже при отключении сети</span>
+</span></span></code></pre></div><h3 id=gps-трекинг-корпоративного-транспорта>GPS-трекинг корпоративного транспорта</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># TenantPass: где находится корпоративный автомобиль</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># DN·LoRaWAN трекер → ChirpStack → HA device_tracker → карта</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA: карта с маршрутами (History + map card)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Keycloak: только HR / безопасник видит трекинг</span>
+</span></span></code></pre></div><h3 id=стройплощадка-eventpass-без-wifi>Стройплощадка (EventPass) без WiFi</h3><pre tabindex=0><code>Стройка за городом:
+  Нет интернета → 4G на ESP32 дорого (SIM-карты × 20 датчиков)
+  Решение: один LoRaWAN гейтвей RAK7244 (outdoor, IP67) с 4G backhaul
+  + 20+ датчиков DN·LoRaWAN без SIM-карт
+
+  Датчики:
+    Температура бетона: DN·LoRaWAN temp × 8 (в опалубке)
+    Состояние датчика движения: периметр 500 м
+    Уровень топлива генератора: LoRa
+    CO2 в бытовках: LoRa
+    Счётчик энергии в щитках: LoRa
+</code></pre><hr><h2 id=сравнение-dnlorawan-vs-альтернативы-для-каждого-use-case>Сравнение DN·LoRaWAN vs альтернативы для каждого use-case</h2><table><thead><tr><th>Use-case</th><th>LoRaWAN</th><th>WiFi ESPHome</th><th>4G ESP32</th><th>Рекомендация</th></tr></thead><tbody><tr><td>Датчик в теплице</td><td>✅</td><td>⚠️ нестабильно</td><td>❌ дорого</td><td>LoRaWAN</td></tr><tr><td>Счётчик энергии в щитке</td><td>✅</td><td>✅</td><td>—</td><td>WiFi (проще)</td></tr><tr><td>GPS трекер на ТС</td><td>✅</td><td>❌</td><td>✅</td><td>LoRaWAN (дешевле)</td></tr><tr><td>Датчик CO на стройке</td><td>✅</td><td>⚠️ нет WiFi</td><td>⚠️</td><td>LoRaWAN</td></tr><tr><td>Датчик в серверной</td><td>—</td><td>✅</td><td>—</td><td>WiFi (надёжнее в LAN)</td></tr><tr><td>Движение на периметре 200м</td><td>✅</td><td>❌</td><td>—</td><td>LoRaWAN</td></tr><tr><td>Температура бетона</td><td>✅</td><td>⚠️ нет WiFi</td><td>⚠️</td><td>LoRaWAN</td></tr></tbody></table><hr><h2 id=применение-по-проектам-итоговая-матрица>Применение по проектам: итоговая матрица</h2><table><thead><tr><th>Применение</th><th>HomePass</th><th>TenantPass</th><th>EventPass (стройка)</th></tr></thead><tbody><tr><td>Удалённые датчики (100+ м)</td><td>✅ теплица, периметр</td><td>✅ склады, парковка</td><td>✅ весь периметр</td></tr><tr><td>GPS трекинг ТС</td><td>❌</td><td>✅ корпоративные авто</td><td>✅ строительная техника</td></tr><tr><td>Датчики CO/CO2</td><td>✅ подвал</td><td>✅ серверная, щитовая</td><td>✅ бытовки, котлованы</td></tr><tr><td>Энергоучёт без WiFi</td><td>—</td><td>⚙️ резерв</td><td>✅ щитки без LAN</td></tr><tr><td>Мониторинг опалубки</td><td>—</td><td>—</td><td>✅ температура бетона</td></tr><tr><td>Уровень воды/топлива</td><td>✅ колодец</td><td>✅ дизель-генератор</td><td>✅ топливо на стройке</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/shared/smart-meter-energy/>smart-meter-energy</a>
+← <a href=/shared/smart-meter-temp/>smart-meter-temp</a>
+← <a href=/eventpass/construction/>construction</a>
+← <a href=/home/buildings/utility/>utility</a>
+→ <a href=/shared/dn-beacon/>dn-beacon</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

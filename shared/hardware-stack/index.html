@@ -1,0 +1,320 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Аппаратный стек — выбор технологий · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Аппаратный стек — выбор технологий</span></nav><article class=prose><h1>Аппаратный стек — выбор технологий</h1><h1 id=аппаратный-стек--выбор-технологий>Аппаратный стек — выбор технологий</h1><p><em>Фиксированный стек для всех проектов</em></p><table><thead><tr><th>Компонент</th><th>Технология</th><th>Почему</th></tr></thead><tbody><tr><td>IP-камеры</td><td><strong>OpenIPC</strong></td><td>Open-source прошивка, дешёвое железо, RTSP → Frigate</td></tr><tr><td>Аудио-колонки</td><td><strong>Asterisk SIP</strong></td><td>PA по зонам, TTS, централизованное управление</td></tr><tr><td>Телефония</td><td><strong>Asterisk</strong></td><td>IP-АТС, домофоны, интерком, запись</td></tr><tr><td>Микрофоны зонального мониторинга</td><td><strong>Asterisk</strong></td><td>SIP-микрофоны, silent monitoring, запись</td></tr><tr><td>WiFi / роутеры</td><td><strong>OpenWrt</strong></td><td>VLAN, 802.1X, Captive Portal, полный контроль</td></tr></tbody></table><hr><h2 id=openipc--прошивка-для-ip-камер>OpenIPC — прошивка для IP-камер</h2><h3 id=что-такое-openipc>Что такое OpenIPC</h3><p>OpenIPC — open-source Linux-прошивка для дешёвых IP-камер на чипсетах Hi3518/Hi3516/GK7205/SSC335. Заменяет закрытую OEM-прошивку на управляемую, предсказуемую, без backdoor&rsquo;ов.</p><div class=mermaid>graph LR
+subgraph CAMERA["IP-камера (железо)"]
+SOC["SoC: Hi3518E / GK7205V200\nSSC335 / SSC338"]
+SENSOR["CMOS-сенсор\nSC2335 / IMX307 / OV9732"]
+FLASH["SPI Flash 8/16 МБ\n(прошивка)"]
+NET["Ethernet / WiFi"]
+end
+subgraph OPENIPC["OpenIPC firmware"]
+MAJESTIC["Majestic streamer\nRTSP / ONVIF / HLS"]
+UCI["UCI конфигурация\n(как OpenWrt)"]
+TELEMETRY["Мониторинг\nPrometheus metrics"]
+GPIO["GPIO / PTZ / IR-cut"]
+end
+subgraph CONSUMERS["Потребители"]
+FRIGATE["Frigate NVR"]
+VLC["VLC / любой RTSP-клиент"]
+ONVIF_C["ONVIF-клиент"]
+end
+SOC & SENSOR & NET --> OPENIPC
+MAJESTIC -->|rtsp://cam-ip:554/stream| FRIGATE & VLC
+MAJESTIC -->|ONVIF| ONVIF_C</div><h3 id=поддерживаемые-чипсеты>Поддерживаемые чипсеты</h3><table><thead><tr><th>SoC</th><th>Камеры</th><th>Разрешение</th><th>AI</th></tr></thead><tbody><tr><td>Hi3518Ev300</td><td>Миллионы дешёвых камер $5–10</td><td>2 МП</td><td>—</td></tr><tr><td>Hi3516Cv300</td><td>Средний сегмент $15–25</td><td>4 МП</td><td>—</td></tr><tr><td>GK7205V200</td><td>Goke (замена HiSilicon)</td><td>2 МП</td><td>—</td></tr><tr><td>SSC335 / SSC338</td><td>SigmaStar, современные</td><td>2–4 МП</td><td>NPU</td></tr><tr><td>Hi3516Av300</td><td>Высокое качество $30–50</td><td>8 МП</td><td>—</td></tr></tbody></table><p><strong>Важно</strong>: перед покупкой — проверить SoC на совместимость: <a href=https://openipc.org/supported-hardware>openipc.org/supported-hardware</a></p><h3 id=установка-прошивки>Установка прошивки</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Метод 1: через TFTP (если OEM-прошивка позволяет bootloader-доступ)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Метод 2: через программатор (CH341A + SOIC-8 прищепка) — универсально</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Определить SoC камеры:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Снять крышку → смотреть маркировку на основном чипе</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Скачать прошивку для своего SoC:</span>
+</span></span><span style=display:flex><span>wget https://github.com/OpenIPC/firmware/releases/download/latest/<span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>     openipc.hi3518ev300-nor-lite.tgz
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Прошить через программатор:</span>
+</span></span><span style=display:flex><span>flashrom -p ch341a_spi -w openipc.hi3518ev300-nor-lite.bin
+</span></span></code></pre></div><h3 id=конфигурация-majestic-streamer>Конфигурация Majestic (streamer)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># /etc/majestic.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>system</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>webAdmin</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>port</span>: <span style=color:#ae81ff>80</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>isp</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>sensorConfig</span>: <span style=color:#ae81ff>/etc/sensors/sc2335_i2c_1l.bin</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>dayNightMode</span>: <span style=color:#ae81ff>2</span>       <span style=color:#75715e># 0=day, 1=night, 2=auto</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>video0</span>:                 <span style=color:#75715e># Основной поток (высокое качество)</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>codec</span>: <span style=color:#ae81ff>h265          </span> <span style=color:#75715e># h264 или h265</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>size</span>: <span style=color:#ae81ff>1920x1080</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>fps</span>: <span style=color:#ae81ff>20</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>bitrate</span>: <span style=color:#ae81ff>2048</span>         <span style=color:#75715e># Кбит/с</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>rcMode</span>: <span style=color:#ae81ff>cbr</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>video1</span>:                 <span style=color:#75715e># Sub-stream (для детекции движения)</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>codec</span>: <span style=color:#ae81ff>h264</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>size</span>: <span style=color:#ae81ff>640x360</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>fps</span>: <span style=color:#ae81ff>15</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>bitrate</span>: <span style=color:#ae81ff>512</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>audio</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>         <span style=color:#75715e># Если есть микрофон</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>codec</span>: <span style=color:#ae81ff>aac</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>sampleRate</span>: <span style=color:#ae81ff>8000</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>rtsp</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>port</span>: <span style=color:#ae81ff>554</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># rtsp://IP/stream=0  — основной поток</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># rtsp://IP/stream=1  — sub-stream</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>onvif</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>port</span>: <span style=color:#ae81ff>80</span>
+</span></span></code></pre></div><h3 id=frigate--openipc>Frigate + OpenIPC</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># frigate.yml — подключение OpenIPC-камеры</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>cameras</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>entrance_openipc</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ffmpeg</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inputs</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>rtsp://admin:12345@192.168.1.20:554/stream=0</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>roles</span>: [<span style=color:#ae81ff>record]            </span> <span style=color:#75715e># высокое качество → запись</span>
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>rtsp://admin:12345@192.168.1.20:554/stream=1</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>roles</span>: [<span style=color:#ae81ff>detect]            </span> <span style=color:#75715e># низкое качество → AI детекция</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>input_args</span>: <span style=color:#ae81ff>preset-rtsp-restream</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>detect</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>width</span>: <span style=color:#ae81ff>640</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>height</span>: <span style=color:#ae81ff>360</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>fps</span>: <span style=color:#ae81ff>10</span>
+</span></span></code></pre></div><h3 id=сравнение-openipc-vs-oem>Сравнение: OpenIPC vs OEM</h3><table><thead><tr><th>Параметр</th><th>OEM (Hikvision/Dahua)</th><th>OpenIPC</th></tr></thead><tbody><tr><td>Стоимость камеры</td><td>$30–200</td><td>$8–25 (дешёвый модуль + OpenIPC)</td></tr><tr><td>Backdoor&rsquo;ы</td><td>Известны (CVE-2021-36260)</td><td>Нет — исходный код открыт</td></tr><tr><td>RTSP кастомизация</td><td>Ограничена</td><td>Полная</td></tr><tr><td>Обновления безопасности</td><td>Медленно / никогда</td><td>Сообщество</td></tr><tr><td>Prometheus-мониторинг</td><td>❌</td><td>✅</td></tr><tr><td>Без облака</td><td>Иногда сложно</td><td>Всегда локально</td></tr></tbody></table><hr><h2 id=openwrt--wifi-и-маршрутизация>OpenWrt — WiFi и маршрутизация</h2><h3 id=что-такое-openwrt>Что такое OpenWrt</h3><p>Open-source прошивка для роутеров и WiFi-точек доступа. Заменяет заводскую прошивку на полноценный Linux с UCI-конфигурацией, поддержкой VLAN, 802.1X, Captive Portal, WireGuard.</p><h3 id=поддерживаемое-оборудование>Поддерживаемое оборудование</h3><table><thead><tr><th>Устройство</th><th>Применение</th><th>Особенности</th></tr></thead><tbody><tr><td><strong>TP-Link EAP225 / EAP670</strong></td><td>HomePass AP</td><td>До 1.8 Гбит, PoE, OpenWrt 23.05</td></tr><tr><td><strong>TP-Link TL-WR1043ND</strong></td><td>Стройка / EventPass</td><td>Дёшево, надёжно</td></tr><tr><td><strong>GL.iNet MT3000 (Beryl AX)</strong></td><td>EventPass мобильный</td><td>WiFi 6, компактный, $80</td></tr><tr><td><strong>Banana Pi BPi-R4</strong></td><td>TenantPass gateway</td><td>4× 2.5G, WiFi 6E, 4 ГБ RAM</td></tr><tr><td><strong>MikroTik hAP ax3</strong></td><td>TenantPass / Home</td><td>RouterOS + OpenWrt альтернатива</td></tr><tr><td><strong>x86 / N100 mini-PC</strong></td><td>TenantPass core router</td><td>pfSense / OpenWrt + любой NIC</td></tr></tbody></table><h3 id=конфигурация-vlan--8021x-uci>Конфигурация VLAN + 802.1X (UCI)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># /etc/config/network — VLAN-интерфейсы</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>config interface <span style=color:#e6db74>&#39;loopback&#39;</span>
+</span></span><span style=display:flex><span>    option device <span style=color:#e6db74>&#39;lo&#39;</span>
+</span></span><span style=display:flex><span>    option proto <span style=color:#e6db74>&#39;static&#39;</span>
+</span></span><span style=display:flex><span>    option ipaddr <span style=color:#e6db74>&#39;127.0.0.1&#39;</span>
+</span></span><span style=display:flex><span>    option netmask <span style=color:#e6db74>&#39;255.255.255.0&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>config interface <span style=color:#e6db74>&#39;vlan_trusted&#39;</span>
+</span></span><span style=display:flex><span>    option device <span style=color:#e6db74>&#39;br-lan.10&#39;</span>
+</span></span><span style=display:flex><span>    option proto <span style=color:#e6db74>&#39;static&#39;</span>
+</span></span><span style=display:flex><span>    option ipaddr <span style=color:#e6db74>&#39;192.168.10.1&#39;</span>
+</span></span><span style=display:flex><span>    option netmask <span style=color:#e6db74>&#39;255.255.255.0&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>config interface <span style=color:#e6db74>&#39;vlan_iot&#39;</span>
+</span></span><span style=display:flex><span>    option device <span style=color:#e6db74>&#39;br-lan.20&#39;</span>
+</span></span><span style=display:flex><span>    option proto <span style=color:#e6db74>&#39;static&#39;</span>
+</span></span><span style=display:flex><span>    option ipaddr <span style=color:#e6db74>&#39;192.168.20.1&#39;</span>
+</span></span><span style=display:flex><span>    option netmask <span style=color:#e6db74>&#39;255.255.255.0&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>config interface <span style=color:#e6db74>&#39;vlan_guest&#39;</span>
+</span></span><span style=display:flex><span>    option device <span style=color:#e6db74>&#39;br-lan.30&#39;</span>
+</span></span><span style=display:flex><span>    option proto <span style=color:#e6db74>&#39;static&#39;</span>
+</span></span><span style=display:flex><span>    option ipaddr <span style=color:#e6db74>&#39;192.168.30.1&#39;</span>
+</span></span><span style=display:flex><span>    option netmask <span style=color:#e6db74>&#39;255.255.255.0&#39;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># /etc/config/wireless — WiFi сети с VLAN</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Доверенная сеть (WPA2-Enterprise / 802.1X)</span>
+</span></span><span style=display:flex><span>config wifi-iface <span style=color:#e6db74>&#39;wifinet_trusted&#39;</span>
+</span></span><span style=display:flex><span>    option device   <span style=color:#e6db74>&#39;radio0&#39;</span>
+</span></span><span style=display:flex><span>    option mode     <span style=color:#e6db74>&#39;ap&#39;</span>
+</span></span><span style=display:flex><span>    option ssid     <span style=color:#e6db74>&#39;HomeNet&#39;</span>
+</span></span><span style=display:flex><span>    option encryption <span style=color:#e6db74>&#39;wpa2&#39;</span>
+</span></span><span style=display:flex><span>    option auth_server <span style=color:#e6db74>&#39;192.168.1.X&#39;</span>   <span style=color:#75715e># FreeRADIUS</span>
+</span></span><span style=display:flex><span>    option auth_secret <span style=color:#e6db74>&#39;SharedSecret&#39;</span>
+</span></span><span style=display:flex><span>    option network  <span style=color:#e6db74>&#39;vlan_trusted&#39;</span>
+</span></span><span style=display:flex><span>    option ieee80211r <span style=color:#e6db74>&#39;1&#39;</span>              <span style=color:#75715e># Fast Roaming</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Гостевая сеть (WPA2-PSK, изолированная)</span>
+</span></span><span style=display:flex><span>config wifi-iface <span style=color:#e6db74>&#39;wifinet_guest&#39;</span>
+</span></span><span style=display:flex><span>    option device   <span style=color:#e6db74>&#39;radio0&#39;</span>
+</span></span><span style=display:flex><span>    option mode     <span style=color:#e6db74>&#39;ap&#39;</span>
+</span></span><span style=display:flex><span>    option ssid     <span style=color:#e6db74>&#39;Guest&#39;</span>
+</span></span><span style=display:flex><span>    option encryption <span style=color:#e6db74>&#39;psk2&#39;</span>
+</span></span><span style=display:flex><span>    option key      <span style=color:#e6db74>&#39;guestpassword&#39;</span>
+</span></span><span style=display:flex><span>    option network  <span style=color:#e6db74>&#39;vlan_guest&#39;</span>
+</span></span><span style=display:flex><span>    option isolate  <span style=color:#e6db74>&#39;1&#39;</span>                <span style=color:#75715e># клиенты не видят друг друга</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># IoT-сеть (WPA2-PSK, изолированная)</span>
+</span></span><span style=display:flex><span>config wifi-iface <span style=color:#e6db74>&#39;wifinet_iot&#39;</span>
+</span></span><span style=display:flex><span>    option device   <span style=color:#e6db74>&#39;radio1&#39;</span>
+</span></span><span style=display:flex><span>    option mode     <span style=color:#e6db74>&#39;ap&#39;</span>
+</span></span><span style=display:flex><span>    option ssid     <span style=color:#e6db74>&#39;SmartHome-IoT&#39;</span>
+</span></span><span style=display:flex><span>    option encryption <span style=color:#e6db74>&#39;psk2&#39;</span>
+</span></span><span style=display:flex><span>    option key      <span style=color:#e6db74>&#39;iotnetwork&#39;</span>
+</span></span><span style=display:flex><span>    option network  <span style=color:#e6db74>&#39;vlan_iot&#39;</span>
+</span></span><span style=display:flex><span>    option isolate  <span style=color:#e6db74>&#39;1&#39;</span>
+</span></span></code></pre></div><h3 id=captive-portal-на-openwrt-nodogsplash>Captive Portal на OpenWrt (nodogsplash)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Установка</span>
+</span></span><span style=display:flex><span>opkg update <span style=color:#f92672>&amp;&amp;</span> opkg install nodogsplash
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># /etc/nodogsplash/nodogsplash.conf</span>
+</span></span><span style=display:flex><span>GatewayInterface vlan_guest
+</span></span><span style=display:flex><span>GatewayPort <span style=color:#ae81ff>2050</span>
+</span></span><span style=display:flex><span>MaxClients <span style=color:#ae81ff>250</span>
+</span></span><span style=display:flex><span>AuthIdleTimeout <span style=color:#ae81ff>120</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Разрешить без авторизации (только для EventPass — редиректим на EventPass Portal)</span>
+</span></span><span style=display:flex><span>PreAuth yes
+</span></span><span style=display:flex><span>PreAuthPath /nodogsplash/
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Разрешённые хосты без авторизации</span>
+</span></span><span style=display:flex><span>FWMarkAuthenticated 0x400
+</span></span><span style=display:flex><span>FWMarkTrusted 0x20000
+</span></span><span style=display:flex><span>FWMarkBlocked 0x40000
+</span></span></code></pre></div><h3 id=wireguard-vpn-на-openwrt>WireGuard VPN на OpenWrt</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Установка</span>
+</span></span><span style=display:flex><span>opkg install wireguard-tools kmod-wireguard luci-proto-wireguard
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># /etc/config/network — WireGuard интерфейс</span>
+</span></span><span style=display:flex><span>config interface <span style=color:#e6db74>&#39;wg0&#39;</span>
+</span></span><span style=display:flex><span>    option proto <span style=color:#e6db74>&#39;wireguard&#39;</span>
+</span></span><span style=display:flex><span>    option private_key <span style=color:#e6db74>&#39;BASE64_PRIVATE_KEY&#39;</span>
+</span></span><span style=display:flex><span>    option listen_port <span style=color:#e6db74>&#39;51820&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>config wireguard_wg0
+</span></span><span style=display:flex><span>    option description <span style=color:#e6db74>&#39;Remote Admin&#39;</span>
+</span></span><span style=display:flex><span>    option public_key  <span style=color:#e6db74>&#39;BASE64_PEER_PUBLIC_KEY&#39;</span>
+</span></span><span style=display:flex><span>    list allowed_ips  <span style=color:#e6db74>&#39;10.10.0.2/32&#39;</span>
+</span></span></code></pre></div><h3 id=мониторинг-openwrt-через-prometheus>Мониторинг OpenWrt через Prometheus</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Установка collectd + prometheus-exporter</span>
+</span></span><span style=display:flex><span>opkg install collectd collectd-mod-network <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>             collectd-mod-interface collectd-mod-wireless
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Или: luci-app-statistics для визуализации в Grafana</span>
+</span></span></code></pre></div><hr><h2 id=asterisk--аудиоколонки-телефония-микрофоны>Asterisk — аудиоколонки, телефония, микрофоны</h2><h3 id=зональные-pa-колонки-через-sip>Зональные PA-колонки через SIP</h3><div class=mermaid>graph TD
+AST["Asterisk PBX"]
+subgraph ZONES["Зоны озвучивания"]
+PA_A["SIP PA Зона А\nAlgo 8188 / DIY ESP32"]
+PA_B["SIP PA Зона Б"]
+PA_C["SIP PA Улица"]
+PA_D["SIP PA Склад"]
+end
+subgraph TRIGGERS["Триггеры"]
+HA["Home Assistant\nAMI"]
+ACS["СКУД / EventPass\nAMI"]
+SCHED["Расписание\ncron → AMI"]
+end
+TRIGGERS --> AST
+AST --> PA_A & PA_B & PA_C & PA_D</div><p><strong>DIY SIP-колонка на ESP32:</strong></p><pre tabindex=0><code>ESP32 + MAX98357 усилитель + динамик 8 Ом 5 Вт
+Прошивка: ESP-IDF + SIP-стек (pjsip port)
+Стоимость: ~800–1 500 ₽
+Регистрация в Asterisk как обычный SIP-endpoint
+</code></pre><h3 id=зональные-микрофоны--silent-monitoring>Зональные микрофоны — Silent Monitoring</h3><p>&ldquo;Секретные&rdquo; (скрытые) микрофоны — SIP-endpoint&rsquo;ы, которые не звонят сами, но к которым можно подключиться из Asterisk для прослушивания зоны.</p><div class=mermaid>sequenceDiagram
+participant HA as Home Assistant
+participant AST as Asterisk
+participant MIC as SIP-микрофон\n(зона X)
+participant SEC as Охрана / монитор
+note over MIC: Всегда зарегистрирован в Asterisk\nНе звонит — ждёт входящего
+HA->>AST: AMI Originate: соединить MIC с SEC
+AST->>MIC: SIP INVITE (входящий)
+MIC-->>AST: 200 OK + audio stream
+AST->>SEC: SIP INVITE (к охране)
+SEC-->>AST: 200 OK
+AST->>AST: bridge(MIC, SEC)
+note over SEC: Слышит зону в реальном времени</div><h4 id=конфигурация-микрофона-в-pjsipconf>Конфигурация микрофона в pjsip.conf</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/pjsip.conf</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[zone-a-mic]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>mic-monitoring</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>disallow</span><span style=color:#f92672>=</span><span style=color:#e6db74>all</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>allow</span><span style=color:#f92672>=</span><span style=color:#e6db74>ulaw,alaw</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>transport</span><span style=color:#f92672>=</span><span style=color:#e6db74>transport-udp</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>callerid</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Микрофон Зона А&#34; &lt;3001&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Нет auth — только с доверенного IP (внутренняя сеть)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>direct_media</span><span style=color:#f92672>=</span><span style=color:#e6db74>no</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[zone-a-mic-aor]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>aor</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>max_contacts</span><span style=color:#f92672>=</span><span style=color:#e6db74>1</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>qualify_frequency</span><span style=color:#f92672>=</span><span style=color:#e6db74>30</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Аналогично для зон б, в, г...</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[zone-b-mic]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>type</span><span style=color:#f92672>=</span><span style=color:#e6db74>endpoint</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>context</span><span style=color:#f92672>=</span><span style=color:#e6db74>mic-monitoring</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; ...</span>
+</span></span></code></pre></div><h4 id=extensionsconf--логика-мониторинга>extensions.conf — логика мониторинга</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#66d9ef>[mic-monitoring]</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Микрофон отвечает на входящий звонок и передаёт аудио</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; s,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Set(CHANNEL(audioreadformat)=ulaw)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,MixMonitor(/var/spool/asterisk/monitor/${STRFTIME(%Y%m%d%H%M%S)}_${CALLERID(num)}.wav)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Wait(${MAX_MONITOR_TIME})  ; максимальное время сессии</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[security-monitor]</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Охранник набирает номер зоны → слышит микрофон</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; 3001,1,Dial(PJSIP/zone-a-mic,60,A(beep))</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; 3002,1,Dial(PJSIP/zone-b-mic,60,A(beep))</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; 3003,1,Dial(PJSIP/zone-c-mic,60,A(beep))</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; 3004,1,Dial(PJSIP/zone-d-mic,60,A(beep))</span>
+</span></span></code></pre></div><h4 id=chanspy--скрытое-прослушивание-активного-канала>ChanSpy — скрытое прослушивание активного канала</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#66d9ef>[security-spy]</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; Охранник слушает любой канал незаметно</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; *90,1,ChanSpy(PJSIP,qw)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>; q = тихо (без объявления), w = шёпот (охранник может говорить, другая сторона не слышит)</span>
+</span></span></code></pre></div><h4 id=ami--запуск-мониторинга-из-home-assistant>AMI — запуск мониторинга из Home Assistant</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># При тревоге — автоматически открыть прослушку зоны к охране</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>monitor_zone</span>(zone: str, security_ext: str):
+</span></span><span style=display:flex><span>    ami_action <span style=color:#f92672>=</span> (
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Action: Originate</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Channel: PJSIP/zone-</span><span style=color:#e6db74>{</span>zone<span style=color:#e6db74>}</span><span style=color:#e6db74>-mic</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Context: security-monitor</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Exten: </span><span style=color:#e6db74>{</span>security_ext<span style=color:#e6db74>}</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Priority: 1</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Async: true</span><span style=color:#ae81ff>\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;CallerID: Monitor Zone </span><span style=color:#e6db74>{</span>zone<span style=color:#e6db74>}</span><span style=color:#e6db74> &lt;9</span><span style=color:#e6db74>{</span>zone<span style=color:#e6db74>}</span><span style=color:#e6db74>&gt;</span><span style=color:#ae81ff>\r\n\r\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    send_to_ami(ami_action)
+</span></span></code></pre></div><h3 id=diy-sip-микрофон-на-raspberry-pi-zero>DIY SIP-микрофон на Raspberry Pi Zero</h3><pre tabindex=0><code>Raspberry Pi Zero W 2 ($15)
+USB-микрофон или I2S MEMS (SPH0645)
+Прошивка: Raspbian Lite + Linphone CLI / baresip
+
+/etc/baresip/accounts:
+  &lt;sip:zone-a-mic@192.168.1.X&gt;;auth_pass=mic_pass;
+
+Автозапуск при включении → регистрация в Asterisk → готов к вызовам
+
+Скрытая установка:
+  Питание от PoE-сплиттера (только кабель Ethernet)
+  Форм-фактор: вписывается в стандартную розетку / вентиляционную решётку
+</code></pre><hr><h2 id=интеграция-всего-стека>Интеграция всего стека</h2><div class=mermaid>graph TD
+subgraph CAMERAS["Видеонаблюдение (OpenIPC)"]
+CAM1["OpenIPC\nкамера входа\nRTSP"]
+CAM2["OpenIPC\nкамера периметра\nRTSP"]
+end
+subgraph AUDIO["Аудио (Asterisk)"]
+PA["SIP PA-колонки\nзональные объявления"]
+MIC["SIP-микрофоны\nзональный мониторинг"]
+DOOR["SIP-домофоны\nOpenIPC с аудио"]
+PHONE["Телефоны\nZoiper / Yealink"]
+end
+subgraph WIFI["Сеть (OpenWrt)"]
+AP_OPENWRT["OpenWrt AP\nVLAN + 802.1X"]
+RADIUS["FreeRADIUS\nдинамический VLAN"]
+end
+subgraph BRAIN["Управление"]
+HA["Home Assistant\nавтоматизации"]
+KC["Keycloak\nидентичность"]
+FRIGATE["Frigate NVR\nAI-детекция"]
+end
+CAM1 & CAM2 -->|RTSP| FRIGATE
+FRIGATE -->|события| HA
+HA -->|AMI| PA
+HA -->|AMI| MIC
+KC -->|LDAP| RADIUS
+AP_OPENWRT <-->|802.1X| RADIUS
+DOOR <-->|SIP| PA
+PHONE <-->|SIP| PA
+HA & KC --> AP_OPENWRT</div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=tenantpass>TenantPass</h3><table><thead><tr><th>Компонент</th><th>Использование</th></tr></thead><tbody><tr><td>OpenIPC камеры</td><td>Фото к событию прохода, детекция зон</td></tr><tr><td>Asterisk PA</td><td>Объявление начала/конца смены, тревога</td></tr><tr><td>Asterisk микрофоны</td><td>Мониторинг критичных зон security_officer</td></tr><tr><td>Asterisk домофоны</td><td>КПП → телефон охраны</td></tr><tr><td>OpenWrt</td><td>Dynamic VLAN по роли сотрудника, 802.1X</td></tr></tbody></table><h3 id=homepass>HomePass</h3><table><thead><tr><th>Компонент</th><th>Использование</th></tr></thead><tbody><tr><td>OpenIPC камеры</td><td>Периметр дома → Frigate → HA</td></tr><tr><td>Asterisk PA</td><td>Домофон, TTS-уведомления, голосовые команды через ТВ</td></tr><tr><td>Asterisk микрофоны</td><td>Прослушивание зон при тревоге (гараж, ворота)</td></tr><tr><td>OpenWrt</td><td>VLAN Trusted / IoT / Guest, Captive Portal для гостей</td></tr></tbody></table><h3 id=eventpass>EventPass</h3><table><thead><tr><th>Компонент</th><th>Использование</th></tr></thead><tbody><tr><td>OpenIPC камеры</td><td>Мобильные камеры на площадке (дешёво, быстро)</td></tr><tr><td>Asterisk PA</td><td>PA-оповещения по секторам, тревога, расписание</td></tr><tr><td>Asterisk микрофоны</td><td>Мониторинг входных зон, аудиозапись инцидентов</td></tr><tr><td>OpenWrt</td><td>Captive Portal → QR EventPass → WiFi для участников</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/shared/video-surveillance/>video-surveillance</a>
+← <a href=/shared/sip-server/>sip-server</a>
+← <a href=/shared/network-access/>network-access</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

@@ -1,0 +1,130 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Чердак / Мансарда · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Чердак / Мансарда</span></nav><article class=prose><h1>Чердак / Мансарда</h1><h1 id=чердак--мансарда>Чердак / Мансарда</h1><p><em>HomePass — техническое пространство и жилая мансарда</em></p><hr><h2 id=типы-использования-чердака>Типы использования чердака</h2><div class=mermaid>graph TD
+subgraph ATTIC["Чердак"]
+TECH_ATTIC["Техзона\nвентиляция, кабели, антенны"]
+STORAGE_ATTIC["Хранение\nсезонные вещи, архив"]
+MANSARDA["Мансарда\nжилая / гостевая комната"]
+SOLAR["Солнечные панели\n(кровля)"]
+end
+HOUSE["Дом"] -->|лестница / люк| ATTIC
+SOLAR -->|кабель DC| TECH_ATTIC</div><hr><h2 id=техзона-кабели-и-коммуникации>Техзона: кабели и коммуникации</h2><pre tabindex=0><code>Чердак — узловая точка прокладки кабелей:
+  Антенна GSM / WiFi-сектор (OpenWrt AP)
+  PoE-свитч для IP-камер кровли
+  Кросс-панель (витая пара к комнатам)
+  ИК-ретранслятор для управления кондиционерами
+  Трубы вентиляции (выходят через кровлю)
+</code></pre><hr><h2 id=мансарда-если-жилая>Мансарда (если жилая)</h2><table><thead><tr><th>Зона</th><th>Автоматизация</th><th>Устройство</th></tr></thead><tbody><tr><td>Климат</td><td>Термостат + кондиционер</td><td>Aqara E1 + Шторки ИК</td></tr><tr><td>Освещение</td><td>По присутствию</td><td>Sonoff ZBMINIL2</td></tr><tr><td>Мансардные окна</td><td>Закрыть при дожде</td><td>ESP32 + сервопривод</td></tr><tr><td>Доступ (люк)</td><td>Замок на люке</td><td>Электромагнитный</td></tr></tbody></table><hr><h2 id=сенсоры-чердака>Сенсоры чердака</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/attic.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Температура (DS18B20 под коньком — критично летом)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x283c01d607923c32</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Чердак — температура&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>attic_temp</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Влажность (BME280 — риск конденсата и грибка)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>bme280_i2c</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>temperature</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Мансарда — температура&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>humidity</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Мансарда — влажность&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>id</span>: <span style=color:#ae81ff>attic_humidity</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x76</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Движение (охрана, если чердак жилой)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Чердак: движение&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>motion</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO33</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Люк открыт/закрыт</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Люк чердака: открыт&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>door</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO34</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>true</span>
+</span></span></code></pre></div><hr><h2 id=солнечные-панели-на-кровле>Солнечные панели (на кровле)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Мониторинг солнечных панелей через PZEM-017 (DC)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>pzem004t   </span> <span style=color:#75715e># PZEM-017 DC вариант</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Солнечная панель — мощность&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>power</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Солнце — мощность&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>energy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Солнце — выработка&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state_class</span>: <span style=color:#ae81ff>total_increasing</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>voltage</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Солнце — напряжение&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>current</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Солнце — ток&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA automation: оповещение о перегреве кровли</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Чердак: перегрев&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.attic_temp</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>55</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Чердак: {{ states(&#39;sensor.attic_temp&#39;) }}°C — риск перегрева кровли&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA automation: высокая влажность → грибок риск</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Чердак: высокая влажность&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.attic_humidity</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>80</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Чердак: влажность {{ states(&#39;sensor.attic_humidity&#39;) }}% — риск конденсата&#34;</span>
+</span></span></code></pre></div><hr><h2 id=мансардные-окна-автоматика>Мансардные окна (автоматика)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># ESP32: автоматическое закрытие при дожде / граде</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>homeassistant</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Погода: идёт дождь&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.rain_sensor</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>cover</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Мансардное окно&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>open_action</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_on</span>: <span style=color:#ae81ff>servo_open</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>10s</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>servo_open</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>close_action</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_on</span>: <span style=color:#ae81ff>servo_close</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>10s</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>servo_close</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA automation</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Мансарда: закрыть окно при дожде&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.rain_sensor</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>cover.close_cover</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>cover.mansarda_window</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+← <a href=/home/buildings/house/>house</a>
+→ <a href=/home/systems/ventilation/>ventilation</a>
+→ <a href=/shared/smart-meter-energy/>smart-meter-energy</a>
+→ <a href=/shared/smart-meter-temp/>smart-meter-temp</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

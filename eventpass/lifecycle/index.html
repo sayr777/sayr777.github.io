@@ -1,0 +1,127 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>EventPass — жизненный цикл и суточный цикл · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=ep><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep nav__lnk--active">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/eventpass/>EventPass</a>
+<span class=crumb__sep>/</span>
+<span>EventPass — жизненный цикл и суточный цикл</span></nav><article class=prose><h1>EventPass — жизненный цикл и суточный цикл</h1><h1 id=eventpass--жизненный-цикл-и-суточный-цикл>EventPass — жизненный цикл и суточный цикл</h1><h2 id=жизненный-цикл-мероприятия>Жизненный цикл мероприятия</h2><div class=mermaid>graph LR
+A([СОЗДАНИЕ]) --> B([ПОДГОТОВКА])
+B --> C([РЕГИСТРАЦИЯ])
+C --> D([АКТИВНОЕ])
+D --> E([ЗАВЕРШЕНИЕ])
+E --> F([АРХИВ])
+F -->|удаление PII| G([УДАЛЁН])
+A:::phase
+B:::phase
+C:::phase
+D:::phase
+E:::phase
+F:::phase
+G:::phase</div><h3 id=фазы-и-переходы>Фазы и переходы</h3><table><thead><tr><th>Фаза</th><th>Длительность</th><th>Что происходит</th></tr></thead><tbody><tr><td><strong>СОЗДАНИЕ</strong></td><td>минуты</td><td>Организатор создаёт событие, задаёт зоны и роли</td></tr><tr><td><strong>ПОДГОТОВКА</strong></td><td>дни/недели до</td><td>Импорт участников, настройка считывателей, тестирование</td></tr><tr><td><strong>РЕГИСТРАЦИЯ</strong></td><td>T-48ч → T-0</td><td>Участники получают QR, онлайн-чекин открыт</td></tr><tr><td><strong>АКТИВНОЕ</strong></td><td>от 1ч до 1мес</td><td>Контроль входа, реалтайм-дашборд, работа считывателей</td></tr><tr><td><strong>ЗАВЕРШЕНИЕ</strong></td><td>T+2ч</td><td>Входы заблокированы, подведение итогов, финальный отчёт</td></tr><tr><td><strong>АРХИВ</strong></td><td>30 дней</td><td>Данные доступны только для чтения</td></tr><tr><td><strong>УДАЛЁН</strong></td><td>после 30 дней</td><td>PII удалено, агрегаты остаются 1 год</td></tr></tbody></table><hr><h2 id=детальный-жизненный-цикл>Детальный жизненный цикл</h2><div class=mermaid>flowchart TD
+subgraph CREATE["T-7 дней: СОЗДАНИЕ"]
+C1[Создать событие<br>название / зоны / роли]
+C2[Настроить считыватели<br>QR или RFID]
+C3[Тест-режим<br>проверить оборудование]
+end
+subgraph ONBOARD["T-48ч: ОНБОРДИНГ"]
+O1[Импортировать участников<br>CSV / API / вручную]
+O2[Рассылка QR-кодов<br>email + SMS]
+O3[Онлайн-регистрация<br>selfie + подтверждение]
+end
+subgraph ACTIVE["Мероприятие: АКТИВНАЯ ФАЗА"]
+A1[Контроль входа<br>сканирование QR]
+A2[Реалтайм-дашборд<br>потоки / заполненность]
+A3[Управление инцидентами<br>блокировки / экстренный доступ]
+A4[Оффлайн-режим<br>при потере связи]
+end
+subgraph CLOSE["T+2ч: ЗАВЕРШЕНИЕ"]
+Z1[Заблокировать новые входы]
+Z2[Финальный отчёт<br>явка / нарушения]
+Z3[Экспорт данных<br>CSV / PDF / API]
+end
+CREATE --> ONBOARD
+ONBOARD --> ACTIVE
+ACTIVE --> CLOSE
+CLOSE --> ARCHIVE[(Архив 30 дней)]
+ARCHIVE --> DELETE[(PII удалён)]</div><hr><h2 id=суточный-цикл-однодневное-мероприятие>Суточный цикл (однодневное мероприятие)</h2><div class=mermaid>gantt
+title Суточный цикл мероприятия (концерт, 19:00–23:00)
+dateFormat HH:mm
+axisFormat %H:%M
+section Подготовка
+Доставка оборудования :08:00, 2h
+Тест считывателей :10:00, 1h
+Инструктаж охраны :11:00, 1h
+section Онбординг персонала
+Вход орг-команды :13:00, 1h
+Вход технического персонала :14:00, 2h
+Вход охраны и стюардов :16:00, 1h
+section Вход зрителей
+Открытие дверей :17:00, 30m
+Основной поток :17:30, 2h
+Опоздавшие :19:30, 1h
+section Мероприятие
+Начало шоу :19:00, 4h
+Реалтайм-мониторинг :17:00, 6h
+section Завершение
+Выход зрителей :23:00, 1h
+Финальный отчёт :00:00, 30m
+Свёртывание оборудования :00:30, 1h</div><hr><h2 id=суточный-цикл-стройплощадка>Суточный цикл (стройплощадка)</h2><div class=mermaid>gantt
+title Суточный цикл стройплощадки (8-часовая смена)
+dateFormat HH:mm
+axisFormat %H:%M
+section Приход
+Открытие КПП :07:30, 30m
+Основной вход бригад :08:00, 1h
+Считыватели: запись входов :07:30, 10h
+section Рабочий день
+Зональный контроль активен :08:00, 9h
+Проверка допусков (авто) :08:00, 9h
+section Обед
+Выход в столовую :12:00, 30m
+Возврат на объект :12:30, 30m
+section Конец смены
+Основной выход :17:00, 1h
+Сверка: все вышли? :18:00, 30m
+Ночной режим КПП :18:30, 13h
+section Отчётность
+Автоотчёт дня (21:00) :21:00, 15m</div><hr><h2 id=жизненный-цикл-участника>Жизненный цикл участника</h2><div class=mermaid>stateDiagram-v2
+[*] --> invited : импорт / ручное добавление
+invited --> registered : участник подтвердил и получил QR
+registered --> checked_in : сканирование на входе
+checked_in --> inside : вход разрешён
+inside --> checked_out : сканирование на выходе
+checked_out --> [*]
+invited --> cancelled : организатор удалил
+registered --> cancelled : участник отказался
+checked_in --> blocked : аннулирован вручную
+blocked --> [*]
+inside --> blocked : экстренная блокировка</div><hr><h2 id=жизненный-цикл-qr-кода>Жизненный цикл QR-кода</h2><div class=mermaid>stateDiagram-v2
+[*] --> generated : система создала QR
+generated --> sent : отправлен участнику
+sent --> active : начало временного окна
+active --> used : первое успешное сканирование
+used --> expired : однократный QR (для массовых)
+used --> active : многократный QR (стройка, корпоратив)
+active --> expired : истёк срок действия
+active --> revoked : отозван вручную
+expired --> [*]
+revoked --> [*]</div><hr><h2 id=жизненный-цикл-тенанта-организации>Жизненный цикл тенанта (организации)</h2><div class=mermaid>flowchart LR
+A[Регистрация<br>организатора] --> B[Создание мероприятия<br>Keycloak Organization]
+B --> C{Тип}
+C -->|разовое| D[Ephemeral tenant<br>авто-архивация]
+C -->|постоянное<br>стройка / сеть| E[Persistent tenant<br>ручное закрытие]
+D --> F[Архив]
+E --> F
+F --> G[PII cleanup<br>152-ФЗ]
+G --> H[Агрегаты 1 год]</div><hr><h2 id=связи>Связи</h2><p>← <a href=/eventpass/>index</a>
+← <a href=/eventpass/architecture/>architecture</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

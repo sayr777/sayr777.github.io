@@ -1,0 +1,79 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Сценарии автоматизации · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Сценарии автоматизации</span></nav><article class=prose><h1>Сценарии автоматизации</h1><h1 id=сценарии-автоматизации>Сценарии автоматизации</h1><p>Сценарий (scene) = набор действий по одному триггеру. Все сценарии живут в Home Assistant.</p><hr><h2 id=ключевые-сценарии>Ключевые сценарии</h2><h3 id=утро>Утро</h3><pre tabindex=0><code>Триггер: будильник сработал (интеграция с телефоном) ИЛИ 07:00 в будний день
+
+Действия:
+  - Спальня: свет медленно нарастает (5 мин, от 0% до 40%, тёплый белый)
+  - Ванная: включить свет + тёплый пол если &lt; 22°C
+  - Кухня: включить чайник (умная розетка) если хозяин встал (шаги / движение)
+  - Отопление: переключить в дневной режим
+  - Шторы спальни: открыть на 50% (если электропривод)
+  - Уведомление: прогноз погоды на день + температура на улице
+</code></pre><h3 id=все-ушли--никого-нет>Все ушли / никого нет</h3><pre tabindex=0><code>Триггер: все телефоны вышли из геозоны (500 м)
+
+Действия:
+  - Свет: выключить всё
+  - Отопление: режим отсутствия (12°C)
+  - Умные розетки: отключить телевизоры в standby
+  - Охрана: включить режим охраны
+  - Ворота/замки: проверить что заперты → уведомление если нет
+  - Уведомление: &#34;Режим отсутствия. Дом под охраной&#34;
+</code></pre><h3 id=кто-то-вернулся-домой>Кто-то вернулся домой</h3><pre tabindex=0><code>Триггер: первый телефон вошёл в геозону (200 м)
+
+Действия:
+  - Ворота: открыть (если хозяин)
+  - Отопление: комфортный режим
+  - Прихожая: включить свет (если темно)
+  - Охрана: снять при входе через дверь (30 сек задержка)
+  - Уведомление остальным: &#34;[Имя] вернулся домой&#34;
+</code></pre><h3 id=вечер--кино>Вечер / кино</h3><pre tabindex=0><code>Триггер: кнопка &#34;Кино&#34; в приложении ИЛИ включился телевизор после 20:00
+
+Действия:
+  - Гостиная: свет 10%, тёплый оттенок
+  - Другие комнаты: без изменений
+  - Шторы: закрыть
+  - Уведомление: не беспокоить (сборка уведомлений)
+</code></pre><h3 id=ночь--все-спят>Ночь / все спят</h3><pre tabindex=0><code>Триггер: 23:00 ИЛИ кнопка &#34;Спокойной ночи&#34;
+
+Действия:
+  - Весь свет: выключить кроме ночника в коридоре (5%)
+  - Отопление: ночной режим
+  - Охрана периметра: включить движение снаружи
+  - Если дверь / окно открыто → предупреждение
+  - Бойлер ГВС: включить нагрев (ночной тариф)
+  - Уведомление: &#34;Спокойной ночи. На улице -3°C&#34;
+</code></pre><h3 id=гости-приехали>Гости приехали</h3><pre tabindex=0><code>Триггер: кнопка &#34;Гости&#34; в приложении
+
+Действия:
+  - Гостиная + кухня: яркий приятный свет
+  - Отопление: +2°C к текущему
+  - Музыка: фоновая (локальный сервер Navidrome)
+  - Гостевой туалет: включить свет
+  - Ворота: режим &#34;открыто для гостей&#34; на 30 мин
+</code></pre><h3 id=пожарная-тревога>Пожарная тревога</h3><pre tabindex=0><code>Триггер: датчик дыма ИЛИ датчик CO сработал
+
+Действия (немедленно):
+  1. Сирена (все зоны)
+  2. Включить весь свет на 100%
+  3. Открыть все двери (замки разблокировать)
+  4. Push + звонок хозяину
+  5. Отключить газовый котёл
+  6. Включить вентиляцию на максимум
+  7. Через 5 мин — звонок в МЧС (если тревога не снята)
+</code></pre><hr><h2 id=управление-сценариями>Управление сценариями</h2><ul><li><strong>Приложение HA</strong> — кнопки для ручного запуска</li><li><strong>Физические кнопки</strong> — Zigbee-выключатели у кровати, у входной двери</li><li><strong>Голос</strong> — «Окей, ночной режим» (локальный Whisper)</li><li><strong>Автоматически</strong> — по времени, геозоне, состоянию устройств</li></ul><hr><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+← <a href=/home/automation/presence/>presence</a>
+→ <a href=/home/systems/heating/>heating</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

@@ -1,0 +1,171 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Стратегия резервного копирования и DR (замечание 13) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Стратегия резервного копирования и DR (замечание 13)</span></nav><article class=prose><h1>Стратегия резервного копирования и DR (замечание 13)</h1><h1 id=стратегия-резервного-копирования-и-dr-замечание-13>Стратегия резервного копирования и DR (замечание 13)</h1><p><em>Backup & Disaster Recovery для всех проектов</em></p><hr><h2 id=матрица-компонентов-и-требований>Матрица компонентов и требований</h2><table><thead><tr><th>Компонент</th><th>Проект</th><th>Срок хранения</th><th>RPO</th><th>RTO</th><th>Метод</th></tr></thead><tbody><tr><td>PostgreSQL (config)</td><td>TP/EP</td><td>1 год</td><td>1 ч</td><td>4 ч</td><td>pg_dump + WAL</td></tr><tr><td>PostgreSQL (audit)</td><td>TP/EP</td><td>5 лет</td><td>1 ч</td><td>8 ч</td><td>pg_dump + WAL</td></tr><tr><td>Keycloak (realm)</td><td>TP/EP</td><td>1 год</td><td>4 ч</td><td>4 ч</td><td>KC export + DB dump</td></tr><tr><td>Home Assistant</td><td>HP</td><td>6 мес</td><td>24 ч</td><td>2 ч</td><td>HA built-in backup</td></tr><tr><td>Frigate NVR видео</td><td>Все</td><td>30 дней</td><td>0 ч</td><td>0 ч</td><td>RAID1 / NAS</td></tr><tr><td>ESPHome конфиги</td><td>HP</td><td>Бессрочно</td><td>—</td><td>15 мин</td><td>Git</td></tr><tr><td>ClickHouse</td><td>EP</td><td>2 года</td><td>6 ч</td><td>24 ч</td><td>ch-backup</td></tr></tbody></table><p><em>RPO = Recovery Point Objective (максимальная потеря данных), RTO = Recovery Time Objective (время восстановления)</em></p><hr><h2 id=postgresql-непрерывное-резервирование>PostgreSQL: непрерывное резервирование</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e>#!/bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#75715e># backup-postgres.sh — запускать через cron каждые 6 часов</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>BACKUP_DIR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/backups/postgres&#34;</span>
+</span></span><span style=display:flex><span>S3_BUCKET<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;s3://tenantpass-backups&#34;</span>
+</span></span><span style=display:flex><span>DATE<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>date +%Y%m%d_%H%M<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 1. pg_dump для каждой базы</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>for</span> DB in tenantpass_config tenantpass_audit tenantpass_tabel eventpass; <span style=color:#66d9ef>do</span>
+</span></span><span style=display:flex><span>  pg_dump -Fc -d <span style=color:#e6db74>&#34;</span>$DB<span style=color:#e6db74>&#34;</span> -U postgres <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    &gt; <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/</span><span style=color:#e6db74>${</span>DB<span style=color:#e6db74>}</span><span style=color:#e6db74>_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.dump&#34;</span>
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Шифрование перед отправкой в S3</span>
+</span></span><span style=display:flex><span>  gpg --batch --yes --cipher-algo AES256 <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    --passphrase-file /etc/backup/gpg-passphrase <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    --symmetric <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/</span><span style=color:#e6db74>${</span>DB<span style=color:#e6db74>}</span><span style=color:#e6db74>_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.dump&#34;</span>
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Загрузка в S3 / Яндекс.Облако / MinIO</span>
+</span></span><span style=display:flex><span>  aws s3 cp <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/</span><span style=color:#e6db74>${</span>DB<span style=color:#e6db74>}</span><span style=color:#e6db74>_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.dump.gpg&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>S3_BUCKET<span style=color:#e6db74>}</span><span style=color:#e6db74>/postgres/</span><span style=color:#e6db74>${</span>DB<span style=color:#e6db74>}</span><span style=color:#e6db74>/</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.dump.gpg&#34;</span>
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Удалить локальную незашифрованную копию</span>
+</span></span><span style=display:flex><span>  rm <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/</span><span style=color:#e6db74>${</span>DB<span style=color:#e6db74>}</span><span style=color:#e6db74>_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.dump&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>done</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 2. WAL archiving (postgresql.conf)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># archive_mode = on</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># archive_command = &#39;aws s3 cp %p s3://tenantpass-backups/wal/%f&#39;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e># postgresql.conf — включить WAL archiving</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>wal_level</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>replica</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>archive_mode</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>on</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>archive_command</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>&#39;gzip &lt; %p | gpg --batch --passphrase-file /etc/backup/gpg-passphrase --symmetric -o - | aws s3 cp - s3://tenantpass-backups/wal/%f.gz.gpg&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>archive_timeout</span> <span style=color:#f92672>=</span> <span style=color:#e6db74>300  # принудительный WAL-сегмент каждые 5 мин</span>
+</span></span></code></pre></div><hr><h2 id=keycloak-экспорт-realm>Keycloak: экспорт realm</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e>#!/bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#75715e># backup-keycloak.sh</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>DATE<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>date +%Y%m%d_%H%M<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>BACKUP_DIR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;/backups/keycloak&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Экспорт realm через Keycloak Admin CLI</span>
+</span></span><span style=display:flex><span>/opt/keycloak/bin/kc.sh export <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --dir <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/realm_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --users realm_file <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --realm tenantpass
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Экспорт realm EventPass</span>
+</span></span><span style=display:flex><span>/opt/keycloak/bin/kc.sh export <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --dir <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/realm_ep_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --users realm_file <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --realm eventpass
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Архив + S3</span>
+</span></span><span style=display:flex><span>tar -czf <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/keycloak_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.tar.gz&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/realm_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/realm_ep_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>aws s3 cp <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>BACKUP_DIR<span style=color:#e6db74>}</span><span style=color:#e6db74>/keycloak_</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.tar.gz&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  <span style=color:#e6db74>&#34;s3://tenantpass-backups/keycloak/</span><span style=color:#e6db74>${</span>DATE<span style=color:#e6db74>}</span><span style=color:#e6db74>.tar.gz&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Хранить 90 дней</span>
+</span></span><span style=display:flex><span>aws s3 ls s3://tenantpass-backups/keycloak/ | <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  awk <span style=color:#e6db74>&#39;{print $4}&#39;</span> | sort | head -n -90 | <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  xargs -I <span style=color:#f92672>{}</span> aws s3 rm <span style=color:#e6db74>&#34;s3://tenantpass-backups/keycloak/{}&#34;</span>
+</span></span></code></pre></div><hr><h2 id=home-assistant-встроенный-backup>Home Assistant: встроенный backup</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># configuration.yaml — автоматические backup в Яндекс.Диск / MinIO</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA Add-on: Samba backup или Google Drive backup</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Через HA automation: ежедневный backup</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Система: ежедневный backup HA&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>at</span>: <span style=color:#e6db74>&#34;03:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>backup.create</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;daily-{{ now().strftime(&#39;%Y%m%d&#39;) }}&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Хранение: local NAS (Samba) + Яндекс.Диск через rclone</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Retention: 30 дней</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># rclone sync backup к Яндекс.Диску (cron)</span>
+</span></span><span style=display:flex><span>rclone sync /backup/homeassistant/ yandex:HomePass-Backups/ <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --min-age <span style=color:#ae81ff>0</span> --max-age 720h  <span style=color:#75715e># 30 дней</span>
+</span></span></code></pre></div><hr><h2 id=esphome-конфиги-git-самый-простой-способ>ESPHome конфиги: Git (самый простой способ)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># /config/esphome/ — это git репозиторий</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>cd /config/esphome
+</span></span><span style=display:flex><span>git init
+</span></span><span style=display:flex><span>git remote add origin git@github.com:private-user/homepass-esphome.git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># .gitignore</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;secrets.yaml&#34;</span> &gt;&gt; .gitignore   <span style=color:#75715e># НИКОГДА не коммитить пароли!</span>
+</span></span><span style=display:flex><span>echo <span style=color:#e6db74>&#34;*.bin&#34;</span> &gt;&gt; .gitignore
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Автокоммит через HA automation / cron</span>
+</span></span><span style=display:flex><span>git add *.yaml <span style=color:#f92672>&amp;&amp;</span> git commit -m <span style=color:#e6db74>&#34;backup </span><span style=color:#66d9ef>$(</span>date<span style=color:#66d9ef>)</span><span style=color:#e6db74>&#34;</span> <span style=color:#f92672>&amp;&amp;</span> git push
+</span></span></code></pre></div><hr><h2 id=frigate-nvr-raid1--ротация>Frigate NVR: RAID1 + ротация</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># frigate.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>record</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>retain</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>days</span>: <span style=color:#ae81ff>30</span>           <span style=color:#75715e># хранить 30 дней обычные записи</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>motion      </span> <span style=color:#75715e># только с движением (экономия места)</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>events</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>retain</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>default</span>: <span style=color:#ae81ff>90</span>      <span style=color:#75715e># события с детекцией — 90 дней</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>objects</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>person</span>: <span style=color:#ae81ff>180</span>    <span style=color:#75715e># события с людьми — 180 дней</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># NVR хранилище: RAID1 (два диска, зеркало)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># mdadm --create /dev/md0 --level=1 --raid-devices=2 /dev/sdb /dev/sdc</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># При отказе одного диска — данные целы, заменить диск без потерь</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Для критических объектов: RAID1 + NAS Synology / TrueNAS</span>
+</span></span></code></pre></div><hr><h2 id=cron-расписание-всех-backup>Cron-расписание всех backup</h2><pre tabindex=0><code class=language-cron data-lang=cron># /etc/cron.d/tenantpass-backups
+
+# PostgreSQL: каждые 6 часов
+0 */6 * * * postgres /opt/scripts/backup-postgres.sh &gt;&gt; /var/log/backup.log 2&gt;&amp;1
+
+# Keycloak: раз в сутки в 02:00
+0 2 * * * root /opt/scripts/backup-keycloak.sh &gt;&gt; /var/log/backup.log 2&gt;&amp;1
+
+# ClickHouse: раз в сутки в 03:00
+0 3 * * * root /opt/scripts/backup-clickhouse.sh &gt;&gt; /var/log/backup.log 2&gt;&amp;1
+
+# Проверка бэкапов: раз в неделю в воскресенье
+0 4 * * 0 root /opt/scripts/verify-backups.sh &gt;&gt; /var/log/backup-verify.log 2&gt;&amp;1
+</code></pre><hr><h2 id=проверка-восстановления-disaster-recovery-drill>Проверка восстановления (Disaster Recovery drill)</h2><p>Раз в квартал выполнять тестовое восстановление:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># verify-backups.sh — автоматическая проверка</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#!/bin/bash</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 1. Скачать последний backup PostgreSQL</span>
+</span></span><span style=display:flex><span>LATEST<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>aws s3 ls s3://tenantpass-backups/postgres/tenantpass_config/ | <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  sort | tail -1 | awk <span style=color:#e6db74>&#39;{print $4}&#39;</span><span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>aws s3 cp <span style=color:#e6db74>&#34;s3://tenantpass-backups/postgres/tenantpass_config/</span><span style=color:#e6db74>${</span>LATEST<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> /tmp/test.dump.gpg
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 2. Расшифровать и восстановить в тестовую БД</span>
+</span></span><span style=display:flex><span>gpg --batch --passphrase-file /etc/backup/gpg-passphrase <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  --decrypt /tmp/test.dump.gpg | <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  pg_restore -d postgres_test_restore -U postgres
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 3. Проверить что данные читаются</span>
+</span></span><span style=display:flex><span>RECORD_COUNT<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>psql -U postgres -d postgres_test_restore <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -t -c <span style=color:#e6db74>&#34;SELECT COUNT(*) FROM access_rules&#34;</span><span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> <span style=color:#f92672>[</span> <span style=color:#e6db74>&#34;</span>$RECORD_COUNT<span style=color:#e6db74>&#34;</span> -gt <span style=color:#ae81ff>0</span> <span style=color:#f92672>]</span>; <span style=color:#66d9ef>then</span>
+</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;✅ Backup verified: </span><span style=color:#e6db74>${</span>RECORD_COUNT<span style=color:#e6db74>}</span><span style=color:#e6db74> records&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>else</span>
+</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;❌ Backup FAILED: empty database&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Отправить alert</span>
+</span></span><span style=display:flex><span>  curl -X POST <span style=color:#e6db74>&#34;</span>$ALERT_WEBHOOK<span style=color:#e6db74>&#34;</span> -d <span style=color:#e6db74>&#39;{&#34;text&#34;:&#34;BACKUP VERIFY FAILED!&#34;}&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>fi</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 4. Удалить тестовую БД</span>
+</span></span><span style=display:flex><span>dropdb -U postgres postgres_test_restore
+</span></span></code></pre></div><hr><h2 id=хранилище-бэкапов>Хранилище бэкапов</h2><table><thead><tr><th>Вариант</th><th>Стоимость</th><th>Для чего</th></tr></thead><tbody><tr><td>Яндекс.Облако Object Storage</td><td>~0.3 ₽/ГБ/мес</td><td>TenantPass, EventPass production</td></tr><tr><td>MinIO (self-hosted)</td><td>0 ₽</td><td>HomePass (NAS)</td></tr><tr><td>GitHub private repo</td><td>0 ₽</td><td>ESPHome конфиги, wiki</td></tr><tr><td>Внешний HDD (offline)</td><td>Разово</td><td>Архив табелей (5 лет)</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/data-isolation/>data-isolation</a>
+← <a href=/shared/keycloak-topology/>keycloak-topology</a>
+→ <a href=/tenantpass/>index</a>
+→ <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/home/resilience/>resilience</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

@@ -1,0 +1,208 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Электромеханические замки · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Электромеханические замки</span></nav><article class=prose><h1>Электромеханические замки</h1><h1 id=электромеханические-замки>Электромеханические замки</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=типы-замков>Типы замков</h2><div class=mermaid>graph TD
+subgraph ELECTRIC["По принципу работы"]
+ELMAGNET["Электромагнитный\n(удерживающий)"]
+ELSTRIKE["Электрозащёлка\n(электромеханический ответник)"]
+MOTOR["Моторный замок\n(электронный замок)"]
+SOLENOID["Соленоидный\n(засов с приводом)"]
+DEADBOLT["Умный дедболт\n(retrofit на стандартный замок)"]
+end
+subgraph FAIL["Режим при отключении питания"]
+FO["Fail-Open\n(нормально открыт)\nэвакуация"]
+FC["Fail-Closed\n(нормально закрыт)\nбезопасность"]
+end
+ELMAGNET -->|при подаче тока: закрыт| FC
+ELMAGNET -->|при отключении: открывается| FO
+ELSTRIKE --> FO
+MOTOR --> FC
+SOLENOID --> FC
+DEADBOLT --> FC</div><table><thead><tr><th>Тип</th><th>Fail-safe</th><th>Применение</th><th>Цена</th></tr></thead><tbody><tr><td>Электромагнитный</td><td>Fail-Open</td><td>Эвакуационные двери, офис</td><td>~1 500–5 000 ₽</td></tr><tr><td>Электрозащёлка</td><td>Fail-Open</td><td>Калитка, входная дверь</td><td>~800–3 000 ₽</td></tr><tr><td>Моторный (ABLOY, CISA)</td><td>Fail-Closed</td><td>Основная дверь, сейф-зоны</td><td>~5 000–30 000 ₽</td></tr><tr><td>Соленоидный засов</td><td>Fail-Closed</td><td>Ворота, гараж</td><td>~2 000–6 000 ₽</td></tr><tr><td>Smart deadbolt (Nuki, Yale)</td><td>Fail-Closed</td><td>Дом, офис (retrofit)</td><td>~8 000–20 000 ₽</td></tr></tbody></table><hr><h2 id=архитектура-управления>Архитектура управления</h2><div class=mermaid>graph TD
+subgraph ID["Идентификация"]
+RFID["RFID-считыватель\nWiegand 26/34"]
+KEYPAD["Кодовая панель\nKeypad Wiegand"]
+BLE["BLE-маяк\nESPresense"]
+QR_SCAN["QR-сканер\nEventPass"]
+BUTTON["Кнопка выхода\nизнутри"]
+end
+subgraph CTRL["Контроллер"]
+ESP32["ESP32 + ESPHome\nWiegand decoder"]
+WIEGAND_HW["Готовый контроллер\nZKTeco / Hikvision"]
+end
+subgraph LOCK["Исполнитель"]
+RELAY["Реле / MOSFET\n12V/24V"]
+LOCK_HW["Замок / защёлка / магнит"]
+DOOR_SENSOR["Геркон\n(дверь открыта/закрыта)"]
+end
+subgraph ACS["Решение"]
+KC["Keycloak\nTenantPass / EventPass"]
+HA["Home Assistant\nHomePass"]
+end
+ID --> CTRL
+CTRL -->|permit/deny| RELAY --> LOCK_HW
+DOOR_SENSOR --> CTRL
+CTRL <-->|API / MQTT| ACS</div><hr><h2 id=esphome--wiegand--реле--геркон>ESPHome — Wiegand + реле + геркон</h2><p>Универсальный контроллер для любого замка с Wiegand-считывателем.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/door-controller.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>esphome</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>door-entrance</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ESP32</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>board</span>: <span style=color:#ae81ff>esp32dev</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wifi</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ssid</span>: !<span style=color:#ae81ff>secret wifi_ssid</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>password</span>: !<span style=color:#ae81ff>secret wifi_password</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>api</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>encryption</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>key</span>: !<span style=color:#ae81ff>secret api_key</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Wiegand-считыватель (26 или 34 бит)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wiegand</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>rfid_reader</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>d0</span>: <span style=color:#ae81ff>GPIO4</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>d1</span>: <span style=color:#ae81ff>GPIO5</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_tag</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>lambda</span>: |-<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          ESP_LOGI(&#34;door&#34;, &#34;Card: %s&#34;, x.c_str());</span>
+</span></span><span style=display:flex><span>      <span style=color:#75715e># Отправить в HA для проверки</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>homeassistant.event</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>event</span>: <span style=color:#ae81ff>esphome.door_card_presented</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>card_id</span>: !<span style=color:#ae81ff>lambda &#39;return x;&#39;</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>door_id</span>: <span style=color:#e6db74>&#34;entrance&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Реле управления замком (12В, нормально открытое реле)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>door_lock_relay</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Замок — входная дверь&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>RESTORE_DEFAULT_OFF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Геркон — состояние двери</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Дверь — открыта&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>door</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO18</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Кнопка выхода (изнутри — всегда открыть)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Кнопка выхода&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO19</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_press</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_on</span>: <span style=color:#ae81ff>door_lock_relay</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>5s</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>door_lock_relay</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Home Assistant automation: проверка карты через Keycloak / список</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Дверь: проверить карту&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>event</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>event_type</span>: <span style=color:#ae81ff>esphome.door_card_presented</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>variables</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>card_id</span>: <span style=color:#e6db74>&#34;{{ trigger.event.data.card_id }}&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>door_id</span>: <span style=color:#e6db74>&#34;{{ trigger.event.data.door_id }}&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>choose</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>conditions</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>template</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>value_template</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>                {{ card_id in state_attr(&#39;input_text.authorized_cards&#39;, &#39;value&#39;).split(&#39;,&#39;) }}</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>sequence</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.door_entrance_door_lock_relay_turn_on</span>
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>delay</span>: <span style=color:#e6db74>&#34;00:00:05&#34;</span>
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>esphome.door_entrance_door_lock_relay_turn_off</span>
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>                <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Вход: карта {{ card_id }}&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>default</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>            <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>              <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Неизвестная карта: {{ card_id }} на {{ door_id }}&#34;</span>
+</span></span></code></pre></div><hr><h2 id=типы-замков-по-точкам-доступа>Типы замков по точкам доступа</h2><h3 id=электрозащёлка-входная-дверь-калитка>Электрозащёлка (входная дверь, калитка)</h3><pre tabindex=0><code>Производители: Abloy EA, Dorcas, SecureEntry
+Питание: 12В постоянный ток (200–500 мА)
+Управление: реле нормально-разомкнутое
+Режим: Fail-Open (при пропадании питания — открыта)
+
+Схема:
+  12В БП → реле NO → электрозащёлка
+  ESP32 GPIO → реле управление
+  При подаче сигнала: реле замыкает → ток на защёлку → открыта
+  По таймеру 5 сек: реле размыкает → защёлка закрывается
+</code></pre><h3 id=электромагнитный-замок-офис-коридоры>Электромагнитный замок (офис, коридоры)</h3><pre tabindex=0><code>Производители: Hikvision DS-K4H250, YLI EM-180
+Усилие удержания: 180–600 кг
+Питание: 12В / 24В
+Режим: Fail-Open (нет питания = дверь открыта)
+
+ВАЖНО для эвакуации: при пожарной тревоге снять питание
+→ все электромагниты отпускают → свободный выход
+
+Схема:
+  24В БП → нормально-замкнутое реле → электромагнит
+  При пожаре: реле размыкается (питание снято) → магнит отпускает
+</code></pre><h3 id=моторный-замок-высокая-безопасность>Моторный замок (высокая безопасность)</h3><pre tabindex=0><code>Производители: CISA 11610, ABLOY EL560, EVVA AirKey
+Питание: 12В (мотор при движении засова)
+Режим: Fail-Closed (засов остаётся в положении)
+Управление: импульс 12В → засов выдвигается/убирается
+
+Схема управления:
+  ESP32 GPIO → H-bridge (L298N) → мотор замка
+  Открыть: H-bridge в одном направлении
+  Закрыть: H-bridge в обратном направлении
+  
+Или через Wiegand-контроллер замка напрямую.
+</code></pre><h3 id=умный-дедболт-retrofit-без-вскрытия-двери>Умный дедболт (retrofit без вскрытия двери)</h3><pre tabindex=0><code>Nuki Smart Lock 3.0 Pro:
+  Устанавливается поверх стандартного цилиндра
+  Управление: BLE / WiFi / Zigbee
+  HA: интеграция Nuki + Zigbee2MQTT
+  
+Yale Linus:
+  Аналогично, европейский стандарт
+  
+Преимущество: механический ключ продолжает работать
+</code></pre><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=homepass--замки-по-точкам-доступа>HomePass — замки по точкам доступа</h3><table><thead><tr><th>Точка</th><th>Замок</th><th>Режим</th><th>Управление</th></tr></thead><tbody><tr><td>Ворота (откатные)</td><td>Соленоидный засов</td><td>Fail-Open</td><td>ESP32 + реле</td></tr><tr><td>Калитка</td><td>Электрозащёлка Dorcas</td><td>Fail-Open</td><td>ESP32 + Wiegand</td></tr><tr><td>Входная дверь дома</td><td>Nuki 3.0 Pro</td><td>Fail-Closed</td><td>BLE + Zigbee → HA</td></tr><tr><td>Гараж — дверь в дом</td><td>Электрозащёлка</td><td>Fail-Open</td><td>ESP32</td></tr><tr><td>Гостевой дом</td><td>Электронный кодовый замок</td><td>Fail-Closed</td><td>HA → PIN-код</td></tr><tr><td>Баня</td><td>Электрозащёлка + RFID</td><td>Fail-Open</td><td>ESP32 + Wiegand</td></tr><tr><td>Подвал</td><td>Электромагнитный</td><td>Fail-Closed</td><td>ESP32 + реле</td></tr><tr><td>Чердак</td><td>Электромагнитный</td><td>Fail-Closed</td><td>ESP32 + реле</td></tr><tr><td>Хозблок</td><td>Электрозащёлка</td><td>Fail-Open</td><td>ESP32</td></tr></tbody></table><h3 id=tenantpass--скуд-замки>TenantPass — СКУД-замки</h3><pre tabindex=0><code>КПП (турникет): электромагнитная блокировка планки
+Офисные двери: электрозащёлка + Wiegand-считыватель
+Серверная / касса: моторный замок CISA + биометрия
+Аварийный выход: Push-bar (антипаника) + магнитный замок
+  → при пожарной тревоге: снять питание всех магнитов
+</code></pre><h3 id=eventpass-стройплощадка>EventPass (стройплощадка)</h3><pre tabindex=0><code>КПП: электромагнитный турникет / шлагбаум
+Опасные зоны: электромагнитный замок на двери
+  → открывается только при действующем допуске (инструктаж)
+Бытовки: Nuki (не нужна проводка)
+</code></pre><hr><h2 id=fail-safe--поведение-при-сбое>Fail-safe — поведение при сбое</h2><table><thead><tr><th>Ситуация</th><th>Электромагнитный (Fail-Open)</th><th>Моторный (Fail-Closed)</th></tr></thead><tbody><tr><td>Нет питания</td><td>Открывается</td><td>Остаётся закрытым</td></tr><tr><td>Нет сети (HA недоступен)</td><td>Оффлайн-кэш ESPHome</td><td>Оффлайн-кэш ESPHome</td></tr><tr><td>Пожарная тревога</td><td>HA → отключить питание магнита</td><td>HA → команда открыть</td></tr><tr><td>Сбой ESP32</td><td>Зависит от реле (Fail-Open/Closed)</td><td>Замок остаётся в последнем положении</td></tr></tbody></table><hr><h2 id=питание-замков>Питание замков</h2><pre tabindex=0><code>12В / 24В источник питания с АКБ (UPS для СКУД):
+  Meanwell DR-30-12 (DIN, 12В 2.5А) + АКБ 7 Ач
+  → 4–8 часов при потере 220В
+  → HA: мониторинг напряжения АКБ через PZEM-017 DC
+
+Токовое потребление:
+  Электромагнит 180 кг: 450 мА × 12В = 5.4 Вт
+  Электрозащёлка: 200–400 мА × 12В
+  Моторный замок (в движении): 800 мА × 12В
+</code></pre><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/tenantpass/access-model/>access-model</a>
+← <a href=/tenantpass/api-agents/>api-agents</a>
+← <a href=/home/access/>access</a>
+← <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/shared/smart-switch/>smart-switch</a>
+→ <a href=/home/buildings/gates/>gates</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

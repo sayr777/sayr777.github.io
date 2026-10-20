@@ -1,0 +1,207 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>EventPass для корпоратива · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=ep><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep nav__lnk--active">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/eventpass/>EventPass</a>
+<span class=crumb__sep>/</span>
+<span>EventPass для корпоратива</span></nav><article class=prose><h1>EventPass для корпоратива</h1><h1 id=eventpass-для-корпоратива>EventPass для корпоратива</h1><h2 id=задача>Задача</h2><p>Корпоративное мероприятие компании: новогодний праздник, командный выезд, конференция, тимбилдинг. Участники — сотрудники (из разных офисов и городов), VIP-гости (партнёры, руководство), сопровождение (плюс-один).</p><p><strong>Главная боль</strong>: HR отправила список в Excel, секьюрити площадки его не видит, на входе стоит очередь из людей с распечатанными приглашениями.</p><hr><h2 id=особенности-сегмента>Особенности сегмента</h2><ul><li>Участники известны заранее (список сотрудников из HR-системы)</li><li>Часто несколько статусов: обычный гость / VIP / спикер / орг-команда</li><li>Рассадка (столы, банкетные зоны) — нужна интеграция</li><li>Мероприятие разовое, повторно платить за сложную настройку не хочется</li><li>Регистрация гостей на месте — без очереди</li></ul><hr><h2 id=роли-и-зоны>Роли и зоны</h2><pre tabindex=0><code>Роли:
+  employee        — сотрудник компании
+  vip_guest       — VIP-гость / партнёр
+  plus_one        — сопровождение (+1 к билету)
+  speaker         — спикер / участник сцены
+  organizer       — орг-команда
+  security        — охрана (внешняя, площадки)
+  vendor          — кейтеринг, техники, DJ
+
+Зоны (пример новогоднего корпоратива):
+  main_hall       — банкетный зал (все гости)
+  vip_table       — VIP-столы (vip_guest + speaker)
+  backstage_stage — за сценой (speaker + organizer)
+  photo_zone      — фотобудка / фотограф (все)
+  after_party     — афтепати (отдельный список)
+</code></pre><hr><h2 id=ключевые-сценарии>Ключевые сценарии</h2><h3 id=сценарий-1-импорт-списка-из-hr-системы>Сценарий 1: Импорт списка из HR-системы</h3><pre tabindex=0><code>HR-менеджер:
+  1. Скачивает список сотрудников из 1С:ЗУП / SAP / BambooHR (CSV)
+  2. Загружает в EventPass
+  3. Отмечает VIP-гостей вручную
+  4. Добавляет внешних гостей (имя + email/телефон)
+  
+EventPass:
+  → Рассылает приглашения всем (email + SMS)
+  → Каждый получает персональный QR-код
+  → В приглашении: программа мероприятия + схема проезда
+</code></pre><h3 id=сценарий-2-регистрация-плюс-один>Сценарий 2: Регистрация &ldquo;плюс-один&rdquo;</h3><pre tabindex=0><code>Сотрудник получил приглашение с правом взять +1:
+
+Сотрудник в приложении EventPass:
+  → &#34;Добавить сопровождение&#34; → вводит имя партнёра
+  → Партнёр получает отдельный QR-код (зона: main_hall, без VIP)
+
+На входе:
+  Оба сканируются отдельно
+  QR сотрудника: ✅ employee + все разрешённые зоны
+  QR партнёра: ✅ plus_one + main_hall only
+</code></pre><h3 id=сценарий-3-регистрация-на-месте-без-приглашения>Сценарий 3: Регистрация на месте без приглашения</h3><pre tabindex=0><code>Гость забыл / не получил QR:
+
+Стойка регистрации (планшет с приложением):
+  Оператор ищет по фамилии или номеру телефона
+  → &#34;Иванов Алексей&#34; → найден → отправить QR на телефон
+  → Гость показывает QR из SMS → вход
+
+Гость не в списке:
+  → Менеджер мероприятия одобряет на месте (один клик в приложении)
+  → QR генерируется немедленно
+</code></pre><h3 id=сценарий-4-параллельные-зоны-конференция>Сценарий 4: Параллельные зоны (конференция)</h3><pre tabindex=0><code>Деловая конференция:
+  09:00–12:00: Пленарная сессия (зал А) — все участники
+  12:00–13:00: Обед (ресторан, отдельная зона) — только зарегистрированные
+  13:00–17:00: Секции (залы Б, В, Г) — выбирает сам участник
+  18:00–20:00: Нетворкинг-ужин — только по приглашению (250 чел из 500)
+
+EventPass:
+  Участник сам выбирает секции при регистрации
+  QR-код адаптируется под выбранные секции
+  На входе в зал Г: считыватель проверяет — записан ли на эту секцию
+</code></pre><h3 id=сценарий-5-аналитика-для-hr>Сценарий 5: Аналитика для HR</h3><pre tabindex=0><code>После мероприятия HR получает:
+
+Отчёт посещаемости:
+  Всего приглашено: 350
+  Пришло: 287 (82%)
+  VIP-гости: 28/30 (93%)
+  Не пришли без предупреждения: 12 чел
+
+По подразделениям:
+  Продажи: 45/48 (94%)
+  IT: 31/40 (78%)
+  Финансы: 22/30 (73%)
+
+Время прихода:
+  18:00–19:00: 124 чел (пик)
+  19:00–20:00:  98 чел
+  20:00+:        65 чел (опоздали)
+</code></pre><hr><h2 id=интеграция-с-рассадкой>Интеграция с рассадкой</h2><pre tabindex=0><code>Если площадка предоставляет схему рассадки:
+
+EventPass:
+  QR-код → при сканировании на входе выводит: &#34;Ваш стол: 12, место: 3&#34;
+  
+Официанты:
+  Планшет с картой зала + список по столам
+  → видят кто за каким столом, пришёл / не пришёл
+
+Гость опоздал:
+  → QR просроченный (если задан жёсткий дедлайн) — нет, такого нет
+  → QR работает весь вечер, официант пересаживает
+</code></pre><hr><h2 id=ценообразование>Ценообразование</h2><pre tabindex=0><code>Корпоратив — разовое мероприятие:
+
+  до 100 чел:   2 500 ₽ (разовый)
+  до 300 чел:   5 000 ₽
+  до 1 000 чел: 12 000 ₽
+  свыше 1 000:  по договору
+
+Абонемент для компании (несколько мероприятий в год):
+  10 мероприятий:  25 000 ₽/год (до 300 чел каждое)
+  Безлимит:        60 000 ₽/год
+</code></pre><hr><hr><h2 id=интеграции-корпоративного-сценария>Интеграции корпоративного сценария</h2><h3 id=active-directory--ldap-доменная-система>Active Directory / LDAP (доменная система)</h3><div class=mermaid>sequenceDiagram
+participant AD as Active Directory
+participant EP as EventPass
+participant HR as HR-менеджер
+participant EMP as Сотрудник
+HR->>EP: Создать мероприятие, импорт из AD
+EP->>AD: LDAP Search: (objectClass=user), ou=employees
+AD-->>EP: ФИО, email, отдел, должность, manager
+EP->>EP: Сгенерировать QR на каждого
+EP->>EMP: Email / SMS с QR-кодом</div><p><strong>Поддерживаемые схемы:</strong></p><table><thead><tr><th>Протокол</th><th>Использование</th><th>Настройка</th></tr></thead><tbody><tr><td>LDAP (порт 389)</td><td>Импорт списка пользователей</td><td>DN + фильтр</td></tr><tr><td>LDAPS (порт 636)</td><td>То же, с TLS</td><td>DN + cert</td></tr><tr><td>Active Directory LDAP</td><td>Microsoft AD / Samba4</td><td>samAccountName</td></tr><tr><td>OpenLDAP</td><td>FreeIPA, 389 Directory</td><td>uid / mail</td></tr><tr><td>Keycloak LDAP federation</td><td>Из TenantPass</td><td>Авто, если используется тот же Keycloak</td></tr></tbody></table><p><strong>Поля, которые читаем из AD:</strong></p><pre tabindex=0><code>displayName     → ФИО гостя
+mail            → куда отправить QR
+department      → для группировки / зон
+title           → должность (определяет категорию: vip / standard)
+manager         → для VIP-флага (руководитель N-уровня → VIP)
+memberOf        → группы (CN=VIP_Corp → vip_guest)
+</code></pre><p><strong>Маппинг групп AD → роли EventPass:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Настройка в панели организатора</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>ldap_group_mapping</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;CN=Board,OU=Groups,DC=company,DC=ru&#34;: </span> <span style=color:#ae81ff>vip_guest</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;CN=Staff,OU=Groups,DC=company,DC=ru&#34;: </span> <span style=color:#ae81ff>employee</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;CN=IT,OU=Groups,DC=company,DC=ru&#34;: </span>    <span style=color:#ae81ff>organizer</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;CN=Security,OU=Groups,DC=company,DC=ru&#34;: </span><span style=color:#ae81ff>staff_security</span>
+</span></span></code></pre></div><hr><h3 id=интеграция-с-1спредприятие>Интеграция с 1С:Предприятие</h3><p>Два варианта: <strong>выгрузка из 1С</strong> (для импорта участников) и <strong>загрузка в 1С</strong> (передача данных о посещаемости).</p><h4 id=выгрузка-из-1сзуп--список-сотрудников>Выгрузка из 1С:ЗУП — список сотрудников</h4><pre tabindex=0><code>1С:ЗУП → Отчёт → &#34;Список сотрудников&#34; → выгрузить в XML / CSV
+
+Формат XML (стандартный для 1С):
+  &lt;Сотрудник&gt;
+    &lt;Ид&gt;b3f4a1c2-...&lt;/Ид&gt;
+    &lt;ФИО&gt;Иванов Алексей Петрович&lt;/ФИО&gt;
+    &lt;Должность&gt;Директор по продажам&lt;/Должность&gt;
+    &lt;Подразделение&gt;Отдел продаж&lt;/Подразделение&gt;
+    &lt;Телефон&gt;+79991234567&lt;/Телефон&gt;
+    &lt;Email&gt;ivanov@company.ru&lt;/Email&gt;
+  &lt;/Сотрудник&gt;
+
+EventPass принимает:
+  POST /api/v1/events/{event_id}/attendees/import
+  Content-Type: application/xml  (или multipart/form-data для CSV)
+</code></pre><h4 id=выгрузка-данных-из-1с-через-com-объект-для-прямой-интеграции>Выгрузка данных из 1С через COM-объект (для прямой интеграции)</h4><pre tabindex=0><code>Для компаний с выделенным IT:
+
+EventPass предоставляет REST API:
+  GET /api/v1/events/{event_id}/attendees
+  → JSON: список сотрудников с их статусами
+
+1С обработчик (на языке 1С):
+  Соединение = Новый HTTPСоединение(&#34;api.eventpass.ru&#34;);
+  Запрос = Новый HTTPЗапрос(&#34;/api/v1/events/&#34; + ИдСобытия + &#34;/attendees&#34;);
+  Запрос.Заголовки.Вставить(&#34;Authorization&#34;, &#34;Bearer &#34; + Токен);
+  Ответ = Соединение.ПолучитьОтвет(Запрос);
+</code></pre><h4 id=передача-табеля-посещаемости-обратно-в-1сзуп>Передача табеля посещаемости обратно в 1С:ЗУП</h4><pre tabindex=0><code>После корпоратива (если нужен учёт посещения как рабочего дня):
+
+EventPass отчёт → экспорт CSV:
+  сотрудник_ид, время_входа, время_выхода, мероприятие
+
+1С:ЗУП обработка:
+  Открыть CSV → записать как явку на мероприятие
+  (команда выезд, конференция = рабочий день)
+</code></pre><hr><h3 id=excel--импорт-и-экспорт>Excel — импорт и экспорт</h3><h4 id=импорт-списка-гостей-из-excel>Импорт списка гостей из Excel</h4><pre tabindex=0><code>Формат: .xlsx / .xls / .csv
+
+Обязательные столбцы:
+  ФИО (или Имя + Фамилия отдельно)
+  Телефон (для SMS с QR)
+
+Опциональные:
+  Email | Отдел | Должность | Категория (vip/standard) | Стол | Доп.примечания
+
+EventPass автоматически:
+  → Определяет кодировку (UTF-8, Windows-1251)
+  → Валидирует телефоны (форматы: +7..., 8..., 7...)
+  → Дедублицирует по телефону
+  → Показывает превью перед импортом: &#34;Найдено 285 контактов, 3 дубля, 2 ошибки&#34;
+</code></pre><p><strong>Шаблон Excel</strong> (скачивается из панели):</p><table><thead><tr><th>ФИО</th><th>Телефон</th><th>Email</th><th>Отдел</th><th>Категория</th><th>Стол</th></tr></thead><tbody><tr><td>Иванов А.П.</td><td>+79991234567</td><td><a href=mailto:ivanov@co.ru>ivanov@co.ru</a></td><td>Продажи</td><td>vip</td><td>5</td></tr><tr><td>Петрова М.В.</td><td>+79997654321</td><td><a href=mailto:petrova@co.ru>petrova@co.ru</a></td><td>IT</td><td>standard</td><td>12</td></tr></tbody></table><h4 id=экспорт-результатов-в-excel>Экспорт результатов в Excel</h4><pre tabindex=0><code>После мероприятия организатор скачивает:
+
+&#34;Отчёт о посещаемости.xlsx&#34;:
+  Лист 1: Все участники
+    ФИО | Категория | Время входа | Зона | Статус
+
+  Лист 2: Сводка по отделам
+    Отдел | Приглашено | Пришло | % явки
+
+  Лист 3: Не пришли
+    ФИО | Телефон | Email | Отдел
+
+  Лист 4: Временная аналитика
+    Час | Кол-во вошедших | Нарастающий итог
+</code></pre><hr><h2 id=схема-интеграций-корпоратива>Схема интеграций корпоратива</h2><div class=mermaid>graph TD
+AD[Active Directory<br>LDAP/LDAPS] -->|импорт сотрудников| EP[EventPass API]
+HR1C[1С:ЗУП] -->|XML/CSV выгрузка| EP
+EXCEL[Excel / CSV<br>вручную] -->|загрузка через UI| EP
+EP -->|QR-коды| EMAIL[Email рассылка]
+EP -->|QR-коды| SMS[SMS-шлюз]
+EP -->|QR-коды| APP[Приложение сотрудника]
+SCANNER[Считыватель<br>на входе] -->|сканирование| EP
+EP -->|результат явки| EXCEL2[Excel отчёт]
+EP -->|JSON API| HR1C2[1С:ЗУП<br>табель посещаемости]
+EP -->|Webhook| CORP_PORTAL[Корп. портал<br>уведомления]</div><hr><h2 id=связи>Связи</h2><p>← <a href=/eventpass/>index</a>
+← <a href=/eventpass/architecture/>architecture</a>
+← <a href=/eventpass/mass-event/>mass-event</a>
+→ <a href=/eventpass/sports/>sports</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

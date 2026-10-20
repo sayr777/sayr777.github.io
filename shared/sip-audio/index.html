@@ -1,0 +1,130 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>SIP-аудиооповещение — общее решение · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>SIP-аудиооповещение — общее решение</span></nav><article class=prose><h1>SIP-аудиооповещение — общее решение</h1><h1 id=sip-аудиооповещение--общее-решение>SIP-аудиооповещение — общее решение</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=архитектура>Архитектура</h2><div class=mermaid>graph TD
+subgraph SIP_CORE["SIP-ядро"]
+PBX["IP-АТС\nAsterisk / FreePBX"]
+TTS_SIP["TTS-движок\nPiper / Coqui / Google TTS"]
+SIP_GW["SIP-шлюз\n(PSTN / GSM мост)"]
+end
+subgraph ENDPOINTS["SIP-устройства"]
+DOOR_STA["Дверная станция\nZKTeco / Hikvision SIP"]
+SPEAKER["IP-громкоговоритель\nPA-система зон"]
+PHONE["IP-телефон\nComet / Yealink"]
+ATA["ATA-адаптер\nаналог → SIP"]
+HA_SIP["Home Assistant\nbaresip / SIP-интеграция"]
+end
+subgraph TRIGGERS["Триггеры"]
+ACS["СКУД / EventPass\nсобытие входа"]
+ALARM["Сигнализация\nтревога"]
+SCHED["Расписание\nперемена / смена"]
+MANUAL["Ручной запуск\nоператор / автоматизация"]
+end
+TRIGGERS --> PBX
+PBX --> TTS_SIP
+PBX --> SIP_GW
+TTS_SIP --> SPEAKER & PHONE & DOOR_STA
+PBX <--> DOOR_STA & SPEAKER & PHONE & ATA & HA_SIP</div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=tenantpass-корпоративный-объект>TenantPass (корпоративный объект)</h3><table><thead><tr><th>Сценарий</th><th>Реализация</th></tr></thead><tbody><tr><td>Объявление о начале / конце смены</td><td>Asterisk dial plan → SIP PA в зонах</td></tr><tr><td>Вызов через домофон</td><td>Дверная SIP-станция → телефон охраны / менеджера</td></tr><tr><td>Тревога</td><td>Asterisk: обзвон ответственных + PA &ldquo;Внимание, тревога&rdquo;</td></tr><tr><td>Приглашение в переговорную</td><td>HA automation → TTS → SIP PA</td></tr><tr><td>Объявление для зоны</td><td><code>zone_id</code> → группа SIP-адресов PA в этой зоне</td></tr></tbody></table><h4 id=dial-plan-asterisk-extensionsconf>Dial plan (Asterisk extensions.conf)</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#66d9ef>[announce-shift-start]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _X.,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Set(ZONE=${ARG1})</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Playback(shift-start-chime)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,TTS(Начало рабочей смены. Просьба пройти регистрацию на КПП.,ru)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Hangup()</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[alarm-all-zones]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>exten</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; _X.,1,Answer()</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Playback(alarm-signal)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,TTS(Внимание! Тревога. Немедленно покиньте здание через ближайший выход.,ru)</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>same</span> <span style=color:#f92672>=</span><span style=color:#e6db74>&gt; n,Hangup()</span>
+</span></span></code></pre></div><h4 id=home-assistant--sip-оповещение>Home Assistant → SIP-оповещение</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># automation: объявление начала смены</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Объявление начала смены&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>at</span>: <span style=color:#e6db74>&#34;08:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.sip_pa_zone_a</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Начало рабочей смены. Просьба пройти регистрацию на КПП.&#34;</span>
+</span></span></code></pre></div><hr><h3 id=homepass-частный-дом>HomePass (частный дом)</h3><table><thead><tr><th>Сценарий</th><th>Реализация</th></tr></thead><tbody><tr><td>Домофон → телефон хозяина</td><td>SIP-домофон → Zoiper / Linphone на смартфоне</td></tr><tr><td>Голосовое приветствие на калитке</td><td>При открытии: PA у калитки → &ldquo;Добрый день&rdquo;</td></tr><tr><td>Тревога через динамики</td><td>Сирена + TTS через все PA-точки дома</td></tr><tr><td>Оповещение в баню / гараж</td><td>&ldquo;Обед готов&rdquo; / &ldquo;Ворота открыты&rdquo; через SIP-PA</td></tr><tr><td>Двусторонняя связь</td><td>SIP-интерком HA ↔ комната гостей / гараж</td></tr></tbody></table><h4 id=оборудование-дома>Оборудование дома</h4><pre tabindex=0><code>Дом:
+  Asterisk на том же сервере (Home Assistant / TrueNAS)
+  SIP-домофон у калитки (Hikvision DS-KV6113)
+  SIP PA-усилитель + потолочные динамики (4 зоны)
+  Zoiper на телефонах хозяина (iOS / Android)
+
+Связь:
+  Локальная LAN (SIP не уходит в интернет)
+  Для удалённого звонка: WireGuard VPN → домашний Asterisk
+</code></pre><h4 id=автоматизация-гость-позвонил-в-калитку>Автоматизация: гость позвонил в калитку</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Домофон: звонок в калитку&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.wicket_doorbell</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Звонок в калитку&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>actions</span>:
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>action</span>: <span style=color:#ae81ff>OPEN_WICKET</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>title</span>: <span style=color:#e6db74>&#34;Открыть калитку&#34;</span>
+</span></span><span style=display:flex><span>            - <span style=color:#f92672>action</span>: <span style=color:#ae81ff>SIP_CALL</span>
+</span></span><span style=display:flex><span>              <span style=color:#f92672>title</span>: <span style=color:#e6db74>&#34;Позвонить&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>tts.speak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>media_player.entrance_speaker</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Подождите, хозяин ответит&#34;</span>
+</span></span></code></pre></div><hr><h3 id=eventpass-мероприятие>EventPass (мероприятие)</h3><table><thead><tr><th>Сценарий</th><th>Реализация</th></tr></thead><tbody><tr><td>Объявление об открытии зоны</td><td>PA по секторам: &ldquo;VIP-зона открыта&rdquo;</td></tr><tr><td>Предупреждение об очереди</td><td>&ldquo;Рекомендуем вход С3 — там нет очереди&rdquo;</td></tr><tr><td>Экстренное объявление</td><td>Все зоны: &ldquo;Внимание, мероприятие завершается&rdquo;</td></tr><tr><td>Стройплощадка: начало работ</td><td>07:45 PA: &ldquo;Начало рабочей смены&rdquo;</td></tr><tr><td>Стройплощадка: эвакуация</td><td>Все PA: &ldquo;Сигнал эвакуации. Покиньте территорию&rdquo;</td></tr></tbody></table><h4 id=мобильный-pa-для-мероприятия>Мобильный PA для мероприятия</h4><pre tabindex=0><code>Мини-Asterisk на ноутбуке организатора:
+  Подключены: WiFi IP-PA колонки (на батареях)
+  Управление: веб-панель EventPass → REST → Asterisk AMI
+
+REST API EventPass:
+  POST /api/v1/events/{event_id}/announce
+  {
+    &#34;zones&#34;: [&#34;sector_a&#34;, &#34;vip_lounge&#34;],
+    &#34;text&#34;: &#34;Уважаемые гости, шоу начинается через 5 минут&#34;,
+    &#34;language&#34;: &#34;ru&#34;,
+    &#34;priority&#34;: &#34;normal&#34;
+  }
+</code></pre><hr><h2 id=стек-технологий>Стек технологий</h2><table><thead><tr><th>Компонент</th><th>Open-source</th><th>Коммерческий</th></tr></thead><tbody><tr><td>IP-АТС</td><td>Asterisk / FreePBX</td><td>3CX / Cisco CUCM</td></tr><tr><td>SIP-домофон</td><td>Grandstream GDS3710</td><td>Hikvision DS-KV / 2N Helios</td></tr><tr><td>IP-PA колонки</td><td>Algo 8188 / SIP-PA generic</td><td>TOA / Bosch</td></tr><tr><td>TTS для объявлений</td><td>Piper (rus) / Coqui</td><td>Yandex SpeechKit</td></tr><tr><td>Softphone (мобильный)</td><td>Zoiper / Linphone</td><td>Yealink W-серия</td></tr><tr><td>HA интеграция</td><td><code>asterisk_mbox</code> / baresip</td><td>—</td></tr></tbody></table><hr><h2 id=интеграция-со-скуд-tenantpass--eventpass>Интеграция со СКУД (TenantPass / EventPass)</h2><div class=mermaid>sequenceDiagram
+participant ACS as Агент СКУД
+participant API as EventPass / TenantPass API
+participant AST as Asterisk
+participant PA as PA-система зоны
+ACS->>API: событие входа (user_id, zone_id)
+API->>AST: AMI Action: Originate channel=PA/{zone_id}
+note over AST: TTS: "Добрый день, Иван!\nДоступ открыт"
+AST->>PA: SIP INVITE → announce
+PA-->>AST: 200 OK
+AST->>PA: audio stream (TTS)</div><hr><h2 id=интеграция-с-сигнализацией-homepass>Интеграция с сигнализацией (HomePass)</h2><div class=mermaid>sequenceDiagram
+participant SENSOR as Датчик тревоги
+participant HA as Home Assistant
+participant AST as Asterisk
+participant PA_ALL as Все PA-динамики
+participant PHONE as Телефон хозяина
+SENSOR->>HA: binary_sensor: on
+HA->>HA: alarm_control_panel → triggered
+HA->>AST: AMI: broadcast alarm to all zones
+AST->>PA_ALL: SIP INVITE (multicast / group dial)
+PA_ALL-->>AST: audio: сирена + TTS
+HA->>AST: AMI: call owner phone
+AST->>PHONE: SIP INVITE
+PHONE-->>AST: owner ответил
+AST->>PHONE: "Сработала сигнализация. Для отмены введите код."</div><hr><h2 id=важно-для-соответствия-фз>Важно для соответствия (ФЗ)</h2><ul><li>Оповещение через SIP — не передача ПДн → нет особых требований 152-ФЗ</li><li>Запись SIP-звонков (если включена) — хранить локально, как переговоры</li><li>Для объектов КИИ: весь SIP-трафик только в периметре (не через интернет)</li></ul><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/>index</a>
+← <a href=/home/alarm/>alarm</a>
+← <a href=/home/voice-assistant/>voice-assistant</a>
+← <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/shared/video-surveillance/>video-surveillance</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

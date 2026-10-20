@@ -1,0 +1,215 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Хозяйственные постройки · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Хозяйственные постройки</span></nav><article class=prose><h1>Хозяйственные постройки</h1><h1 id=хозяйственные-постройки>Хозяйственные постройки</h1><p><em>HomePass — подсобные строения на территории</em></p><hr><h2 id=состав-хозяйственной-зоны>Состав хозяйственной зоны</h2><div class=mermaid>graph TD
+subgraph UTIL["Хозяйственная зона"]
+SHED["Сарай / хозблок\nинструмент, велосипеды"]
+GREENHOUSE["Теплица\nавтополив, климат"]
+PERGOLA["Беседка / навес\nосвещение, розетки"]
+WELL["Колодец / скважина\nнасосная станция"]
+COMPOST["Компостная яма\n(нет автоматики)"]
+end
+TERRITORY["Территория"] --> UTIL</div><hr><h2 id=сарай--хозблок>Сарай / Хозблок</h2><table><thead><tr><th>Что автоматизировать</th><th>Устройство</th><th>Логика</th></tr></thead><tbody><tr><td>Освещение</td><td>Sonoff ZBMINIL2</td><td>По закату + по движению</td></tr><tr><td>Розетка инструмента</td><td>Shelly Plug S</td><td>Выключить через 4 ч (забыли)</td></tr><tr><td>Замок</td><td>Электрозащёлка + ESP32</td><td>RFID / PIN-код</td></tr><tr><td>Датчик движения</td><td>PIR HC-SR501</td><td>Алерт ночью</td></tr><tr><td>Температура зимой</td><td>DS18B20</td><td>Алерт &lt; 0°C (если есть вода)</td></tr></tbody></table><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automations: хозблок</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Хозблок: выключить инструмент (таймер)&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.plug_tool_shed</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>for</span>: <span style=color:#e6db74>&#34;04:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.plug_tool_shed</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Хозблок: розетка инструмента выключена (4 часа)&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Хозблок: движение ночью&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.motion_shed</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>condition</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>after</span>: <span style=color:#e6db74>&#34;23:00:00&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>before</span>: <span style=color:#e6db74>&#34;06:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>title</span>: <span style=color:#e6db74>&#34;Движение в хозблоке!&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Ночью зафиксировано движение&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>light.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>light.outdoor_flood_light</span>
+</span></span></code></pre></div><hr><h2 id=теплица>Теплица</h2><p>Теплица требует постоянного контроля: полив, вентиляция, освещение при пасмурной погоде.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/greenhouse.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>bme280_i2c</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>temperature</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Теплица — температура&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>id</span>: <span style=color:#ae81ff>gh_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>humidity</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Теплица — влажность&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>id</span>: <span style=color:#ae81ff>gh_humidity</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x76</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Влажность почвы (резистивный датчик)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>adc</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO34</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Теплица — влажность почвы&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>soil_moisture</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>filters</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>lambda</span>: <span style=color:#ae81ff>return (1.0 - (x / 3.3)) * 100.0;  </span> <span style=color:#75715e># 100% = сухо, 0% = мокро</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#e6db74>&#34;%&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Полив (электромагнитный клапан 12В)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Теплица — полив&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>irrigation_valve</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>RESTORE_DEFAULT_OFF</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Форточка (сервопривод)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Теплица — форточка&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO27</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Досветка (фитолампа 220В через реле)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Теплица — фитолампа&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO25</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automations: теплица</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Теплица: полив по расписанию&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>at</span>: <span style=color:#e6db74>&#34;07:00:00&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>at</span>: <span style=color:#e6db74>&#34;19:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>condition</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.greenhouse_soil_moisture</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>40</span>   <span style=color:#75715e># не поливать если достаточно влажно</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.greenhouse_irrigation</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>delay</span>: <span style=color:#e6db74>&#34;00:02:00&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.greenhouse_irrigation</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Теплица: перегрев → открыть форточку&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.greenhouse_temperature</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>30</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.greenhouse_vent</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Теплица: холодно → закрыть форточку&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.greenhouse_temperature</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>below</span>: <span style=color:#ae81ff>18</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.greenhouse_vent</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Теплица: досветка при пасмурной погоде&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>at</span>: <span style=color:#e6db74>&#34;08:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>condition</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.outdoor_illuminance</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>below</span>: <span style=color:#ae81ff>5000</span>   <span style=color:#75715e># люкс</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>before</span>: <span style=color:#e6db74>&#34;20:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.greenhouse_phyto_lamp</span>
+</span></span></code></pre></div><hr><h2 id=беседка--навес>Беседка / Навес</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Беседка: уличное освещение + розетки для праздников</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Беседка — гирлянда&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO32</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Беседка — розетки (уличные)&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO33</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA: включить гирлянду по закату</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Беседка: гирлянда по закату&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>sun</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>event</span>: <span style=color:#ae81ff>sunset</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>condition</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>input_boolean.holiday_mode</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.pergola_lights</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Беседка: гирлянда по рассвету&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>sun</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>event</span>: <span style=color:#ae81ff>sunrise</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.pergola_lights</span>
+</span></span></code></pre></div><hr><h2 id=насосная-станция--скважина>Насосная станция / Скважина</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Мониторинг насоса водоснабжения</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>pzemac</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Насос скважины — мощность&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>power</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Насос — мощность&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>energy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Насос — потребление&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state_class</span>: <span style=color:#ae81ff>total_increasing</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>uart_id</span>: <span style=color:#ae81ff>pzem_uart</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Датчик давления в системе водоснабжения</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>adc</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO35</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Давление водоснабжения&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>filters</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>lambda</span>: <span style=color:#ae81ff>return (x * 6.0);</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#e6db74>&#34;bar&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA automation: насос работает слишком долго → утечка</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Насос: работает дольше 30 мин → утечка?&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>binary_sensor.pump_running</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>for</span>: <span style=color:#e6db74>&#34;00:30:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>title</span>: <span style=color:#e6db74>&#34;Насос работает 30 минут!&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Возможна утечка. Проверьте трубы.&#34;</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+→ <a href=/shared/smart-meter-temp/>smart-meter-temp</a>
+→ <a href=/shared/smart-switch/>smart-switch</a>
+→ <a href=/shared/smart-plug/>smart-plug</a>
+→ <a href=/home/systems/water/>water</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

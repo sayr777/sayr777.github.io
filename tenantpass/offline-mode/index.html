@@ -1,0 +1,160 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Offline-режим СКУД (замечание 1+2) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=tp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp nav__lnk--active">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/tenantpass/>TenantPass</a>
+<span class=crumb__sep>/</span>
+<span>Offline-режим СКУД (замечание 1+2)</span></nav><article class=prose><h1>Offline-режим СКУД (замечание 1+2)</h1><h1 id=offline-режим-скуд-замечание-12>Offline-режим СКУД (замечание 1+2)</h1><p><em>TenantPass — устойчивость к недоступности Keycloak</em></p><hr><h2 id=проблема>Проблема</h2><p>Стандартный flow СКУД: каждое поднесение карты → HTTP к Keycloak (UMA-ticket, 2–3 round-trip, ≥300 мс). При недоступности Keycloak (сбой, деплой, сеть) — весь СКУД встаёт.</p><hr><h2 id=решение-двухуровневый-кэш-на-агенте-pep>Решение: двухуровневый кэш на агенте PEP</h2><div class=mermaid>sequenceDiagram
+participant T as Терминал
+participant A as Агент PEP
+participant R as Redis (local)
+participant K as Keycloak
+T->>A: card_id presented
+A->>R: GET permit:{card_id}:{door_id}
+alt кэш HIT (TTL не истёк)
+R-->>A: {permit: true/false, cached_at}
+A->>T: open / deny (< 50 мс)
+else кэш MISS или истёк
+A->>K: POST /realms/.../protocol/uma/token
+K-->>A: RPT token (permit/deny)
+A->>R: SET permit:{card_id}:{door_id} TTL=300s
+A->>T: open / deny
+end
+note over K: Keycloak DOWN →
+A->>R: GET permit:{card_id}:{door_id}
+alt есть запись (любой TTL — stale fallback)
+R-->>A: stale cached permit
+A->>T: применить fallback-политику двери
+else нет записи
+A->>T: применить default-политику
+end</div><hr><h2 id=redis-на-агенте>Redis на агенте</h2><p>Каждый агент PEP запускает локальный Redis (или Redis Sentinel). Не облачный, не shared — физически рядом с контроллером.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.agent.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>pep-agent</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>tenantpass/pep-agent:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KEYCLOAK_URL</span>: <span style=color:#ae81ff>https://kc.tenantpass.ru</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>REDIS_URL</span>: <span style=color:#ae81ff>redis://localhost:6379</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>CACHE_TTL_SECONDS</span>: <span style=color:#ae81ff>300</span>          <span style=color:#75715e># 5 мин — нормальный режим</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>STALE_TTL_SECONDS</span>: <span style=color:#ae81ff>3600</span>         <span style=color:#75715e># 1 ч — stale fallback при offline</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>depends_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>redis-local</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>redis-local</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>redis:7-alpine</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>redis-server --save &#34;&#34; --maxmemory 64mb --maxmemory-policy allkeys-lru</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>redis_data:/data  </span> <span style=color:#75715e># пережить рестарт агента</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>redis_data</span>:
+</span></span></code></pre></div><hr><h2 id=кэш-ключи-и-структура>Кэш-ключи и структура</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># pep/cache.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> dataclasses <span style=color:#f92672>import</span> dataclass
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> datetime
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> json<span style=color:#f92672>,</span> redis
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>CACHE_TTL   <span style=color:#f92672>=</span> <span style=color:#ae81ff>300</span>   <span style=color:#75715e># секунд — обычный режим</span>
+</span></span><span style=display:flex><span>STALE_TTL   <span style=color:#f92672>=</span> <span style=color:#ae81ff>3600</span>  <span style=color:#75715e># секунд — при offline Keycloak</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@dataclass</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CachedPermit</span>:
+</span></span><span style=display:flex><span>    card_id: str
+</span></span><span style=display:flex><span>    door_id: str
+</span></span><span style=display:flex><span>    permit: bool
+</span></span><span style=display:flex><span>    cached_at: str
+</span></span><span style=display:flex><span>    source: str   <span style=color:#75715e># &#34;keycloak&#34; | &#34;stale&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>PermitCache</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, redis_client: redis<span style=color:#f92672>.</span>Redis):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>r <span style=color:#f92672>=</span> redis_client
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>key</span>(self, card_id: str, door_id: str) <span style=color:#f92672>-&gt;</span> str:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;permit:</span><span style=color:#e6db74>{</span>card_id<span style=color:#e6db74>}</span><span style=color:#e6db74>:</span><span style=color:#e6db74>{</span>door_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get</span>(self, card_id: str, door_id: str) <span style=color:#f92672>-&gt;</span> CachedPermit <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>        raw <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>r<span style=color:#f92672>.</span>get(self<span style=color:#f92672>.</span>key(card_id, door_id))
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> raw:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> CachedPermit(<span style=color:#f92672>**</span>json<span style=color:#f92672>.</span>loads(raw))
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>set</span>(self, card_id: str, door_id: str, permit: bool):
+</span></span><span style=display:flex><span>        data <span style=color:#f92672>=</span> CachedPermit(
+</span></span><span style=display:flex><span>            card_id<span style=color:#f92672>=</span>card_id, door_id<span style=color:#f92672>=</span>door_id,
+</span></span><span style=display:flex><span>            permit<span style=color:#f92672>=</span>permit, cached_at<span style=color:#f92672>=</span>datetime<span style=color:#f92672>.</span>utcnow()<span style=color:#f92672>.</span>isoformat(),
+</span></span><span style=display:flex><span>            source<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;keycloak&#34;</span>
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Записываем с STALE_TTL — сам кэш живёт дольше,</span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># свежесть проверяем по cached_at</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>r<span style=color:#f92672>.</span>setex(self<span style=color:#f92672>.</span>key(card_id, door_id), STALE_TTL, json<span style=color:#f92672>.</span>dumps(data<span style=color:#f92672>.</span>__dict__))
+</span></span></code></pre></div><hr><h2 id=инвалидация-кэша-через-keycloak-event-listener>Инвалидация кэша через Keycloak Event Listener</h2><p>При деактивации сотрудника Keycloak должен немедленно уведомить всех агентов.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># keycloak-event-listener / webhook → pep agents</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Keycloak: Admin Events → Webhook extension (Keycloak Webhook SPI)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># При событии: USER_DISABLED, ROLE_REMOVED, GROUP_MEMBERSHIP_CHANGED →</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># POST /agents/invalidate {&#34;user_id&#34;: &#34;...&#34;, &#34;scope&#34;: &#34;all_doors&#34;}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># pep/invalidation.py</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>handle_invalidation</span>(user_id: str, door_id: str <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>):
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Удалить все кэш-записи для пользователя (или конкретной двери)&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    pattern <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;permit:*:</span><span style=color:#e6db74>{</span>door_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#66d9ef>if</span> door_id <span style=color:#66d9ef>else</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;permit:*&#34;</span>
+</span></span><span style=display:flex><span>    keys <span style=color:#f92672>=</span> r<span style=color:#f92672>.</span>scan_iter(<span style=color:#66d9ef>match</span><span style=color:#f92672>=</span>pattern)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> key <span style=color:#f92672>in</span> keys:
+</span></span><span style=display:flex><span>        data <span style=color:#f92672>=</span> json<span style=color:#f92672>.</span>loads(r<span style=color:#f92672>.</span>get(key) <span style=color:#f92672>or</span> <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> data<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;card_id&#34;</span>) <span style=color:#f92672>==</span> user_id <span style=color:#f92672>or</span> door_id <span style=color:#f92672>is</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>            r<span style=color:#f92672>.</span>delete(key)
+</span></span></code></pre></div><hr><h2 id=fallback-политика-по-типу-двери>Fallback-политика по типу двери</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># door-policy.yaml — конфиг агента</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>doors</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>entrance_main</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>fail_mode</span>: <span style=color:#ae81ff>fail_open      </span> <span style=color:#75715e># эвакуационный выход</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>stale_cache_allowed</span>: <span style=color:#66d9ef>true</span>  <span style=color:#75715e># использовать устаревший кэш</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>stale_max_age_hours</span>: <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>server_room</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>fail_mode</span>: <span style=color:#ae81ff>fail_closed    </span> <span style=color:#75715e># серверная — только deny при offline</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>stale_cache_allowed</span>: <span style=color:#66d9ef>false</span> <span style=color:#75715e># никогда не использовать stale</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>office_floor_1</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>fail_mode</span>: <span style=color:#ae81ff>fail_open</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>stale_cache_allowed</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>stale_max_age_hours</span>: <span style=color:#ae81ff>4</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>parking</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>fail_mode</span>: <span style=color:#ae81ff>fail_open</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>stale_cache_allowed</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>stale_max_age_hours</span>: <span style=color:#ae81ff>8</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># pep/decision.py</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>make_decision</span>(card_id: str, door: DoorConfig, cache: PermitCache) <span style=color:#f92672>-&gt;</span> bool:
+</span></span><span style=display:flex><span>    cached <span style=color:#f92672>=</span> cache<span style=color:#f92672>.</span>get(card_id, door<span style=color:#f92672>.</span>id)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> cached:
+</span></span><span style=display:flex><span>        age_hours <span style=color:#f92672>=</span> (datetime<span style=color:#f92672>.</span>utcnow() <span style=color:#f92672>-</span> datetime<span style=color:#f92672>.</span>fromisoformat(cached<span style=color:#f92672>.</span>cached_at))<span style=color:#f92672>.</span>total_seconds() <span style=color:#f92672>/</span> <span style=color:#ae81ff>3600</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> age_hours <span style=color:#f92672>&lt;=</span> CACHE_TTL <span style=color:#f92672>/</span> <span style=color:#ae81ff>3600</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> cached<span style=color:#f92672>.</span>permit   <span style=color:#75715e># свежий кэш — доверяем</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># stale cache</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> door<span style=color:#f92672>.</span>stale_cache_allowed <span style=color:#f92672>and</span> age_hours <span style=color:#f92672>&lt;=</span> door<span style=color:#f92672>.</span>stale_max_age_hours:
+</span></span><span style=display:flex><span>            log<span style=color:#f92672>.</span>warning(<span style=color:#e6db74>&#34;Using stale cache for </span><span style=color:#e6db74>%s</span><span style=color:#e6db74> at </span><span style=color:#e6db74>%s</span><span style=color:#e6db74> (age=</span><span style=color:#e6db74>%.1f</span><span style=color:#e6db74>h)&#34;</span>, card_id, door<span style=color:#f92672>.</span>id, age_hours)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> cached<span style=color:#f92672>.</span>permit
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># нет кэша или stale не разрешён</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> door<span style=color:#f92672>.</span>fail_mode <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;fail_open&#34;</span>
+</span></span></code></pre></div><hr><h2 id=latency-бюджет>Latency бюджет</h2><table><thead><tr><th>Режим</th><th>Время ответа</th><th>Описание</th></tr></thead><tbody><tr><td>Кэш HIT (Redis local)</td><td>1–5 мс</td><td>Redis на localhost, без сети</td></tr><tr><td>Кэш MISS → Keycloak</td><td>80–300 мс</td><td>1 HTTP round-trip + JWT validation</td></tr><tr><td>Offline (stale cache)</td><td>1–5 мс</td><td>Fallback из Redis</td></tr><tr><td>Offline (no cache)</td><td>1–5 мс</td><td>Default политика двери</td></tr></tbody></table><p><strong>Цель</strong>: 95-й перцентиль &lt; 200 мс, что даёт ~5 чел/сек пропускной способности на турникет.</p><hr><h2 id=pre-warming-кэша>Pre-warming кэша</h2><p>При старте агента — скачать весь список разрешений для своих дверей:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># pep/startup.py</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>warm_cache</span>(doors: list[str], keycloak: KeycloakClient, cache: PermitCache):
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;При старте агента — загрузить разрешения для всех активных сотрудников&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    users <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> keycloak<span style=color:#f92672>.</span>get_active_users_with_access(resource_ids<span style=color:#f92672>=</span>doors)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> user <span style=color:#f92672>in</span> users:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> door_id <span style=color:#f92672>in</span> user<span style=color:#f92672>.</span>permitted_doors:
+</span></span><span style=display:flex><span>            cache<span style=color:#f92672>.</span>set(user<span style=color:#f92672>.</span>card_id, door_id, permit<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span>    log<span style=color:#f92672>.</span>info(<span style=color:#e6db74>&#34;Cache warmed: </span><span style=color:#e6db74>%d</span><span style=color:#e6db74> permits for </span><span style=color:#e6db74>%d</span><span style=color:#e6db74> doors&#34;</span>, len(users), len(doors))
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/api-agents/>api-agents</a>
+← <a href=/tenantpass/access-model/>access-model</a>
+→ <a href=/tenantpass/data-isolation/>data-isolation</a>
+→ <a href=/shared/keycloak-topology/>keycloak-topology</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

@@ -1,0 +1,296 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Anomaly Detection · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/ml/>'ML-архитектура платформы *Pass'</a>
+<span class=crumb__sep>/</span>
+<span>Anomaly Detection</span></nav><article class=prose><h1>Anomaly Detection</h1><h1 id=anomaly-detection>Anomaly Detection</h1><p><em>Обнаружение аномалий в потоках данных СКУД, энергии, поведения</em></p><hr><h2 id=задачи-anomaly-detection>Задачи anomaly detection</h2><table><thead><tr><th>Задача</th><th>Входные данные</th><th>Алгоритм</th><th>Проект</th></tr></thead><tbody><tr><td>Аномалия времени прохода</td><td>СКУД события (час, день, дверь)</td><td>Isolation Forest</td><td>TenantPass</td></tr><tr><td>Аномалия энергопотребления</td><td>PZEM временной ряд</td><td>LSTM Autoencoder</td><td>Все</td></tr><tr><td>Аномальная последовательность доступа</td><td>Граф движения по зонам</td><td>One-Class SVM</td><td>TenantPass</td></tr><tr><td>Аномалия температуры</td><td>DS18B20 временной ряд</td><td>Z-score + CUSUM</td><td>Все</td></tr><tr><td>Fraud при сканировании QR</td><td>Паттерн сканирований</td><td>XGBoost</td><td>EventPass</td></tr><tr><td>Нетипичный пользователь</td><td>BLE RSSI + время</td><td>Autoencoder</td><td>TenantPass</td></tr><tr><td>Спуфинг карты (клонирование)</td><td>Два события с одной картой одновременно</td><td>Rule + Isolation Forest</td><td>TenantPass</td></tr></tbody></table><hr><h2 id=isolation-forest--аномалии-паттернов-доступа>Isolation Forest — аномалии паттернов доступа</h2><p>Isolation Forest хорошо работает на многомерных данных без меток.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/anomaly/access_anomaly.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> sklearn.ensemble <span style=color:#f92672>import</span> IsolationForest
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> sklearn.preprocessing <span style=color:#f92672>import</span> StandardScaler
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> joblib
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>extract_features</span>(event: dict) <span style=color:#f92672>-&gt;</span> list:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Признаки одного события доступа&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> [
+</span></span><span style=display:flex><span>        event[<span style=color:#e6db74>&#34;hour&#34;</span>],                    <span style=color:#75715e># час суток (0–23)</span>
+</span></span><span style=display:flex><span>        event[<span style=color:#e6db74>&#34;day_of_week&#34;</span>],             <span style=color:#75715e># день недели (0–6)</span>
+</span></span><span style=display:flex><span>        event[<span style=color:#e6db74>&#34;door_zone_risk&#34;</span>],          <span style=color:#75715e># риск зоны (0.0–1.0): сервер=1.0, лобби=0.1</span>
+</span></span><span style=display:flex><span>        event[<span style=color:#e6db74>&#34;time_since_last_entry&#34;</span>],   <span style=color:#75715e># секунд с последнего прохода</span>
+</span></span><span style=display:flex><span>        event[<span style=color:#e6db74>&#34;entries_today&#34;</span>],           <span style=color:#75715e># сколько раз вошёл сегодня</span>
+</span></span><span style=display:flex><span>        event[<span style=color:#e6db74>&#34;entries_this_hour&#34;</span>],       <span style=color:#75715e># сколько раз за последний час</span>
+</span></span><span style=display:flex><span>        int(event[<span style=color:#e6db74>&#34;is_weekend&#34;</span>]),         <span style=color:#75715e># выходной день</span>
+</span></span><span style=display:flex><span>        int(event[<span style=color:#e6db74>&#34;is_off_hours&#34;</span>]),       <span style=color:#75715e># нерабочее время</span>
+</span></span><span style=display:flex><span>    ]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>AccessAnomalyDetector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model <span style=color:#f92672>=</span> IsolationForest(
+</span></span><span style=display:flex><span>            n_estimators<span style=color:#f92672>=</span><span style=color:#ae81ff>200</span>,
+</span></span><span style=display:flex><span>            contamination<span style=color:#f92672>=</span><span style=color:#ae81ff>0.01</span>,    <span style=color:#75715e># 1% аномалий в обучающей выборке</span>
+</span></span><span style=display:flex><span>            random_state<span style=color:#f92672>=</span><span style=color:#ae81ff>42</span>,
+</span></span><span style=display:flex><span>            n_jobs<span style=color:#f92672>=-</span><span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>scaler <span style=color:#f92672>=</span> StandardScaler()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fit</span>(self, events: list[dict]):
+</span></span><span style=display:flex><span>        X <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>array([extract_features(e) <span style=color:#66d9ef>for</span> e <span style=color:#f92672>in</span> events])
+</span></span><span style=display:flex><span>        X_scaled <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>scaler<span style=color:#f92672>.</span>fit_transform(X)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>fit(X_scaled)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>predict</span>(self, event: dict) <span style=color:#f92672>-&gt;</span> tuple[bool, float]:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Возвращает (is_anomaly, anomaly_score)&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        x <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>array([extract_features(event)])
+</span></span><span style=display:flex><span>        x_scaled <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>scaler<span style=color:#f92672>.</span>transform(x)
+</span></span><span style=display:flex><span>        score <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>score_samples(x_scaled)[<span style=color:#ae81ff>0</span>]   <span style=color:#75715e># более отрицательный = аномальнее</span>
+</span></span><span style=display:flex><span>        is_anomaly <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>predict(x_scaled)[<span style=color:#ae81ff>0</span>] <span style=color:#f92672>==</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> is_anomaly, float(score)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>save</span>(self, path: str):
+</span></span><span style=display:flex><span>        joblib<span style=color:#f92672>.</span>dump({<span style=color:#e6db74>&#34;model&#34;</span>: self<span style=color:#f92672>.</span>model, <span style=color:#e6db74>&#34;scaler&#34;</span>: self<span style=color:#f92672>.</span>scaler}, path)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>@classmethod</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>load</span>(cls, path: str):
+</span></span><span style=display:flex><span>        detector <span style=color:#f92672>=</span> cls<span style=color:#f92672>.</span><span style=color:#a6e22e>__new__</span>(cls)
+</span></span><span style=display:flex><span>        data <span style=color:#f92672>=</span> joblib<span style=color:#f92672>.</span>load(path)
+</span></span><span style=display:flex><span>        detector<span style=color:#f92672>.</span>model <span style=color:#f92672>=</span> data[<span style=color:#e6db74>&#34;model&#34;</span>]
+</span></span><span style=display:flex><span>        detector<span style=color:#f92672>.</span>scaler <span style=color:#f92672>=</span> data[<span style=color:#e6db74>&#34;scaler&#34;</span>]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> detector
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Пример использования</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># detector = AccessAnomalyDetector()</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># detector.fit(historical_events)  # обучить на 3 месяцах истории</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># is_anomaly, score = detector.predict(new_event)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># if is_anomaly and score &lt; -0.15:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#     alert_security(&#34;Аномальный доступ&#34;, new_event)</span>
+</span></span></code></pre></div><hr><h2 id=lstm-autoencoder--аномалии-временных-рядов-энергия>LSTM Autoencoder — аномалии временных рядов (энергия)</h2><p>Autoencoder обучается реконструировать нормальный паттерн. Высокая ошибка реконструкции = аномалия.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/anomaly/energy_anomaly.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> torch
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> torch.nn <span style=color:#66d9ef>as</span> nn
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> torch.utils.data <span style=color:#f92672>import</span> DataLoader, TensorDataset
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>WINDOW <span style=color:#f92672>=</span> <span style=color:#ae81ff>144</span>   <span style=color:#75715e># 144 × 10 сек = 24 часа</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>LSTMAutoencoder</span>(nn<span style=color:#f92672>.</span>Module):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, input_size: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>4</span>, hidden_size: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>64</span>, num_layers: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>2</span>):
+</span></span><span style=display:flex><span>        super()<span style=color:#f92672>.</span><span style=color:#a6e22e>__init__</span>()
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Encoder</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>encoder <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>LSTM(input_size, hidden_size, num_layers,
+</span></span><span style=display:flex><span>                               batch_first<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>, dropout<span style=color:#f92672>=</span><span style=color:#ae81ff>0.2</span>)
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Decoder</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>decoder <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>LSTM(hidden_size, hidden_size, num_layers,
+</span></span><span style=display:flex><span>                               batch_first<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>, dropout<span style=color:#f92672>=</span><span style=color:#ae81ff>0.2</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>output_layer <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>Linear(hidden_size, input_size)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>forward</span>(self, x):
+</span></span><span style=display:flex><span>        <span style=color:#75715e># x: (batch, WINDOW, input_size)</span>
+</span></span><span style=display:flex><span>        _, (hidden, cell) <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>encoder(x)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Decoder: повторяем последний hidden state</span>
+</span></span><span style=display:flex><span>        decoder_input <span style=color:#f92672>=</span> hidden[<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>]<span style=color:#f92672>.</span>unsqueeze(<span style=color:#ae81ff>1</span>)<span style=color:#f92672>.</span>repeat(<span style=color:#ae81ff>1</span>, x<span style=color:#f92672>.</span>size(<span style=color:#ae81ff>1</span>), <span style=color:#ae81ff>1</span>)
+</span></span><span style=display:flex><span>        out, _ <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>decoder(decoder_input, (hidden, cell))
+</span></span><span style=display:flex><span>        reconstruction <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>output_layer(out)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> reconstruction
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>train_energy_autoencoder</span>(data: np<span style=color:#f92672>.</span>ndarray) <span style=color:#f92672>-&gt;</span> tuple:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    data: (N, 4) — [power_w, voltage_v, current_a, power_factor]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Возвращает (model, threshold)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Нормализация</span>
+</span></span><span style=display:flex><span>    mean, std <span style=color:#f92672>=</span> data<span style=color:#f92672>.</span>mean(<span style=color:#ae81ff>0</span>), data<span style=color:#f92672>.</span>std(<span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>    data_norm <span style=color:#f92672>=</span> (data <span style=color:#f92672>-</span> mean) <span style=color:#f92672>/</span> (std <span style=color:#f92672>+</span> <span style=color:#ae81ff>1e-8</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Создание скользящих окон</span>
+</span></span><span style=display:flex><span>    windows <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>array([data_norm[i:i<span style=color:#f92672>+</span>WINDOW] <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(len(data_norm)<span style=color:#f92672>-</span>WINDOW)])
+</span></span><span style=display:flex><span>    dataset <span style=color:#f92672>=</span> TensorDataset(torch<span style=color:#f92672>.</span>FloatTensor(windows))
+</span></span><span style=display:flex><span>    loader <span style=color:#f92672>=</span> DataLoader(dataset, batch_size<span style=color:#f92672>=</span><span style=color:#ae81ff>32</span>, shuffle<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    model <span style=color:#f92672>=</span> LSTMAutoencoder()
+</span></span><span style=display:flex><span>    optimizer <span style=color:#f92672>=</span> torch<span style=color:#f92672>.</span>optim<span style=color:#f92672>.</span>Adam(model<span style=color:#f92672>.</span>parameters(), lr<span style=color:#f92672>=</span><span style=color:#ae81ff>1e-3</span>)
+</span></span><span style=display:flex><span>    criterion <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>MSELoss()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    model<span style=color:#f92672>.</span>train()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> epoch <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>50</span>):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> (batch,) <span style=color:#f92672>in</span> loader:
+</span></span><span style=display:flex><span>            pred <span style=color:#f92672>=</span> model(batch)
+</span></span><span style=display:flex><span>            loss <span style=color:#f92672>=</span> criterion(pred, batch)
+</span></span><span style=display:flex><span>            optimizer<span style=color:#f92672>.</span>zero_grad()
+</span></span><span style=display:flex><span>            loss<span style=color:#f92672>.</span>backward()
+</span></span><span style=display:flex><span>            optimizer<span style=color:#f92672>.</span>step()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Вычислить порог: 95-й перцентиль ошибки на обучающих данных</span>
+</span></span><span style=display:flex><span>    model<span style=color:#f92672>.</span>eval()
+</span></span><span style=display:flex><span>    errors <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> torch<span style=color:#f92672>.</span>no_grad():
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> (batch,) <span style=color:#f92672>in</span> loader:
+</span></span><span style=display:flex><span>            pred <span style=color:#f92672>=</span> model(batch)
+</span></span><span style=display:flex><span>            err <span style=color:#f92672>=</span> ((pred <span style=color:#f92672>-</span> batch) <span style=color:#f92672>**</span> <span style=color:#ae81ff>2</span>)<span style=color:#f92672>.</span>mean(dim<span style=color:#f92672>=</span>(<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>2</span>))<span style=color:#f92672>.</span>numpy()
+</span></span><span style=display:flex><span>            errors<span style=color:#f92672>.</span>extend(err)
+</span></span><span style=display:flex><span>    threshold <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>percentile(errors, <span style=color:#ae81ff>95</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> model, threshold, mean, std
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>detect_energy_anomaly</span>(model, threshold, mean, std,
+</span></span><span style=display:flex><span>                           window: np<span style=color:#f92672>.</span>ndarray) <span style=color:#f92672>-&gt;</span> tuple[bool, float]:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Проверить один временной ряд длиной WINDOW&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    norm <span style=color:#f92672>=</span> (window <span style=color:#f92672>-</span> mean) <span style=color:#f92672>/</span> (std <span style=color:#f92672>+</span> <span style=color:#ae81ff>1e-8</span>)
+</span></span><span style=display:flex><span>    t <span style=color:#f92672>=</span> torch<span style=color:#f92672>.</span>FloatTensor(norm)<span style=color:#f92672>.</span>unsqueeze(<span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> torch<span style=color:#f92672>.</span>no_grad():
+</span></span><span style=display:flex><span>        reconstruction <span style=color:#f92672>=</span> model(t)
+</span></span><span style=display:flex><span>    error <span style=color:#f92672>=</span> float(((reconstruction <span style=color:#f92672>-</span> t) <span style=color:#f92672>**</span> <span style=color:#ae81ff>2</span>)<span style=color:#f92672>.</span>mean())
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> error <span style=color:#f92672>&gt;</span> threshold, error
+</span></span></code></pre></div><hr><h2 id=one-class-svm--аномалии-графа-движения>One-Class SVM — аномалии графа движения</h2><p>Каждый сотрудник имеет типичный маршрут по зонам. Нетипичный маршрут = потенциальное нарушение.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/anomaly/movement_graph.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> sklearn.svm <span style=color:#f92672>import</span> OneClassSVM
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> sklearn.preprocessing <span style=color:#f92672>import</span> LabelEncoder
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>encode_movement_sequence</span>(zones: list[str], all_zones: list[str]) <span style=color:#f92672>-&gt;</span> np<span style=color:#f92672>.</span>ndarray:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    Закодировать последовательность зон как вектор transition counts.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    zones: [&#34;lobby&#34;, &#34;floor_1&#34;, &#34;office_a&#34;, &#34;floor_1&#34;, &#34;exit&#34;]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    → матрица переходов в виде вектора
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    n <span style=color:#f92672>=</span> len(all_zones)
+</span></span><span style=display:flex><span>    zone_idx <span style=color:#f92672>=</span> {z: i <span style=color:#66d9ef>for</span> i, z <span style=color:#f92672>in</span> enumerate(all_zones)}
+</span></span><span style=display:flex><span>    transitions <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>zeros((n, n))
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(len(zones) <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>):
+</span></span><span style=display:flex><span>        a, b <span style=color:#f92672>=</span> zone_idx<span style=color:#f92672>.</span>get(zones[i], <span style=color:#ae81ff>0</span>), zone_idx<span style=color:#f92672>.</span>get(zones[i<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>], <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>        transitions[a][b] <span style=color:#f92672>+=</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> transitions<span style=color:#f92672>.</span>flatten() <span style=color:#f92672>/</span> (transitions<span style=color:#f92672>.</span>sum() <span style=color:#f92672>+</span> <span style=color:#ae81ff>1e-8</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>MovementAnomalyDetector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, all_zones: list[str]):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>all_zones <span style=color:#f92672>=</span> all_zones
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>models: dict[str, OneClassSVM] <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fit_person</span>(self, person_id: str, daily_sequences: list[list[str]]):
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;Обучить на исторических маршрутах одного сотрудника&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        X <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>array([encode_movement_sequence(seq, self<span style=color:#f92672>.</span>all_zones)
+</span></span><span style=display:flex><span>                      <span style=color:#66d9ef>for</span> seq <span style=color:#f92672>in</span> daily_sequences])
+</span></span><span style=display:flex><span>        svm <span style=color:#f92672>=</span> OneClassSVM(kernel<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;rbf&#34;</span>, nu<span style=color:#f92672>=</span><span style=color:#ae81ff>0.05</span>, gamma<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;scale&#34;</span>)
+</span></span><span style=display:flex><span>        svm<span style=color:#f92672>.</span>fit(X)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>models[person_id] <span style=color:#f92672>=</span> svm
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>is_anomalous</span>(self, person_id: str,
+</span></span><span style=display:flex><span>                      today_sequence: list[str]) <span style=color:#f92672>-&gt;</span> tuple[bool, float]:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> person_id <span style=color:#f92672>not</span> <span style=color:#f92672>in</span> self<span style=color:#f92672>.</span>models:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>False</span>, <span style=color:#ae81ff>0.0</span>   <span style=color:#75715e># нет модели — не знаем</span>
+</span></span><span style=display:flex><span>        svm <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>models[person_id]
+</span></span><span style=display:flex><span>        x <span style=color:#f92672>=</span> encode_movement_sequence(today_sequence, self<span style=color:#f92672>.</span>all_zones)<span style=color:#f92672>.</span>reshape(<span style=color:#ae81ff>1</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>)
+</span></span><span style=display:flex><span>        score <span style=color:#f92672>=</span> svm<span style=color:#f92672>.</span>score_samples(x)[<span style=color:#ae81ff>0</span>]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> score <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>, score   <span style=color:#75715e># отрицательный = аномалия</span>
+</span></span></code></pre></div><hr><h2 id=xgboost--fraud-detection-eventpass>XGBoost — Fraud Detection (EventPass)</h2><p>Детектировать аномальное сканирование билетов: необычно быстро, с разных устройств, геоаномалии.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/anomaly/fraud_detector.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> xgboost <span style=color:#66d9ef>as</span> xgb
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> pandas <span style=color:#66d9ef>as</span> pd
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>FEATURES <span style=color:#f92672>=</span> [
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;scans_last_1min&#34;</span>,        <span style=color:#75715e># сканирований за 1 мин с этого сканера</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;scans_last_10min&#34;</span>,       <span style=color:#75715e># за 10 мин</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;jti_reuse_count&#34;</span>,        <span style=color:#75715e># сколько раз этот jti уже видели</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;time_since_issue&#34;</span>,       <span style=color:#75715e># секунд от выпуска до сканирования</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;scanner_zone_match&#34;</span>,     <span style=color:#75715e># зона сканера совпадает с зоной в билете</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;event_started&#34;</span>,          <span style=color:#75715e># мероприятие уже началось (0/1)</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;time_to_event_start&#34;</span>,    <span style=color:#75715e># секунд до начала</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;consecutive_deny_count&#34;</span>, <span style=color:#75715e># сколько deny подряд на этом сканере</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;unique_scanners_today&#34;</span>,  <span style=color:#75715e># с сколькими разными сканерами уже встречался этот jti</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;batch_scan_flag&#34;</span>,        <span style=color:#75715e># много сканирований подряд &lt; 100мс (автоматический fraud)</span>
+</span></span><span style=display:flex><span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>train_fraud_model</span>(df: pd<span style=color:#f92672>.</span>DataFrame, labels: pd<span style=color:#f92672>.</span>Series) <span style=color:#f92672>-&gt;</span> xgb<span style=color:#f92672>.</span>XGBClassifier:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    df: DataFrame с колонками FEATURES
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    labels: 1 = fraud, 0 = normal
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    model <span style=color:#f92672>=</span> xgb<span style=color:#f92672>.</span>XGBClassifier(
+</span></span><span style=display:flex><span>        n_estimators<span style=color:#f92672>=</span><span style=color:#ae81ff>300</span>,
+</span></span><span style=display:flex><span>        max_depth<span style=color:#f92672>=</span><span style=color:#ae81ff>6</span>,
+</span></span><span style=display:flex><span>        learning_rate<span style=color:#f92672>=</span><span style=color:#ae81ff>0.05</span>,
+</span></span><span style=display:flex><span>        subsample<span style=color:#f92672>=</span><span style=color:#ae81ff>0.8</span>,
+</span></span><span style=display:flex><span>        colsample_bytree<span style=color:#f92672>=</span><span style=color:#ae81ff>0.8</span>,
+</span></span><span style=display:flex><span>        scale_pos_weight<span style=color:#f92672>=</span><span style=color:#ae81ff>99</span>,   <span style=color:#75715e># сильный дисбаланс: 1% fraud</span>
+</span></span><span style=display:flex><span>        eval_metric<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;auc&#34;</span>,
+</span></span><span style=display:flex><span>        use_label_encoder<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>        tree_method<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;hist&#34;</span>
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    model<span style=color:#f92672>.</span>fit(df[FEATURES], labels,
+</span></span><span style=display:flex><span>              eval_set<span style=color:#f92672>=</span>[(df[FEATURES], labels)],
+</span></span><span style=display:flex><span>              verbose<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> model
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>predict_fraud</span>(model: xgb<span style=color:#f92672>.</span>XGBClassifier,
+</span></span><span style=display:flex><span>                   scan_features: dict) <span style=color:#f92672>-&gt;</span> tuple[bool, float]:
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> pd<span style=color:#f92672>.</span>DataFrame([scan_features])[FEATURES]
+</span></span><span style=display:flex><span>    prob <span style=color:#f92672>=</span> model<span style=color:#f92672>.</span>predict_proba(x)[<span style=color:#ae81ff>0</span>][<span style=color:#ae81ff>1</span>]
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> prob <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0.7</span>, prob   <span style=color:#75715e># порог 0.7</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Feature importance (для объяснения решений):</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># xgb.plot_importance(model, max_num_features=10)</span>
+</span></span></code></pre></div><hr><h2 id=cusum--обнаружение-постепенного-дрейфа-котёл-трубы>CUSUM — обнаружение постепенного дрейфа (котёл, трубы)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/anomaly/cusum.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Обнаружить постепенный рост температуры трубы (засор, неисправность)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>cusum_detector</span>(values: list[float], target: float,
+</span></span><span style=display:flex><span>                   k: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.5</span>, h: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>5.0</span>) <span style=color:#f92672>-&gt;</span> list[bool]:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    CUSUM (Cumulative Sum) алгоритм.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    target: ожидаемое среднее
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    k: slack (половина допустимого отклонения)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    h: порог тревоги
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    s_pos, s_neg <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.0</span>, <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>    alarms <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> x <span style=color:#f92672>in</span> values:
+</span></span><span style=display:flex><span>        s_pos <span style=color:#f92672>=</span> max(<span style=color:#ae81ff>0</span>, s_pos <span style=color:#f92672>+</span> (x <span style=color:#f92672>-</span> target) <span style=color:#f92672>-</span> k)
+</span></span><span style=display:flex><span>        s_neg <span style=color:#f92672>=</span> max(<span style=color:#ae81ff>0</span>, s_neg <span style=color:#f92672>-</span> (x <span style=color:#f92672>-</span> target) <span style=color:#f92672>-</span> k)
+</span></span><span style=display:flex><span>        alarms<span style=color:#f92672>.</span>append(s_pos <span style=color:#f92672>&gt;</span> h <span style=color:#f92672>or</span> s_neg <span style=color:#f92672>&gt;</span> h)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> alarms
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Применение: трубы в подвале</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># target = 20.0 (нормальная темп трубы в подвале)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># При постепенном росте → alarm до того как труба лопнет</span>
+</span></span></code></pre></div><hr><h2 id=обучение-и-переобучение>Обучение и переобучение</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/training/prefect_pipeline.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> prefect <span style=color:#f92672>import</span> flow, task
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> timedelta
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@task</span>(name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Load SCUD data&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>load_scud_events</span>(days_back: int <span style=color:#f92672>=</span> <span style=color:#ae81ff>90</span>) <span style=color:#f92672>-&gt;</span> pd<span style=color:#f92672>.</span>DataFrame:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Загрузить события СКУД из ClickHouse&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    ch <span style=color:#f92672>=</span> clickhouse_connect<span style=color:#f92672>.</span>get_client(<span style=color:#f92672>...</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> ch<span style=color:#f92672>.</span>query_df(<span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        SELECT person_id, door_id, zone_id, event_type,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>               toHour(occurred_at) AS hour,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>               toDayOfWeek(occurred_at) AS dow,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>               occurred_at
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        FROM access_events
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        WHERE occurred_at &gt; now() - INTERVAL </span><span style=color:#e6db74>%d</span><span style=color:#e6db74> DAY
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span> <span style=color:#f92672>%</span> days_back)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@task</span>(name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Train Isolation Forest&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>train_access_anomaly</span>(events_df: pd<span style=color:#f92672>.</span>DataFrame):
+</span></span><span style=display:flex><span>    detector <span style=color:#f92672>=</span> AccessAnomalyDetector()
+</span></span><span style=display:flex><span>    detector<span style=color:#f92672>.</span>fit(events_df<span style=color:#f92672>.</span>to_dict(<span style=color:#e6db74>&#34;records&#34;</span>))
+</span></span><span style=display:flex><span>    detector<span style=color:#f92672>.</span>save(<span style=color:#e6db74>&#34;models/access_anomaly.pkl&#34;</span>)
+</span></span><span style=display:flex><span>    mlflow<span style=color:#f92672>.</span>log_artifact(<span style=color:#e6db74>&#34;models/access_anomaly.pkl&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@flow</span>(name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Retrain anomaly models&#34;</span>,
+</span></span><span style=display:flex><span>      schedule<span style=color:#f92672>=</span>timedelta(days<span style=color:#f92672>=</span><span style=color:#ae81ff>7</span>))   <span style=color:#75715e># переобучать еженедельно</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>retrain_pipeline</span>():
+</span></span><span style=display:flex><span>    events <span style=color:#f92672>=</span> load_scud_events()
+</span></span><span style=display:flex><span>    train_access_anomaly(events)
+</span></span><span style=display:flex><span>    <span style=color:#75715e># ... другие модели</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/ml/>index</a>
+→ <a href=/ml/forecast/>forecast</a>
+→ <a href=/ml/behavioral/>behavioral</a>
+→ <a href=/shared/smart-meter-energy/>smart-meter-energy</a>
+→ <a href=/tenantpass/offline-mode/>offline-mode</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

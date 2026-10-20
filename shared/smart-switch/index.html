@@ -1,0 +1,175 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Умный выключатель / реле · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Умный выключатель / реле</span></nav><article class=prose><h1>Умный выключатель / реле</h1><h1 id=умный-выключатель--реле>Умный выключатель / реле</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=стек>Стек</h2><table><thead><tr><th>Устройство</th><th>Тип</th><th>Протокол</th><th>Цена</th></tr></thead><tbody><tr><td><strong>Shelly 1PM</strong></td><td>DIN-рейка / в подрозетник</td><td>WiFi</td><td>~1 500 ₽</td></tr><tr><td><strong>Shelly 2.5</strong></td><td>2 канала + контроль тока</td><td>WiFi</td><td>~2 000 ₽</td></tr><tr><td><strong>Sonoff ZBMINIL2</strong></td><td>В подрозетник без нейтрали</td><td>Zigbee</td><td>~700 ₽</td></tr><tr><td><strong>Sonoff BASICR4</strong></td><td>Общего назначения</td><td>WiFi</td><td>~500 ₽</td></tr><tr><td><strong>ESP32 + реле</strong></td><td>DIY, любой формат</td><td>WiFi</td><td>~300 ₽</td></tr><tr><td><strong>ESP32 + SSR</strong></td><td>DIY, симисторный (без шума, AC)</td><td>WiFi</td><td>~400 ₽</td></tr><tr><td><strong>MeanWell + Wago</strong></td><td>Din-рейка, промышленный</td><td>Modbus</td><td>~1 500 ₽</td></tr></tbody></table><hr><h2 id=архитектура>Архитектура</h2><div class=mermaid>graph TD
+subgraph SWITCHES["Выключатели"]
+SHELLY["Shelly 1PM\nWiFi + Tasmota"]
+SONOFF_ZB["Sonoff ZBMINIL2\nZigbee (без нейтрали)"]
+ESP_RELAY["ESP32 + реле\nESPHome DIY"]
+SSR["SSR (симистор)\nтихое переключение AC"]
+end
+subgraph PROTOCOL["Протокол"]
+MQTT["MQTT\n(Mosquitto broker)"]
+ZB2M["Zigbee2MQTT"]
+NATIVE["ESPHome native API"]
+end
+subgraph HA["Home Assistant"]
+LIGHT["light entity\nвыключатель освещения"]
+SWITCH_E["switch entity\nобщее назначение"]
+CLIMATE_SW["Управление климатом\nчерез реле"]
+end
+SHELLY -->|MQTT / native| MQTT & NATIVE --> HA
+SONOFF_ZB --> ZB2M --> HA
+ESP_RELAY --> NATIVE --> HA</div><hr><h2 id=esphome--diy-реле-esp32--1-канал>ESPHome — DIY реле (ESP32 + 1 канал)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/relay-single.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>esphome</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>relay-boiler</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ESP32</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>board</span>: <span style=color:#ae81ff>esp32dev</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wifi</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ssid</span>: !<span style=color:#ae81ff>secret wifi_ssid</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>password</span>: !<span style=color:#ae81ff>secret wifi_password</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>api</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>encryption</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>key</span>: !<span style=color:#ae81ff>secret api_key</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Котёл — питание&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>false</span>     <span style=color:#75715e># HIGH = включено (для большинства реле-модулей)</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>RESTORE_DEFAULT_OFF  </span> <span style=color:#75715e># при перезагрузке выключить</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Физическая кнопка управления (опционально)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO0</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Кнопка котёл&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_press</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.toggle</span>: <span style=color:#ae81ff>relay_boiler</span>
+</span></span></code></pre></div><hr><h2 id=esphome--8-канальный-щиток>ESPHome — 8-канальный щиток</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/relay-8ch.yaml — силовой щит 8 каналов</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Свет: гостиная&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO32</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_2</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Свет: кухня&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO33</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_3</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Подогрев труб: гараж&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO25</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_4</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Насос: полив&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_5</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Вентилятор: серверная&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO27</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_6</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Бойлер ГВС&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO14</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_7</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Тёплый пол: ванная&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO12</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>relay_8</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Резерв&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO13</span>
+</span></span></code></pre></div><hr><h2 id=shelly-1pm--в-подрозетник-с-мониторингом-мощности>Shelly 1PM — в подрозетник с мониторингом мощности</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Home Assistant: Shelly 1PM автоматически создаёт:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   switch.shelly_1pm_boiler       — управление</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.shelly_1pm_boiler_power — мощность (Вт)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.shelly_1pm_boiler_energy — потребление (кВт·ч)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Удобно для:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   - Отслеживания когда именно работает котёл</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   - Биллинга по потреблению котла</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   - Защиты от перегрева (мощность резко выросла → выключить)</span>
+</span></span></code></pre></div><hr><h2 id=sonoff-zbminil2--zigbee-без-нейтрали>Sonoff ZBMINIL2 — Zigbee без нейтрали</h2><p>Важная особенность: работает в двухпроводной цепи (без нейтрального провода). Идеально для переделки старой проводки.</p><pre tabindex=0><code>Установка в одноклавишный выключатель:
+  L (фаза) → ZBMINIL2 → лампа → нейтраль
+  Нейтраль не нужна в подрозетнике
+  
+Физическая кнопка: продолжает работать
+HA управление: параллельно через Zigbee
+</code></pre><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=homepass--карта-управляемых-нагрузок>HomePass — карта управляемых нагрузок</h3><table><thead><tr><th>Нагрузка</th><th>Устройство</th><th>Логика</th></tr></thead><tbody><tr><td>Котёл — питание</td><td>Shelly 1PM</td><td>Авто по расписанию + темп</td></tr><tr><td>Бойлер ГВС</td><td>Shelly 1PM</td><td>Ночной тариф (23:00–07:00)</td></tr><tr><td>Тёплый пол × N</td><td>ESP32 + реле</td><td>По термостату комнаты</td></tr><tr><td>Подогрев труб (гараж)</td><td>ESP32 + реле</td><td>По температуре трубы &lt; 3°C</td></tr><tr><td>Насос полива</td><td>ESP32 + реле</td><td>По расписанию + влажность почвы</td></tr><tr><td>Вентилятор серверной</td><td>ESP32 + реле</td><td>По температуре серверной</td></tr><tr><td>Свет — уличный</td><td>Sonoff ZBMINIL2</td><td>По закату/рассвету</td></tr><tr><td>Свет — комнаты</td><td>Sonoff ZBMINIL2</td><td>По присутствию / расписанию</td></tr><tr><td>Ворота</td><td>ESP32 + моторное реле</td><td>По BLE / кнопке / событию</td></tr><tr><td>Баня — тэн</td><td>ESP32 + SSR</td><td>По расписанию / голосу</td></tr></tbody></table><h3 id=tenantpass--управление-нагрузками-объекта>TenantPass — управление нагрузками объекта</h3><pre tabindex=0><code>Кондиционеры в офисах → Shelly 1PM × N → по расписанию смен
+Освещение помещений → Sonoff ZBMINIL2 → по датчику присутствия
+Серверная — вентиляция → ESP32 + реле → по температуре
+Аварийное освещение → автономное (не через HA)
+</code></pre><h3 id=eventpass-стройплощадка--мероприятие>EventPass (стройплощадка / мероприятие)</h3><pre tabindex=0><code>Тепловые пушки (обогрев бетона) → ESP32 + контактор → по температуре
+Освещение временное → Shelly → по расписанию / закату
+Генератор — запуск → реле на стартер → при пропадании сети
+</code></pre><hr><h2 id=автоматизации-ha>Автоматизации HA</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Ночной тариф: бойлер ГВС</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Ночной тариф: включить бойлер&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>at</span>: <span style=color:#e6db74>&#34;23:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>condition</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>condition</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>input_boolean.night_tariff_enabled</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state</span>: <span style=color:#e6db74>&#34;on&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.boiler_gvs</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Ночной тариф: выключить бойлер&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>time</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>at</span>: <span style=color:#e6db74>&#34;07:00:00&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.boiler_gvs</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Никого нет дома → выключить всё лишнее</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Уход: экономия энергии&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>group.family_presence</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;not_home&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.warm_floor_living_room</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.warm_floor_bathroom</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.light_outdoor</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>climate.set_temperature</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>climate.house_thermostat</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>temperature</span>: <span style=color:#ae81ff>16</span>       <span style=color:#75715e># режим отсутствия</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/shared/smart-meter-energy/>smart-meter-energy</a>
+→ <a href=/shared/smart-plug/>smart-plug</a>
+→ <a href=/home/automation/scenes/>scenes</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

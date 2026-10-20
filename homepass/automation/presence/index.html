@@ -1,0 +1,43 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Определение присутствия · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Определение присутствия</span></nav><article class=prose><h1>Определение присутствия</h1><h1 id=определение-присутствия>Определение присутствия</h1><p>Ключевой компонент: вся автоматизация строится на понимании «кто дома».</p><h2 id=методы-в-порядке-надёжности>Методы (в порядке надёжности)</h2><h3 id=1-геозона-gps-телефона--грубое-присутствие>1. Геозона (GPS телефона) — грубое присутствие</h3><pre tabindex=0><code>Геозоны в HA:
+  - &#34;Дом&#34; — радиус 100 м (точное присутствие на территории)
+  - &#34;Рядом&#34; — радиус 500 м (едет домой, готовить ворота)
+  - &#34;Работа&#34; — для понимания когда ожидать возвращения
+</code></pre><p>Плюс: работает без оборудования дома.
+Минус: задержка 30–60 сек, разряжает батарею.</p><hr><h3 id=2-wifi-ping-устройств--уточнение>2. WiFi (ping устройств) — уточнение</h3><p>Home Assistant pingает телефоны в локальной сети.
+Появился IP → дома. Пропал → ушёл.</p><p>Плюс: точнее геозоны, мгновенно.
+Минус: телефон может быть в WiFi но хозяин вышел на улицу.</p><hr><h3 id=3-ble-трекеры--комнатная-точность>3. BLE-трекеры — комнатная точность</h3><p><strong>Bluetooth-метки</strong> (маленькие, вешаются на ключи / кошелёк):</p><ul><li>Flic, Tile → неудобно (нужно облако)</li><li><strong>ESPresense</strong> — лучший вариант: ESP32-узлы в каждой комнате, определяют в какой комнате находится BLE-устройство</li></ul><pre tabindex=0><code>Схема ESPresense:
+  [ESP32 в гостиной] ──► MQTT ──► HA
+  [ESP32 в спальне]  ──► MQTT ──► HA
+  [ESP32 у входа]    ──► MQTT ──► HA
+
+  Телефон или BLE-метка:
+    rssi гостиная: -65
+    rssi спальня: -82
+    rssi у входа: -95
+    → вывод: человек в гостиной
+</code></pre><hr><h3 id=4-датчики-движения--быстрое-реагирование>4. Датчики движения — быстрое реагирование</h3><p>PIR-датчики (Zigbee) в каждой комнате:</p><ul><li>Подтверждают присутствие когда человек двигается</li><li>Управляют светом напрямую (зашёл → включилось, вышел 5 мин → выключилось)</li></ul><p>Минус: не работает когда человек сидит неподвижно (кино, работа).</p><p><strong>Решение</strong>: mmWave-датчики (например, LD2410) — обнаруживают дыхание, определяют присутствие неподвижного человека.</p><hr><h3 id=5-агрегированное-состояние-в-ha>5. Агрегированное состояние в HA</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Пример: &#34;кто дома&#34; — комбинация методов</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>person.owner</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>sources</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>device_tracker.phone_gps      </span> <span style=color:#75715e># геозона</span>
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>device_tracker.phone_wifi     </span> <span style=color:#75715e># локальная сеть</span>
+</span></span><span style=display:flex><span>    - <span style=color:#ae81ff>device_tracker.phone_ble      </span> <span style=color:#75715e># ESPresense</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>state</span>: <span style=color:#ae81ff>home  </span> <span style=color:#75715e># если хотя бы 2 из 3 говорят &#34;дома&#34;</span>
+</span></span></code></pre></div><hr><h2 id=зоны-присутствия-и-автоматизации>Зоны присутствия и автоматизации</h2><table><thead><tr><th>Зона</th><th>Методы</th><th>Автоматизация</th></tr></thead><tbody><tr><td>Территория (снаружи дома)</td><td>Геозона</td><td>Открыть ворота</td></tr><tr><td>Дом (в целом)</td><td>WiFi + геозона</td><td>Режим «дома»</td></tr><tr><td>Гостиная</td><td>mmWave + BLE</td><td>Свет, ТВ, климат</td></tr><tr><td>Спальня</td><td>mmWave + BLE</td><td>Свет, шторы, климат</td></tr><tr><td>Кухня</td><td>PIR + WiFi</td><td>Свет</td></tr><tr><td>Гараж</td><td>PIR + дверной датчик</td><td>Свет</td></tr><tr><td>Баня</td><td>PIR + датчик температуры</td><td>Прогрев по запросу</td></tr></tbody></table><hr><h2 id=особые-случаи>Особые случаи</h2><p><strong>Хозяин в отпуске > 3 дней:</strong></p><ul><li>Симуляция присутствия: включать/выключать свет по паттернам прошлых недель</li><li>Уведомления о любом движении на территории</li></ul><p><strong>Гости остаются ночевать:</strong></p><ul><li>Хозяин отмечает &ldquo;гости в гостевом доме&rdquo; в приложении</li><li>HA не переключает в режим &ldquo;никого нет&rdquo; пока флаг активен</li></ul><hr><h2 id=связи>Связи</h2><p>← <a href=/home/automation/scenes/>scenes</a>
+→ <a href=/home/access/>access</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

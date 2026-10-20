@@ -1,0 +1,469 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Биллинг — общая система · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Биллинг — общая система</span></nav><article class=prose><h1>Биллинг — общая система</h1><h1 id=биллинг--общая-система>Биллинг — общая система</h1><p><em>Тарификация, подписки, SIP CDR, эквайринг, фискализация</em></p><hr><h2 id=стек--всё-бесплатное-по>Стек — всё бесплатное ПО</h2><table><thead><tr><th>Компонент</th><th>Решение</th><th>Лицензия</th><th>Стоимость</th></tr></thead><tbody><tr><td>Биллинговый движок</td><td><strong>Lago</strong></td><td>AGPL-3.0 (self-hosted)</td><td>0 ₽</td></tr><tr><td>Инвойсинг / счета</td><td><strong>InvoiceNinja</strong></td><td>AAL (self-hosted)</td><td>0 ₽</td></tr><tr><td>SIP CDR биллинг</td><td><strong>CGRateS</strong></td><td>MIT</td><td>0 ₽</td></tr><tr><td>Эквайринг (комиссия)</td><td><strong>YooKassa</strong></td><td>—</td><td>0 ₽/мес + % с транзакции</td></tr><tr><td>Эквайринг (комиссия)</td><td><strong>Robokassa</strong></td><td>—</td><td>0 ₽/мес + % с транзакции</td></tr><tr><td>Фискализация</td><td><strong>АТОЛ Онлайн</strong></td><td>—</td><td>~1 200 ₽/мес (ОФД)</td></tr><tr><td>Учёт</td><td><strong>1С:Бухгалтерия</strong> / <strong>GnuCash</strong></td><td>— / GPL</td><td>платная / 0 ₽</td></tr><tr><td>Метрики</td><td><strong>VictoriaMetrics</strong> + Grafana</td><td>Apache-2.0</td><td>0 ₽</td></tr></tbody></table><blockquote><p>Все биллинговые сервисы разворачиваются self-hosted Docker-контейнерами рядом с остальным стеком. Платишь только за транзакции и ОФД — ПО бесплатное.</p></blockquote><hr><h2 id=сценарии-биллинга-по-проектам>Сценарии биллинга по проектам</h2><table><thead><tr><th>Проект</th><th>Что тарифицируем</th><th>Модель</th></tr></thead><tbody><tr><td><strong>TenantPass SaaS</strong></td><td>Подписка (тенант + пользователи + объекты)</td><td>Subscription + usage</td></tr><tr><td><strong>EventPass</strong></td><td>Мероприятия (tier по участникам) + чекины</td><td>Per-event + metered</td></tr><tr><td><strong>HomePass</strong></td><td>Время работы подрядчиков → счёт</td><td>Time-based invoicing</td></tr><tr><td><strong>Asterisk SIP</strong></td><td>Минуты звонков (CDR)</td><td>Per-minute metered</td></tr><tr><td><strong>EventPass сеть</strong></td><td>Трафик гостей WiFi сверх лимита</td><td>Bandwidth metered</td></tr><tr><td><strong>Внутренний учёт</strong></td><td>Коммунальные ресурсы (электро, вода)</td><td>Meter reading</td></tr></tbody></table><hr><h2 id=архитектура-биллинга>Архитектура биллинга</h2><div class=mermaid>graph TD
+subgraph METERING["Метрики и события"]
+ACS["СКУД / EventPass\nсобытия входа"]
+AST_CDR["Asterisk CDR\nзвонки"]
+NET_METER["Netflow / OpenWrt\nтрафик по VLAN"]
+TIME_TRACK["TimeTracking\nотработанные часы"]
+METER["Умные счётчики\nэлектро / вода / газ"]
+end
+subgraph BILLING_ENGINE["Биллинговый движок (Lago)"]
+EVENTS["Usage Events\n(webhook intake)"]
+SUBSCR["Subscriptions\nподписочные планы"]
+INVOICE["Invoice generation\nсчета и акты"]
+WALLET["Wallet / prepaid\nпополняемый баланс"]
+end
+subgraph PAYMENT["Платежи"]
+YOKASSA["YooKassa\nЯндекс Касса"]
+CLOUDPAY["CloudPayments"]
+ROBOKASSA["Robokassa"]
+CARD["Банковская карта\nонлайн"]
+INVOICE_PAY["Счёт на оплату\nдля юрлиц"]
+end
+subgraph FISCAL["Фискализация 54-ФЗ"]
+ATOL["АТОЛ Онлайн\nоблачная касса"]
+OFD["ОФД\nОператор фиск. данных"]
+RECEIPT["Электронный чек\nemail / SMS"]
+end
+subgraph ACCOUNTING["Учёт и отчётность"]
+C1["1С:Бухгалтерия\nдвойная запись"]
+ACTS["Акты и счета-фактуры\nэлектронный документооборот"]
+REPORT["Финансовая отчётность\nдашборд"]
+end
+METERING --> EVENTS
+EVENTS --> BILLING_ENGINE
+SUBSCR --> INVOICE
+INVOICE --> PAYMENT
+PAYMENT --> FISCAL
+FISCAL --> OFD
+INVOICE --> ACCOUNTING
+PAYMENT --> ACCOUNTING</div><hr><h2 id=lago--биллинговый-движок>Lago — биллинговый движок</h2><p><strong>Lago</strong> — open-source subscription + usage-based billing. Self-hosted. REST API.</p><h3 id=развёртывание>Развёртывание</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>lago-api</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>getlago/api:v1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>env_file</span>: <span style=color:#ae81ff>.env.lago</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;3000:3000&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>depends_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>lago-db</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>lago-redis</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>lago-worker</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>getlago/api:v1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>bundle exec sidekiq</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>env_file</span>: <span style=color:#ae81ff>.env.lago</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>lago-db</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>postgres:14</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>lago_db:/var/lib/postgresql/data</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>lago-redis</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>redis:7-alpine</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>lago-front</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>getlago/front:v1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;80:80&#34;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># .env.lago</span>
+</span></span><span style=display:flex><span>DATABASE_URL<span style=color:#f92672>=</span>postgresql://lago:pass@lago-db/lago
+</span></span><span style=display:flex><span>REDIS_URL<span style=color:#f92672>=</span>redis://lago-redis:6379
+</span></span><span style=display:flex><span>SECRET_KEY_BASE<span style=color:#f92672>=</span>random_64_chars
+</span></span><span style=display:flex><span>RSA_PRIVATE_KEY<span style=color:#f92672>=</span>BASE64_RSA_KEY
+</span></span><span style=display:flex><span>LAGO_API_URL<span style=color:#f92672>=</span>https://billing.yourcompany.ru
+</span></span></code></pre></div><h3 id=ключевые-концепции-lago>Ключевые концепции Lago</h3><div class=mermaid>graph LR
+ORG["Organization\n(ваша компания)"] --> CUST["Customer\n(клиент/тенант)"]
+CUST --> SUBSCR["Subscription\n(тарифный план)"]
+SUBSCR --> PLAN["Plan\n(plan definition)"]
+PLAN --> CHARGE["Charges\n(метрики тарификации)"]
+CHARGE --> METRIC["Billable Metric\n(что считаем)"]
+CUST --> INVOICE["Invoice\n(счёт за период)"]
+INVOICE --> WALLET["Wallet\n(prepaid баланс)"]</div><hr><h2 id=тарифные-планы-по-проектам>Тарифные планы по проектам</h2><h3 id=tenantpass-saas--планы>TenantPass SaaS — планы</h3><div class=mermaid>graph LR
+subgraph STARTER["Старт — 4 900 ₽/мес"]
+S1["1 объект\nдо 50 пользователей\nОблако"]
+end
+subgraph BUSINESS["Бизнес — 14 900 ₽/мес"]
+B1["до 5 объектов\nдо 300 пользователей\nОблако + API"]
+end
+subgraph ENTERPRISE["Enterprise — договор"]
+E1["Неограниченно\nOn-premise\nSLA 99.9%\n+ СКЗИ"]
+end
+subgraph METERED["Сверхлимит — pay-as-you-go"]
+M1["Доп. объект: 1 900 ₽/мес\nДоп. пользователь: 90 ₽/мес\nAPI-звонки к Keycloak: 0.001 ₽/вызов"]
+end</div><p><strong>Lago: создание плана TenantPass Бизнес</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>curl -X POST https://billing.yourcompany.ru/api/v1/plans <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -H <span style=color:#e6db74>&#34;Authorization: Bearer </span>$LAGO_API_KEY<span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -H <span style=color:#e6db74>&#34;Content-Type: application/json&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -d <span style=color:#e6db74>&#39;{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;plan&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;name&#34;: &#34;TenantPass Business&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;code&#34;: &#34;tenantpass_business&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;interval&#34;: &#34;monthly&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;amount_cents&#34;: 1490000,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;amount_currency&#34;: &#34;RUB&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;charges&#34;: [
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;billable_metric_code&#34;: &#34;active_users&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;charge_model&#34;: &#34;package&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;properties&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            &#34;package_size&#34;: 300,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            &#34;free_units&#34;: 300,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            &#34;amount&#34;: &#34;9000&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        },
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;billable_metric_code&#34;: &#34;sites_count&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;charge_model&#34;: &#34;package&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          &#34;properties&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            &#34;package_size&#34;: 5,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            &#34;free_units&#34;: 5,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>            &#34;amount&#34;: &#34;190000&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      ]
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  }&#39;</span>
+</span></span></code></pre></div><hr><h3 id=eventpass--планы>EventPass — планы</h3><table><thead><tr><th>Тариф</th><th>Участников</th><th>Стоимость</th></tr></thead><tbody><tr><td>Micro</td><td>до 100</td><td>1 500 ₽/событие</td></tr><tr><td>Small</td><td>до 500</td><td>4 900 ₽/событие</td></tr><tr><td>Medium</td><td>до 2 000</td><td>12 900 ₽/событие</td></tr><tr><td>Large</td><td>до 10 000</td><td>39 900 ₽/событие</td></tr><tr><td>Unlimited</td><td>без лимита</td><td>договор</td></tr><tr><td><strong>Pay-per-checkin</strong></td><td>—</td><td>25 ₽/чекин</td></tr></tbody></table><p><strong>Lago: Billable Metric для чекинов</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>curl -X POST https://billing.yourcompany.ru/api/v1/billable_metrics <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -H <span style=color:#e6db74>&#34;Authorization: Bearer </span>$LAGO_API_KEY<span style=color:#e6db74>&#34;</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -d <span style=color:#e6db74>&#39;{
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;billable_metric&#34;: {
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;name&#34;: &#34;Checkins&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;code&#34;: &#34;eventpass_checkins&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;aggregation_type&#34;: &#34;count_agg&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      &#34;field_name&#34;: &#34;checkin_id&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    }
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  }&#39;</span>
+</span></span></code></pre></div><p><strong>Отправка Usage Event при каждом чекине</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># eventpass/services/billing.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>LAGO_URL <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;https://billing.yourcompany.ru/api/v1&#34;</span>
+</span></span><span style=display:flex><span>LAGO_KEY <span style=color:#f92672>=</span> settings<span style=color:#f92672>.</span>LAGO_API_KEY
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>report_checkin</span>(event_id: str, attendee_id: str, tenant_id: str):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> client:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> client<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>LAGO_URL<span style=color:#e6db74>}</span><span style=color:#e6db74>/events&#34;</span>,
+</span></span><span style=display:flex><span>            headers<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;Authorization&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Bearer </span><span style=color:#e6db74>{</span>LAGO_KEY<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>},
+</span></span><span style=display:flex><span>            json<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;event&#34;</span>: {
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;transaction_id&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;checkin-</span><span style=color:#e6db74>{</span>attendee_id<span style=color:#e6db74>}</span><span style=color:#e6db74>-</span><span style=color:#e6db74>{</span>event_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;external_customer_id&#34;</span>: tenant_id,
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;code&#34;</span>: <span style=color:#e6db74>&#34;eventpass_checkins&#34;</span>,
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;timestamp&#34;</span>: int(time<span style=color:#f92672>.</span>time()),
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;properties&#34;</span>: {
+</span></span><span style=display:flex><span>                        <span style=color:#e6db74>&#34;event_id&#34;</span>: event_id,
+</span></span><span style=display:flex><span>                        <span style=color:#e6db74>&#34;attendee_id&#34;</span>: attendee_id
+</span></span><span style=display:flex><span>                    }
+</span></span><span style=display:flex><span>                }
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        )
+</span></span></code></pre></div><hr><h3 id=asterisk-sip--биллинг-звонков-cdr>Asterisk SIP — биллинг звонков (CDR)</h3><p>Каждый звонок записывается в CDR (Call Detail Record). CDR → биллинг.</p><div class=mermaid>sequenceDiagram
+participant USER as Абонент
+participant AST as Asterisk
+participant CDR_DB as CDR PostgreSQL
+participant LAGO as Lago
+participant INV as Счёт клиенту
+USER->>AST: Звонок (SIP INVITE)
+AST->>AST: Разговор
+USER->>AST: Завершение (BYE)
+AST->>CDR_DB: INSERT cdr (src, dst, duration, billsec, disposition)
+CDR_DB->>LAGO: Webhook / batch: usage event\n{minutes: 2.5, tenant: "xyz"}
+LAGO->>INV: Добавить к счёту за период</div><h4 id=asterisk-cdr_pgsqlconf>Asterisk cdr_pgsql.conf</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-ini data-lang=ini><span style=display:flex><span><span style=color:#75715e>; /etc/asterisk/cdr_pgsql.conf</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>[global]</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>hostname</span><span style=color:#f92672>=</span><span style=color:#e6db74>localhost</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>port</span><span style=color:#f92672>=</span><span style=color:#e6db74>5432</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>dbname</span><span style=color:#f92672>=</span><span style=color:#e6db74>asterisk_cdr</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>user</span><span style=color:#f92672>=</span><span style=color:#e6db74>asterisk</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>password</span><span style=color:#f92672>=</span><span style=color:#e6db74>cdr_password</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>table</span><span style=color:#f92672>=</span><span style=color:#e6db74>cdr</span>
+</span></span></code></pre></div><h4 id=cdr--lago-python-worker>CDR → Lago (Python worker)</h4><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># billing/cdr_worker.py — запускается каждые 5 минут</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> asyncpg<span style=color:#f92672>,</span> httpx<span style=color:#f92672>,</span> asyncio
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> datetime, timedelta
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>sync_cdr_to_lago</span>():
+</span></span><span style=display:flex><span>    pg <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> asyncpg<span style=color:#f92672>.</span>connect(CDR_DSN)
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Берём необработанные записи</span>
+</span></span><span style=display:flex><span>    rows <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> pg<span style=color:#f92672>.</span>fetch(<span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        SELECT id, src, dst, billsec, calldate, tenant_id
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        FROM cdr
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        WHERE billed = false
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          AND disposition = &#39;ANSWERED&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          AND billsec &gt; 0
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    &#34;&#34;&#34;</span>)
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    events <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> row <span style=color:#f92672>in</span> rows:
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Округление до 1 минуты вверх (стандарт)</span>
+</span></span><span style=display:flex><span>        minutes <span style=color:#f92672>=</span> max(<span style=color:#ae81ff>1</span>, <span style=color:#f92672>-</span>(<span style=color:#f92672>-</span>row[<span style=color:#e6db74>&#34;billsec&#34;</span>] <span style=color:#f92672>//</span> <span style=color:#ae81ff>60</span>))
+</span></span><span style=display:flex><span>        events<span style=color:#f92672>.</span>append({
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;transaction_id&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;cdr-</span><span style=color:#e6db74>{</span>row[<span style=color:#e6db74>&#39;id&#39;</span>]<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;external_customer_id&#34;</span>: row[<span style=color:#e6db74>&#34;tenant_id&#34;</span>],
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;code&#34;</span>: <span style=color:#e6db74>&#34;sip_minutes&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;timestamp&#34;</span>: int(row[<span style=color:#e6db74>&#34;calldate&#34;</span>]<span style=color:#f92672>.</span>timestamp()),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;properties&#34;</span>: {
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;src&#34;</span>: row[<span style=color:#e6db74>&#34;src&#34;</span>],
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;dst&#34;</span>: row[<span style=color:#e6db74>&#34;dst&#34;</span>],
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;minutes&#34;</span>: minutes,
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;billsec&#34;</span>: row[<span style=color:#e6db74>&#34;billsec&#34;</span>]
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        })
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> client:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> event <span style=color:#f92672>in</span> events:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> client<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>LAGO_URL<span style=color:#e6db74>}</span><span style=color:#e6db74>/events&#34;</span>,
+</span></span><span style=display:flex><span>                headers<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;Authorization&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Bearer </span><span style=color:#e6db74>{</span>LAGO_KEY<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>},
+</span></span><span style=display:flex><span>                json<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;event&#34;</span>: event}
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Пометить как обработанные</span>
+</span></span><span style=display:flex><span>    ids <span style=color:#f92672>=</span> [r[<span style=color:#e6db74>&#34;id&#34;</span>] <span style=color:#66d9ef>for</span> r <span style=color:#f92672>in</span> rows]
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>await</span> pg<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;UPDATE cdr SET billed=true WHERE id=ANY($1)&#34;</span>, ids)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>await</span> pg<span style=color:#f92672>.</span>close()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>asyncio<span style=color:#f92672>.</span>run(sync_cdr_to_lago())
+</span></span></code></pre></div><h4 id=альтернатива-cgrates--realtime-биллинг-sip>Альтернатива: CGRateS — realtime биллинг SIP</h4><p>CGRateS — open-source движок для тарификации VoIP в реальном времени. Интегрируется напрямую в Asterisk через ARI/AMI, без отдельного cron-воркера.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># cgrates.json (фрагмент)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&#34;general&#34;: </span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;node_id&#34;: </span><span style=color:#e6db74>&#34;cgrates1&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;default_timezone&#34;: </span><span style=color:#e6db74>&#34;Europe/Moscow&#34;</span>
+</span></span><span style=display:flex><span>},
+</span></span><span style=display:flex><span><span style=color:#f92672>&#34;data_db&#34;: {&#34;db_type&#34;: &#34;redis&#34;, &#34;db_host&#34;: </span><span style=color:#e6db74>&#34;127.0.0.1&#34;</span>},
+</span></span><span style=display:flex><span><span style=color:#f92672>&#34;stor_db&#34;: {&#34;db_type&#34;: &#34;postgres&#34;, &#34;db_host&#34;: </span><span style=color:#e6db74>&#34;127.0.0.1&#34;</span>},
+</span></span><span style=display:flex><span><span style=color:#f92672>&#34;rals&#34;: </span>{                          <span style=color:#75715e># Rating + Accounting</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;enabled&#34;: </span><span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>},
+</span></span><span style=display:flex><span><span style=color:#f92672>&#34;cdrs&#34;: </span>{                          <span style=color:#75715e># CDR обработка</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;enabled&#34;: </span><span style=color:#66d9ef>true</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;chargers_conns&#34;: </span>[<span style=color:#e6db74>&#34;*internal&#34;</span>],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;store_cdrs&#34;: </span><span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>},
+</span></span><span style=display:flex><span><span style=color:#f92672>&#34;sessions&#34;: </span>{                      <span style=color:#75715e># Realtime control</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;enabled&#34;: </span><span style=color:#66d9ef>true</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;asterisk_conns&#34;: </span>[
+</span></span><span style=display:flex><span>    {<span style=color:#f92672>&#34;address&#34;: </span><span style=color:#e6db74>&#34;127.0.0.1:5038&#34;</span>,
+</span></span><span style=display:flex><span>     <span style=color:#f92672>&#34;user&#34;: &#34;cgrates&#34;, &#34;password&#34;: </span><span style=color:#e6db74>&#34;cgrates_pass&#34;</span>}
+</span></span><span style=display:flex><span>  ]
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Возможности CGRateS vs простого CDR-воркера:</p><table><thead><tr><th>Возможность</th><th>CDR-воркер</th><th>CGRateS</th></tr></thead><tbody><tr><td>Тарификация</td><td>Post-factum</td><td>Realtime</td></tr><tr><td>Баланс prepaid</td><td>Вручную</td><td>Автоматически</td></tr><tr><td>Обрыв звонка при 0 балансе</td><td>❌</td><td>✅</td></tr><tr><td>Разные тарифы по направлениям</td><td>Код</td><td>Конфиг</td></tr><tr><td>Мультивалютность</td><td>Код</td><td>Встроено</td></tr></tbody></table><hr><h3 id=homepass--биллинг-подрядчиков>HomePass — биллинг подрядчиков</h3><div class=mermaid>sequenceDiagram
+participant ACS as СКУД HomePass
+participant HA as Home Assistant
+participant LAGO as Lago
+participant OWNER as Хозяин
+ACS->>HA: Подрядчик вошёл (10:00)
+ACS->>HA: Подрядчик вышел (14:30)
+HA->>HA: Рассчитать: 4.5 часа × ставка
+HA->>LAGO: Usage event: contractor_hours=4.5
+LAGO->>LAGO: Добавить к счёту подрядчика
+note over LAGO: Конец месяца → Invoice
+LAGO->>OWNER: Счёт на оплату (или к выплате подрядчику)</div><p><strong>Ставки по типу работ:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span>CONTRACTOR_RATES <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;plumber&#34;</span>:     <span style=color:#ae81ff>850</span>,   <span style=color:#75715e># ₽/час</span>
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;electrician&#34;</span>: <span style=color:#ae81ff>950</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;cleaner&#34;</span>:     <span style=color:#ae81ff>350</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;gardener&#34;</span>:    <span style=color:#ae81ff>400</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;security&#34;</span>:    <span style=color:#ae81ff>280</span>,
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><h2 id=приём-платежей--yookassa>Приём платежей — YooKassa</h2><p>YooKassa (Яндекс Касса) — основной российский эквайринг.</p><h3 id=интеграция>Интеграция</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># billing/payment/yokassa.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> yookassa <span style=color:#f92672>import</span> Configuration, Payment
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> yookassa.domain.request <span style=color:#f92672>import</span> PaymentRequest
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>Configuration<span style=color:#f92672>.</span>account_id <span style=color:#f92672>=</span> settings<span style=color:#f92672>.</span>YOKASSA_SHOP_ID
+</span></span><span style=display:flex><span>Configuration<span style=color:#f92672>.</span>secret_key  <span style=color:#f92672>=</span> settings<span style=color:#f92672>.</span>YOKASSA_SECRET_KEY
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>create_payment</span>(
+</span></span><span style=display:flex><span>    amount_rub: float,
+</span></span><span style=display:flex><span>    description: str,
+</span></span><span style=display:flex><span>    invoice_id: str,
+</span></span><span style=display:flex><span>    customer_email: str,
+</span></span><span style=display:flex><span>    return_url: str
+</span></span><span style=display:flex><span>) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>    payment <span style=color:#f92672>=</span> Payment<span style=color:#f92672>.</span>create({
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;amount&#34;</span>: {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;value&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>amount_rub<span style=color:#e6db74>:</span><span style=color:#e6db74>.2f</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;currency&#34;</span>: <span style=color:#e6db74>&#34;RUB&#34;</span>
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;confirmation&#34;</span>: {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;redirect&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;return_url&#34;</span>: return_url
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;description&#34;</span>: description,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;metadata&#34;</span>: {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;invoice_id&#34;</span>: invoice_id
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;receipt&#34;</span>: {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;customer&#34;</span>: {<span style=color:#e6db74>&#34;email&#34;</span>: customer_email},
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;items&#34;</span>: [{
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;description&#34;</span>: description,
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;quantity&#34;</span>: <span style=color:#e6db74>&#34;1&#34;</span>,
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;amount&#34;</span>: {<span style=color:#e6db74>&#34;value&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>amount_rub<span style=color:#e6db74>:</span><span style=color:#e6db74>.2f</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>, <span style=color:#e6db74>&#34;currency&#34;</span>: <span style=color:#e6db74>&#34;RUB&#34;</span>},
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;vat_code&#34;</span>: <span style=color:#ae81ff>1</span>,                   <span style=color:#75715e># НДС 20%</span>
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;payment_mode&#34;</span>: <span style=color:#e6db74>&#34;full_payment&#34;</span>,
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;payment_subject&#34;</span>: <span style=color:#e6db74>&#34;service&#34;</span>
+</span></span><span style=display:flex><span>            }]
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;capture&#34;</span>: <span style=color:#66d9ef>True</span>
+</span></span><span style=display:flex><span>    })
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;payment_id&#34;</span>: payment<span style=color:#f92672>.</span>id,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;confirmation_url&#34;</span>: payment<span style=color:#f92672>.</span>confirmation<span style=color:#f92672>.</span>confirmation_url,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;status&#34;</span>: payment<span style=color:#f92672>.</span>status
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><h3 id=webhook-от-yookassa--lago>Webhook от YooKassa → Lago</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># billing/webhooks/yokassa.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> fastapi <span style=color:#f92672>import</span> APIRouter, Request
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> hmac<span style=color:#f92672>,</span> hashlib
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>router <span style=color:#f92672>=</span> APIRouter()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@router.post</span>(<span style=color:#e6db74>&#34;/webhooks/yokassa&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>yokassa_webhook</span>(request: Request):
+</span></span><span style=display:flex><span>    body <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> request<span style=color:#f92672>.</span>body()
+</span></span><span style=display:flex><span>    event <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> request<span style=color:#f92672>.</span>json()
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> event[<span style=color:#e6db74>&#34;event&#34;</span>] <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;payment.succeeded&#34;</span>:
+</span></span><span style=display:flex><span>        payment <span style=color:#f92672>=</span> event[<span style=color:#e6db74>&#34;object&#34;</span>]
+</span></span><span style=display:flex><span>        invoice_id <span style=color:#f92672>=</span> payment[<span style=color:#e6db74>&#34;metadata&#34;</span>][<span style=color:#e6db74>&#34;invoice_id&#34;</span>]
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Пометить счёт как оплаченный в Lago</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> lago_client<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;/api/v1/invoices/</span><span style=color:#e6db74>{</span>invoice_id<span style=color:#e6db74>}</span><span style=color:#e6db74>/payment&#34;</span>,
+</span></span><span style=display:flex><span>            json<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;payment_status&#34;</span>: <span style=color:#e6db74>&#34;succeeded&#34;</span>,
+</span></span><span style=display:flex><span>                  <span style=color:#e6db74>&#34;provider_payment_id&#34;</span>: payment[<span style=color:#e6db74>&#34;id&#34;</span>]}
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Активировать подписку / открыть доступ</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> activate_subscription(invoice_id)
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;status&#34;</span>: <span style=color:#e6db74>&#34;ok&#34;</span>}
+</span></span></code></pre></div><hr><h2 id=фискализация--54-фз-онлайн-касса>Фискализация — 54-ФЗ (онлайн-касса)</h2><p>При оплате от физических лиц — обязательный электронный чек.</p><div class=mermaid>sequenceDiagram
+participant CLIENT as Клиент (физлицо)
+participant APP as TenantPass / EventPass
+participant YOKA as YooKassa
+participant ATOL as АТОЛ Онлайн
+participant OFD as ОФД
+CLIENT->>APP: Оплата картой
+APP->>YOKA: Создать платёж с receipt{}
+YOKA->>YOKA: Списание с карты
+YOKA->>ATOL: Запрос на фискализацию
+ATOL->>OFD: Передача фискального документа
+OFD-->>ATOL: ФПД (фискальный признак)
+ATOL->>YOKA: Чек сформирован
+YOKA->>CLIENT: Электронный чек (email / SMS)
+YOKA-->>APP: Webhook: payment.succeeded</div><p><strong>YooKassa сама интегрирована с АТОЛ</strong> — при передаче <code>receipt{}</code> в запросе платежа чек формируется автоматически. Для юрлиц (B2B) — чек не нужен, достаточно счёта-фактуры.</p><hr><h2 id=интеграция-с-1сбухгалтерия>Интеграция с 1С:Бухгалтерия</h2><div class=mermaid>graph LR
+LAGO["Lago\nсчета / оплаты"] -->|REST API| BRIDGE["1С-мост\n(Python / 1С:Коннектор)"]
+BRIDGE -->|HTTP + XML| C1["1С:Бухгалтерия 8"]
+C1 -->|реализации / поступления| REPORT["Бухгалтерская\nотчётность"]</div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># billing/accounting/c1_bridge.py</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> requests
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>C1_URL <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;http://192.168.1.200/base/hs/billing/v1&#34;</span>
+</span></span><span style=display:flex><span>C1_AUTH <span style=color:#f92672>=</span> (<span style=color:#e6db74>&#34;billing_user&#34;</span>, <span style=color:#e6db74>&#34;billing_pass&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>post_invoice_to_1c</span>(invoice: dict):
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Передать счёт на реализацию услуг в 1С&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    payload <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;Номер&#34;</span>: invoice[<span style=color:#e6db74>&#34;number&#34;</span>],
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;Дата&#34;</span>: invoice[<span style=color:#e6db74>&#34;issued_at&#34;</span>],
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;Контрагент&#34;</span>: invoice[<span style=color:#e6db74>&#34;customer&#34;</span>][<span style=color:#e6db74>&#34;legal_name&#34;</span>],
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;ИНН&#34;</span>: invoice[<span style=color:#e6db74>&#34;customer&#34;</span>][<span style=color:#e6db74>&#34;tin&#34;</span>],
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;Услуги&#34;</span>: [
+</span></span><span style=display:flex><span>            {
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;Наименование&#34;</span>: item[<span style=color:#e6db74>&#34;name&#34;</span>],
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;Количество&#34;</span>: item[<span style=color:#e6db74>&#34;units&#34;</span>],
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;Цена&#34;</span>: item[<span style=color:#e6db74>&#34;unit_price&#34;</span>],
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;НДС&#34;</span>: <span style=color:#e6db74>&#34;20%&#34;</span>
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>for</span> item <span style=color:#f92672>in</span> invoice[<span style=color:#e6db74>&#34;fees&#34;</span>]
+</span></span><span style=display:flex><span>        ],
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;СуммаИтого&#34;</span>: invoice[<span style=color:#e6db74>&#34;total_amount&#34;</span>]
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    r <span style=color:#f92672>=</span> requests<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>C1_URL<span style=color:#e6db74>}</span><span style=color:#e6db74>/invoice&#34;</span>,
+</span></span><span style=display:flex><span>        json<span style=color:#f92672>=</span>payload,
+</span></span><span style=display:flex><span>        auth<span style=color:#f92672>=</span>C1_AUTH,
+</span></span><span style=display:flex><span>        timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>10</span>
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    r<span style=color:#f92672>.</span>raise_for_status()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> r<span style=color:#f92672>.</span>json()[<span style=color:#e6db74>&#34;НомерДокумента1С&#34;</span>]
+</span></span></code></pre></div><hr><h2 id=биллинг-сетевого-трафика-eventpass-wifi>Биллинг сетевого трафика (EventPass WiFi)</h2><p>Участники получают базовый интернет бесплатно, сверхлимит — платно (или блокировка).</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># billing/network/traffic_monitor.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Читает Netflow из OpenWrt (через collectd или pmacct)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>check_guest_quota</span>(mac_address: str, tenant_id: str):
+</span></span><span style=display:flex><span>    used_mb <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> get_traffic_used(mac_address)   <span style=color:#75715e># из InfluxDB / Prometheus</span>
+</span></span><span style=display:flex><span>    quota_mb <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> get_quota(tenant_id)            <span style=color:#75715e># из Lago wallet</span>
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> used_mb <span style=color:#f92672>&gt;</span> quota_mb:
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Заблокировать в OpenWrt через SSH/API</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> openwrt_client<span style=color:#f92672>.</span>block_mac(mac_address)
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Показать captive portal с предложением купить дополнительный трафик</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> notify_captive_portal(mac_address, <span style=color:#e6db74>&#34;quota_exceeded&#34;</span>)
+</span></span><span style=display:flex><span>        
+</span></span><span style=display:flex><span>        <span style=color:#75715e># Или: автоматическое списание из wallet</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#66d9ef>await</span> lago_client<span style=color:#f92672>.</span>has_wallet_balance(tenant_id):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> lago_client<span style=color:#f92672>.</span>debit_wallet(
+</span></span><span style=display:flex><span>                tenant_id,
+</span></span><span style=display:flex><span>                amount<span style=color:#f92672>=</span><span style=color:#ae81ff>100</span>,  <span style=color:#75715e># ₽ за 1 ГБ</span>
+</span></span><span style=display:flex><span>                description<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Extra WiFi 1 GB&#34;</span>
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> openwrt_client<span style=color:#f92672>.</span>unblock_mac(mac_address)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> extend_quota(mac_address, <span style=color:#ae81ff>1024</span>)
+</span></span></code></pre></div><hr><h2 id=биллинг-коммунальных-ресурсов-homepass>Биллинг коммунальных ресурсов (HomePass)</h2><p>Умные счётчики → Home Assistant → биллинг (для аренды гостевого дома).</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HA automation: читать показания счётчика при выезде гостя</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Гостевой дом: выезд — биллинг&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>input_boolean.guest_house_occupied</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>to</span>: <span style=color:#e6db74>&#34;off&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>variables</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>kwh_used</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          {{ states(&#39;sensor.guest_house_energy_session&#39;) | float }}</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>water_used</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          {{ states(&#39;sensor.guest_house_water_session&#39;) | float }}</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>rest_command.lago_usage_event</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metric</span>: <span style=color:#e6db74>&#34;guest_house_electricity&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;{{ kwh_used }}&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>customer</span>: <span style=color:#e6db74>&#34;{{ states(&#39;input_text.current_guest_id&#39;) }}&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>rest_command.lago_usage_event</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>metric</span>: <span style=color:#e6db74>&#34;guest_house_water&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>value</span>: <span style=color:#e6db74>&#34;{{ water_used }}&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>customer</span>: <span style=color:#e6db74>&#34;{{ states(&#39;input_text.current_guest_id&#39;) }}&#34;</span>
+</span></span></code></pre></div><hr><h2 id=дашборд-биллинга>Дашборд биллинга</h2><div class=mermaid>graph TD
+subgraph REVENUE["Выручка (MRR)"]
+TP["TenantPass SaaS\nподписки"]
+EP["EventPass\nмероприятия"]
+SIP_REV["SIP-минуты\nCDR биллинг"]
+end
+subgraph METRICS["Ключевые метрики"]
+MRR["MRR (Monthly Recurring Revenue)"]
+ARPU["ARPU (Average Revenue Per User)"]
+CHURN["Churn Rate"]
+USAGE["Usage (чекины, минуты, ГБ)"]
+end
+subgraph TOOLS["Инструменты"]
+LAGO_DASH["Lago Dashboard\n(встроенный)"]
+GRAFANA["Grafana\nCustom metrics"]
+C1_REPORT["1С отчётность\nбаланс / P&L"]
+end
+REVENUE --> METRICS
+METRICS --> TOOLS</div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/tenantpass/>index</a>
+← <a href=/eventpass/>index</a>
+← <a href=/shared/sip-server/>sip-server</a>
+← <a href=/shared/network-access/>network-access</a>
+→ <a href=/tenantpass/compliance/152fz/>152fz</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

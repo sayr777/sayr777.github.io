@@ -1,0 +1,277 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Computer Vision · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/ml/>'ML-архитектура платформы *Pass'</a>
+<span class=crumb__sep>/</span>
+<span>Computer Vision</span></nav><article class=prose><h1>Computer Vision</h1><h1 id=computer-vision>Computer Vision</h1><p>*Задачи компьютерного зрения в платформе <em>Pass</em></p><hr><h2 id=задачи-cv-по-проектам>Задачи CV по проектам</h2><div class=mermaid>graph TD
+subgraph INPUT["Вход"]
+RTSP["RTSP потоки\nOpenIPC камеры"]
+SNAP["Снэпшоты\n(по событиям)"]
+end
+subgraph TASKS["CV-задачи"]
+DET["Object Detection\n(YOLO v8)\nлюди, машины, предметы"]
+FACE["Face Recognition\n(ArcFace / CompreFace)\nкто это?"]
+LPR["License Plate Recognition\n(PaddleOCR / Plate Recognizer)\nномер авто"]
+CROWD["Crowd Density Estimation\n(CSRNet)\nсколько людей в зоне"]
+ANTI["Anti-Spoofing\n(Liveness Detection)\nфото или живой человек"]
+ACTION["Action Recognition\n(fall detection, tailgating)\nчто делает человек"]
+LLM_V["Vision LLM\n(LLaVA + Ollama)\nтекстовое описание сцены"]
+end
+INPUT --> TASKS
+DET -->|person bbox| FACE & ACTION
+DET -->|vehicle bbox| LPR
+DET -->|person count| CROWD
+FACE -->|embedding| ANTI</div><hr><h2 id=yolo-v8--базовый-детектор>YOLO v8 — базовый детектор</h2><p>Frigate использует YOLO нативно. Нам нужны кастомные классы для СКУД.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/training/train_yolo.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> ultralytics <span style=color:#f92672>import</span> YOLO
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Fine-tune на наши классы</span>
+</span></span><span style=display:flex><span>model <span style=color:#f92672>=</span> YOLO(<span style=color:#e6db74>&#34;yolov8n.pt&#34;</span>)   <span style=color:#75715e># nano — быстрый, подходит для Coral TPU</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>results <span style=color:#f92672>=</span> model<span style=color:#f92672>.</span>train(
+</span></span><span style=display:flex><span>    data<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;dataset/scud.yaml&#34;</span>,
+</span></span><span style=display:flex><span>    epochs<span style=color:#f92672>=</span><span style=color:#ae81ff>100</span>,
+</span></span><span style=display:flex><span>    imgsz<span style=color:#f92672>=</span><span style=color:#ae81ff>640</span>,
+</span></span><span style=display:flex><span>    batch<span style=color:#f92672>=</span><span style=color:#ae81ff>16</span>,
+</span></span><span style=display:flex><span>    device<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;cuda&#34;</span>,   <span style=color:#75715e># или &#34;cpu&#34; для обучения без GPU</span>
+</span></span><span style=display:flex><span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># dataset/scud.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># names:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   0: person</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   1: vehicle</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   2: tailgating      ← кастомный класс: два человека в одном проходе</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   3: helmet          ← для стройплощадки EventPass</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   4: no_helmet       ← нарушение СИЗ</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   5: vest            ← светоотражающий жилет</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   6: no_vest         ← нарушение</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Экспорт в ONNX для Triton / Edge</span>
+</span></span><span style=display:flex><span>model<span style=color:#f92672>.</span>export(format<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;onnx&#34;</span>, dynamic<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>, simplify<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span><span style=color:#75715e># → runs/detect/train/weights/best.onnx</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># frigate.yml — custom YOLO модель</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>model</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>path</span>: <span style=color:#ae81ff>/models/scud-yolov8n.onnx</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>input_tensor</span>: <span style=color:#ae81ff>nchw</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>input_pixel_format</span>: <span style=color:#ae81ff>rgb</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>width</span>: <span style=color:#ae81ff>640</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>height</span>: <span style=color:#ae81ff>640</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>labelmap_path</span>: <span style=color:#ae81ff>/models/scud-labels.txt</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>detectors</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>coral</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>type</span>: <span style=color:#ae81ff>edgetpu</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device</span>: <span style=color:#ae81ff>usb       </span> <span style=color:#75715e># Google Coral USB Accelerator</span>
+</span></span></code></pre></div><hr><h2 id=face-recognition--compreface>Face Recognition — CompreFace</h2><div class=mermaid>sequenceDiagram
+participant F as Frigate
+participant DT as Double Take
+participant CF as CompreFace
+participant KC as Keycloak / HA
+F->>DT: person detected (snapshot)
+DT->>CF: POST /api/v1/recognition/recognize
+Note over CF: ArcFace embedding → cosine similarity
+CF-->>DT: [{subject: "Иванов", confidence: 0.97}]
+DT->>KC: user_recognized("Иванов", door_id, confidence)
+KC->>KC: если confidence > 0.85 AND карта → permit</div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/face/compreface_client.py</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> pathlib <span style=color:#f92672>import</span> Path
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>CF_URL <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;http://compreface:8000&#34;</span>
+</span></span><span style=display:flex><span>RECOGNITION_KEY <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;your-api-key&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>recognize_face</span>(image_path: str) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>with</span> open(image_path, <span style=color:#e6db74>&#34;rb&#34;</span>) <span style=color:#66d9ef>as</span> f:
+</span></span><span style=display:flex><span>            r <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>CF_URL<span style=color:#e6db74>}</span><span style=color:#e6db74>/api/v1/recognition/recognize&#34;</span>,
+</span></span><span style=display:flex><span>                headers<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;x-api-key&#34;</span>: RECOGNITION_KEY},
+</span></span><span style=display:flex><span>                files<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;file&#34;</span>: f},
+</span></span><span style=display:flex><span>                params<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;face_plugins&#34;</span>: <span style=color:#e6db74>&#34;age,gender,landmarks&#34;</span>,
+</span></span><span style=display:flex><span>                        <span style=color:#e6db74>&#34;limit&#34;</span>: <span style=color:#ae81ff>1</span>,
+</span></span><span style=display:flex><span>                        <span style=color:#e6db74>&#34;prediction_count&#34;</span>: <span style=color:#ae81ff>3</span>,
+</span></span><span style=display:flex><span>                        <span style=color:#e6db74>&#34;det_prob_threshold&#34;</span>: <span style=color:#ae81ff>0.8</span>}
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>    result <span style=color:#f92672>=</span> r<span style=color:#f92672>.</span>json()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;result&#34;</span>):
+</span></span><span style=display:flex><span>        best <span style=color:#f92672>=</span> result[<span style=color:#e6db74>&#34;result&#34;</span>][<span style=color:#ae81ff>0</span>][<span style=color:#e6db74>&#34;subjects&#34;</span>][<span style=color:#ae81ff>0</span>]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;subject&#34;</span>: best[<span style=color:#e6db74>&#34;subject&#34;</span>],
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;confidence&#34;</span>: best[<span style=color:#e6db74>&#34;similarity&#34;</span>],
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;age&#34;</span>: result[<span style=color:#e6db74>&#34;result&#34;</span>][<span style=color:#ae81ff>0</span>]<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;age&#34;</span>),
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;subject&#34;</span>: <span style=color:#e6db74>&#34;unknown&#34;</span>, <span style=color:#e6db74>&#34;confidence&#34;</span>: <span style=color:#ae81ff>0.0</span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>enroll_face</span>(person_id: str, image_path: str):
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Добавить лицо сотрудника в базу&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>with</span> open(image_path, <span style=color:#e6db74>&#34;rb&#34;</span>) <span style=color:#66d9ef>as</span> f:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>CF_URL<span style=color:#e6db74>}</span><span style=color:#e6db74>/api/v1/recognition/faces&#34;</span>,
+</span></span><span style=display:flex><span>                headers<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;x-api-key&#34;</span>: RECOGNITION_KEY},
+</span></span><span style=display:flex><span>                files<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;file&#34;</span>: f},
+</span></span><span style=display:flex><span>                params<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;subject&#34;</span>: person_id}
+</span></span><span style=display:flex><span>            )
+</span></span></code></pre></div><hr><h2 id=license-plate-recognition>License Plate Recognition</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/lpr/plate_reader.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Используем PaddleOCR (Apache 2.0) для распознавания русских номеров</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> paddleocr <span style=color:#f92672>import</span> PaddleOCR
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> cv2<span style=color:#f92672>,</span> re
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ocr <span style=color:#f92672>=</span> PaddleOCR(use_angle_cls<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>, lang<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;en&#34;</span>,
+</span></span><span style=display:flex><span>                det_model_dir<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;models/paddle/det&#34;</span>,
+</span></span><span style=display:flex><span>                rec_model_dir<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;models/paddle/rec_cyrillic&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>PLATE_PATTERN <span style=color:#f92672>=</span> re<span style=color:#f92672>.</span>compile(<span style=color:#e6db74>r</span><span style=color:#e6db74>&#34;[АВЕКМНОРСТУХ]\d</span><span style=color:#e6db74>{3}</span><span style=color:#e6db74>[АВЕКМНОРСТУХ]</span><span style=color:#e6db74>{2}</span><span style=color:#e6db74>\d{2,3}&#34;</span>, re<span style=color:#f92672>.</span>IGNORECASE)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>recognize_plate</span>(image: <span style=color:#e6db74>&#34;np.ndarray&#34;</span>) <span style=color:#f92672>-&gt;</span> str <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>    results <span style=color:#f92672>=</span> ocr<span style=color:#f92672>.</span>ocr(image, cls<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> line <span style=color:#f92672>in</span> (results[<span style=color:#ae81ff>0</span>] <span style=color:#f92672>or</span> []):
+</span></span><span style=display:flex><span>        text <span style=color:#f92672>=</span> line[<span style=color:#ae81ff>1</span>][<span style=color:#ae81ff>0</span>]<span style=color:#f92672>.</span>upper()<span style=color:#f92672>.</span>replace(<span style=color:#e6db74>&#34; &#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> PLATE_PATTERN<span style=color:#f92672>.</span><span style=color:#66d9ef>match</span>(text):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> text
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># MQTT → Frigate → детекция vehicle bbox → crop → LPR → событие</span>
+</span></span></code></pre></div><hr><h2 id=crowd-density-estimation>Crowd Density Estimation</h2><p>Используется в EventPass: сколько людей в зоне без подсчёта каждого бокса.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/crowd/density_model.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># CSRNet — предсказывает карту плотности → сумма = количество людей</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Работает при перекрытиях и большой плотности</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> torch
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> torchvision <span style=color:#f92672>import</span> transforms
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CrowdCounter</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, model_path: str):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model <span style=color:#f92672>=</span> torch<span style=color:#f92672>.</span>load(model_path, map_location<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;cpu&#34;</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>eval()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>transform <span style=color:#f92672>=</span> transforms<span style=color:#f92672>.</span>Compose([
+</span></span><span style=display:flex><span>            transforms<span style=color:#f92672>.</span>ToTensor(),
+</span></span><span style=display:flex><span>            transforms<span style=color:#f92672>.</span>Normalize([<span style=color:#ae81ff>0.485</span>,<span style=color:#ae81ff>0.456</span>,<span style=color:#ae81ff>0.406</span>],[<span style=color:#ae81ff>0.229</span>,<span style=color:#ae81ff>0.224</span>,<span style=color:#ae81ff>0.225</span>])
+</span></span><span style=display:flex><span>        ])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>count</span>(self, image: <span style=color:#e6db74>&#34;PIL.Image&#34;</span>) <span style=color:#f92672>-&gt;</span> float:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>with</span> torch<span style=color:#f92672>.</span>no_grad():
+</span></span><span style=display:flex><span>            tensor <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>transform(image)<span style=color:#f92672>.</span>unsqueeze(<span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>            density_map <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>model(tensor)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> float(density_map<span style=color:#f92672>.</span>sum())   <span style=color:#75715e># количество людей</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Интеграция с EventPass</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Каждые 30 сек → снэпшот зоны → CrowdCounter → MQTT → HA</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Если count &gt; zone.capacity → тревога организатору</span>
+</span></span></code></pre></div><hr><h2 id=tailgating-detection-хвостовой-заход>Tailgating Detection (хвостовой заход)</h2><p>Два человека проходят через одну точку доступа за одну авторизацию.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/access/tailgating_detector.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Метод: подсчёт людей в bbox зоны турникета до и после авторизации</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> collections <span style=color:#f92672>import</span> deque
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> dataclasses <span style=color:#f92672>import</span> dataclass
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> datetime
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@dataclass</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>TailgatingEvent</span>:
+</span></span><span style=display:flex><span>    door_id: str
+</span></span><span style=display:flex><span>    authorized_person: str
+</span></span><span style=display:flex><span>    extra_persons_count: int
+</span></span><span style=display:flex><span>    timestamp: datetime
+</span></span><span style=display:flex><span>    confidence: float
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>TailgatingDetector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>auth_events <span style=color:#f92672>=</span> deque(maxlen<span style=color:#f92672>=</span><span style=color:#ae81ff>100</span>)   <span style=color:#75715e># последние авторизации</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>on_access_granted</span>(self, person_id: str, door_id: str,
+</span></span><span style=display:flex><span>                          person_count_in_zone: int) <span style=color:#f92672>-&gt;</span> TailgatingEvent <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        Вызывается после успешной авторизации.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        person_count_in_zone — количество людей в зоне турникета
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        (из YOLO детекции за последние 2 секунды)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> person_count_in_zone <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>1</span>:
+</span></span><span style=display:flex><span>            extra <span style=color:#f92672>=</span> person_count_in_zone <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>            confidence <span style=color:#f92672>=</span> min(<span style=color:#ae81ff>0.5</span> <span style=color:#f92672>+</span> extra <span style=color:#f92672>*</span> <span style=color:#ae81ff>0.3</span>, <span style=color:#ae81ff>0.99</span>)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> TailgatingEvent(
+</span></span><span style=display:flex><span>                door_id<span style=color:#f92672>=</span>door_id,
+</span></span><span style=display:flex><span>                authorized_person<span style=color:#f92672>=</span>person_id,
+</span></span><span style=display:flex><span>                extra_persons_count<span style=color:#f92672>=</span>extra,
+</span></span><span style=display:flex><span>                timestamp<span style=color:#f92672>=</span>datetime<span style=color:#f92672>.</span>utcnow(),
+</span></span><span style=display:flex><span>                confidence<span style=color:#f92672>=</span>confidence
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>None</span>
+</span></span></code></pre></div><hr><h2 id=anti-spoofing-liveness-detection>Anti-Spoofing (Liveness Detection)</h2><p>Защита от атаки фотографией при биометрии. Особенно важно для EventPass.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/face/liveness.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Модель: MN3 или Silent-Face Anti-Spoofing (PyTorch)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Обучена различать живое лицо и фотографию/экран</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> torch
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> torchvision.transforms <span style=color:#66d9ef>as</span> T
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>LivenessDetector</span>:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model <span style=color:#f92672>=</span> torch<span style=color:#f92672>.</span>jit<span style=color:#f92672>.</span>load(<span style=color:#e6db74>&#34;models/silent_face.pt&#34;</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>model<span style=color:#f92672>.</span>eval()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>transform <span style=color:#f92672>=</span> T<span style=color:#f92672>.</span>Compose([
+</span></span><span style=display:flex><span>            T<span style=color:#f92672>.</span>Resize((<span style=color:#ae81ff>256</span>, <span style=color:#ae81ff>256</span>)),
+</span></span><span style=display:flex><span>            T<span style=color:#f92672>.</span>ToTensor(),
+</span></span><span style=display:flex><span>            T<span style=color:#f92672>.</span>Normalize([<span style=color:#ae81ff>0.5</span>,<span style=color:#ae81ff>0.5</span>,<span style=color:#ae81ff>0.5</span>],[<span style=color:#ae81ff>0.5</span>,<span style=color:#ae81ff>0.5</span>,<span style=color:#ae81ff>0.5</span>])
+</span></span><span style=display:flex><span>        ])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>is_live</span>(self, face_crop: <span style=color:#e6db74>&#34;PIL.Image&#34;</span>, threshold: float <span style=color:#f92672>=</span> <span style=color:#ae81ff>0.7</span>) <span style=color:#f92672>-&gt;</span> tuple[bool, float]:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>with</span> torch<span style=color:#f92672>.</span>no_grad():
+</span></span><span style=display:flex><span>            t <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>transform(face_crop)<span style=color:#f92672>.</span>unsqueeze(<span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>            score <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>model(t)<span style=color:#f92672>.</span>sigmoid()<span style=color:#f92672>.</span>item()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> score <span style=color:#f92672>&gt;</span> threshold, score
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Использование при биометрическом входе:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 1. Frigate → detect face → crop</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 2. LivenessDetector.is_live() → score</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 3. Если score &lt; 0.7 → отказать + зафиксировать попытку спуфинга</span>
+</span></span></code></pre></div><hr><h2 id=vision-llm-llava-через-ollama>Vision LLM (LLaVA через Ollama)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ml/vision_llm/scene_analyzer.py</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Описывает что происходит на камере → человеко-читаемый отчёт + алерты</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx<span style=color:#f92672>,</span> base64
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>analyze_scene</span>(image_path: str, context: str <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;&#34;</span>) <span style=color:#f92672>-&gt;</span> str:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> open(image_path, <span style=color:#e6db74>&#34;rb&#34;</span>) <span style=color:#66d9ef>as</span> f:
+</span></span><span style=display:flex><span>        image_b64 <span style=color:#f92672>=</span> base64<span style=color:#f92672>.</span>b64encode(f<span style=color:#f92672>.</span>read())<span style=color:#f92672>.</span>decode()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    prompt <span style=color:#f92672>=</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;&#34;&#34;Ты система безопасности. Опиши что ты видишь на изображении.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>Контекст: </span><span style=color:#e6db74>{</span>context<span style=color:#e6db74>}</span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>Обрати внимание на:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>- Количество людей и их действия
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>- Подозрительное поведение
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>- Наличие или отсутствие защитных средств (каска, жилет)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>- Любые аномалии
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>Ответ в формате JSON: </span><span style=color:#ae81ff>{{</span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;description&#34;: &#34;...&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;person_count&#34;: N,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;anomaly_detected&#34;: true/false,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;anomaly_description&#34;: &#34;...&#34;,
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  &#34;ppe_violations&#34;: []
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff>}}</span><span style=color:#e6db74>&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient(timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>30</span>) <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>        r <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(<span style=color:#e6db74>&#34;http://ollama:11434/api/generate&#34;</span>, json<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;model&#34;</span>: <span style=color:#e6db74>&#34;llava:7b&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;prompt&#34;</span>: prompt,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;images&#34;</span>: [image_b64],
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;stream&#34;</span>: <span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;format&#34;</span>: <span style=color:#e6db74>&#34;json&#34;</span>
+</span></span><span style=display:flex><span>        })
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> r<span style=color:#f92672>.</span>json()[<span style=color:#e6db74>&#34;response&#34;</span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Сценарии:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - Пожар / дым → немедленный алерт</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - Человек упал → man-down алерт</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - Нарушение ППЭ на стройплощадке → уведомление прораба</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - Подозрительное поведение у банкомата/сейфа → тревога охране</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/ml/>index</a>
+→ <a href=/ml/anomaly/>anomaly</a>
+→ <a href=/shared/video-surveillance/>video-surveillance</a>
+→ <a href=/shared/dn-beacon/>dn-beacon</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

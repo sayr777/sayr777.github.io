@@ -1,0 +1,66 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Модульная архитектура — «кубики» системы · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<span>Модульная архитектура — «кубики» системы</span></nav><article class=prose><h1>Модульная архитектура — «кубики» системы</h1><h1 id=модульная-архитектура--кубики-системы>Модульная архитектура — «кубики» системы</h1><p><em>Каждый проект собирается из стандартных модулей. Модули переиспользуются между проектами.</em></p><hr><h2 id=карта-модулей>Карта модулей</h2><div class=mermaid>graph TD
+subgraph CORE["Core модули (все проекты)"]
+M_IAM["🔑 IAM\nKeycloak\nАутентификация / авторизация"]
+M_NAC["🌐 NAC\nOpenWrt + FreeRADIUS\nСетевой контроль доступа"]
+M_VIDEO["📷 Видеонаблюдение\nOpenIPC + Frigate\nAI-детекция"]
+M_BACKUP["💾 Backup\nPostgreSQL WAL + S3"]
+end
+subgraph ACCESS["Access модули"]
+M_LOCKS["🚪 Замки\nESP32 + Wiegand\nФизический доступ"]
+M_MOTION["👁 Датчики движения\nPIR + mmWave\nПрисутствие"]
+M_INTERCOM["📞 Домофония\nAsterisk SIP"]
+end
+subgraph SENSORS["Sensor модули"]
+M_ENERGY["⚡ Энергоучёт\nPZEM + SDM630"]
+M_TEMP["🌡 Температура\nDS18B20 + BME280"]
+M_SWITCH["💡 Выключатели\nShelly + ESPHome"]
+M_PLUG["🔌 Розетки\nSonoff + Tasmota"]
+end
+subgraph MEDIA["Media модули"]
+M_PA["📢 PA-оповещение\nAsterisk PA"]
+M_MUSIC["🎵 Фоновая музыка\nLiquidsoap + Icecast"]
+end
+subgraph BILLING["Billing модули"]
+M_USAGE["📊 Usage биллинг\nOpenMeter / Lago"]
+M_INVOICE["🧾 Счета\nInvoiceNinja / Crater"]
+M_PAYMENT["💳 Оплата\nYooKassa"]
+end
+subgraph ANALYTICS["Analytics модули"]
+M_TABEL["📋 Табель СУРВ\nworkforce-time"]
+M_EVENTS["📈 Аналитика событий\nClickHouse + Grafana"]
+end
+TP["TenantPass"] --- M_IAM & M_NAC & M_VIDEO & M_LOCKS
+TP --- M_MOTION & M_ENERGY & M_TEMP & M_SWITCH
+TP --- M_INTERCOM & M_PA & M_MUSIC & M_USAGE & M_INVOICE & M_TABEL
+HP["HomePass"] --- M_IAM & M_VIDEO & M_LOCKS & M_MOTION
+HP --- M_ENERGY & M_TEMP & M_SWITCH & M_PLUG
+HP --- M_INTERCOM & M_PA & M_MUSIC & M_BACKUP
+EP["EventPass"] --- M_IAM & M_NAC & M_VIDEO & M_LOCKS
+EP --- M_MOTION & M_USAGE & M_INVOICE & M_PAYMENT
+EP --- M_PA & M_EVENTS</div><hr><h2 id=tenantpass--набор-модулей>TenantPass — набор модулей</h2><h3 id=минимальный-базовый-скуд>Минимальный (базовый СКУД)</h3><table><thead><tr><th>Модуль</th><th>Страница</th><th>Обязателен</th></tr></thead><tbody><tr><td>🔑 IAM (Keycloak)</td><td><a href=/shared/keycloak-topology/>keycloak-topology</a></td><td>✅</td></tr><tr><td>🚪 Замки (ESP32+Wiegand)</td><td><a href=/shared/smart-locks/>smart-locks</a></td><td>✅</td></tr><tr><td>💾 Backup (PostgreSQL+S3)</td><td><a href=/shared/backup-strategy/>backup-strategy</a></td><td>✅</td></tr><tr><td>🌐 NAC (OpenWrt+FreeRADIUS)</td><td><a href=/shared/network-access/>network-access</a></td><td>✅</td></tr></tbody></table><h3 id=стандартный-скуд--сурв--видео>Стандартный (СКУД + СУРВ + видео)</h3><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>📷 Видеонаблюдение</td><td><a href=/shared/video-surveillance/>video-surveillance</a></td></tr><tr><td>👁 Датчики движения</td><td><a href=/shared/smart-motion/>smart-motion</a></td></tr><tr><td>📋 Табель СУРВ</td><td><a href=/tenantpass/workforce-time/>workforce-time</a></td></tr><tr><td>⚡ Энергоучёт</td><td><a href=/shared/smart-meter-energy/>smart-meter-energy</a></td></tr><tr><td>💡 Умные выключатели</td><td><a href=/shared/smart-switch/>smart-switch</a></td></tr></tbody></table><h3 id=расширенный-биллинг-медиа>Расширенный (+биллинг +медиа)</h3><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>📊 Usage биллинг</td><td><a href=/shared/billing/>billing</a></td></tr><tr><td>🎵 Фоновая музыка</td><td><a href=/shared/background-music/>background-music</a></td></tr><tr><td>📢 PA-оповещение</td><td><a href=/shared/sip-audio/>sip-audio</a></td></tr><tr><td>📞 Телефония</td><td><a href=/shared/sip-server/>sip-server</a></td></tr><tr><td>🌡 Датчики температуры</td><td><a href=/shared/smart-meter-temp/>smart-meter-temp</a></td></tr></tbody></table><hr><h2 id=homepass--набор-модулей>HomePass — набор модулей</h2><h3 id=минимальный-базовая-автоматизация>Минимальный (базовая автоматизация)</h3><table><thead><tr><th>Модуль</th><th>Страница</th><th>Обязателен</th></tr></thead><tbody><tr><td>🏠 Home Assistant</td><td><a href=/home/stack/>stack</a></td><td>✅</td></tr><tr><td>💡 Умные выключатели</td><td><a href=/shared/smart-switch/>smart-switch</a></td><td>✅</td></tr><tr><td>🌡 Температура</td><td><a href=/shared/smart-meter-temp/>smart-meter-temp</a></td><td>✅</td></tr><tr><td>🚪 Замки</td><td><a href=/shared/smart-locks/>smart-locks</a></td><td>✅</td></tr><tr><td>💾 Backup (Git+HA)</td><td><a href=/shared/backup-strategy/>backup-strategy</a></td><td>✅</td></tr></tbody></table><h3 id=стандартный-безопасность-энергия>Стандартный (+безопасность +энергия)</h3><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>📷 Видеонаблюдение</td><td><a href=/shared/video-surveillance/>video-surveillance</a></td></tr><tr><td>👁 Датчики движения</td><td><a href=/shared/smart-motion/>smart-motion</a></td></tr><tr><td>⚡ Энергоучёт</td><td><a href=/shared/smart-meter-energy/>smart-meter-energy</a></td></tr><tr><td>🔌 Умные розетки</td><td><a href=/shared/smart-plug/>smart-plug</a></td></tr><tr><td>🔄 Отказоустойчивость</td><td><a href=/home/resilience/>resilience</a></td></tr></tbody></table><h3 id=полный-медиа-голос>Полный (+медиа +голос)</h3><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>📞 Домофония</td><td><a href=/shared/sip-server/>sip-server</a></td></tr><tr><td>📢 PA-оповещение</td><td><a href=/shared/sip-audio/>sip-audio</a></td></tr><tr><td>🎵 Музыка</td><td><a href=/shared/background-music/>background-music</a></td></tr><tr><td>🌐 NAC (гостевой WiFi)</td><td><a href=/shared/network-access/>network-access</a></td></tr></tbody></table><hr><h2 id=eventpass--набор-модулей>EventPass — набор модулей</h2><h3 id=минимальный-qr-контроль-доступа>Минимальный (QR-контроль доступа)</h3><table><thead><tr><th>Модуль</th><th>Страница</th><th>Обязателен</th></tr></thead><tbody><tr><td>🔑 IAM (Keycloak)</td><td><a href=/shared/keycloak-topology/>keycloak-topology</a></td><td>✅</td></tr><tr><td>📱 Offline QR сканер</td><td><a href=/eventpass/offline-scanner/>offline-scanner</a></td><td>✅</td></tr><tr><td>💳 Оплата (YooKassa)</td><td><a href=/shared/billing/>billing</a></td><td>✅</td></tr><tr><td>💾 Backup</td><td><a href=/shared/backup-strategy/>backup-strategy</a></td><td>✅</td></tr></tbody></table><h3 id=стандартный-видео-аналитика>Стандартный (+видео +аналитика)</h3><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>📷 Видеонаблюдение</td><td><a href=/shared/video-surveillance/>video-surveillance</a></td></tr><tr><td>👁 Подсчёт людей (mmWave)</td><td><a href=/shared/smart-motion/>smart-motion</a></td></tr><tr><td>🌐 NAC (гостевой WiFi)</td><td><a href=/shared/network-access/>network-access</a></td></tr><tr><td>📈 Аналитика ClickHouse</td><td><a href=/eventpass/analytics-pipeline/>analytics-pipeline</a></td></tr></tbody></table><h3 id=расширенный-инфраструктура>Расширенный (+инфраструктура)</h3><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>🚪 Физические замки</td><td><a href=/shared/smart-locks/>smart-locks</a></td></tr><tr><td>⚡ Энергоучёт</td><td><a href=/shared/smart-meter-energy/>smart-meter-energy</a></td></tr><tr><td>📊 Usage биллинг</td><td><a href=/shared/billing/>billing</a></td></tr><tr><td>📢 PA-оповещение</td><td><a href=/shared/sip-audio/>sip-audio</a></td></tr><tr><td>🎵 Музыка на мероприятии</td><td><a href=/shared/background-music/>background-music</a></td></tr></tbody></table><hr><h2 id=матрица-модулей--проекты>Матрица модулей × проекты</h2><table><thead><tr><th>Модуль</th><th>HomePass</th><th>TenantPass</th><th>EventPass</th></tr></thead><tbody><tr><td>IAM (Keycloak)</td><td>HA Auth</td><td>✅ Core</td><td>✅ Core</td></tr><tr><td>Замки</td><td>✅</td><td>✅</td><td>✅ опционально</td></tr><tr><td>Видеонаблюдение</td><td>✅</td><td>✅</td><td>✅</td></tr><tr><td>Датчики движения</td><td>✅</td><td>✅</td><td>✅ (счётчик)</td></tr><tr><td>Энергоучёт</td><td>✅</td><td>✅</td><td>⚙️ стройплощадка</td></tr><tr><td>Температура</td><td>✅</td><td>✅ серверная</td><td>⚙️ стройплощадка</td></tr><tr><td>Умные выключатели</td><td>✅</td><td>✅</td><td>—</td></tr><tr><td>Умные розетки</td><td>✅</td><td>✅</td><td>⚙️ мероприятие</td></tr><tr><td>PA-оповещение</td><td>✅</td><td>✅</td><td>✅</td></tr><tr><td>Фоновая музыка</td><td>✅</td><td>✅</td><td>✅</td></tr><tr><td>Телефония (Asterisk)</td><td>✅</td><td>✅</td><td>—</td></tr><tr><td>NAC (FreeRADIUS)</td><td>⚙️ гостевой WiFi</td><td>✅</td><td>✅</td></tr><tr><td>Биллинг usage</td><td>—</td><td>✅</td><td>✅</td></tr><tr><td>Табель СУРВ</td><td>—</td><td>✅</td><td>⚙️ стройплощадка</td></tr><tr><td>Аналитика (ClickHouse)</td><td>—</td><td>⚙️ HR</td><td>✅</td></tr><tr><td>Offline QR</td><td>—</td><td>—</td><td>✅</td></tr></tbody></table><hr><h2 id=порядок-развёртывания-новый-объект>Порядок развёртывания (новый объект)</h2><div class=mermaid>graph LR
+S1["1. NAC\nVLAN + WiFi\n(базовая сеть)"]
+S2["2. IAM\nKeycloak\n(учётки)"]
+S3["3. Замки\nESP32 + считыватели\n(СКУД)"]
+S4["4. Камеры\nOpenIPC + Frigate\n(видео)"]
+S5["5. Датчики\ntempература, энергия\n(мониторинг)"]
+S6["6. Медиа\nPA + музыка\n(сервисы)"]
+S7["7. Биллинг\nOpenMeter + YooKassa\n(монетизация)"]
+S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7</div><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/>index</a>
+← <a href=/home/index/>index</a>
+← <a href=/eventpass/>index</a>
+→ <a href=/shared/>index</a>
+→ <a href=/shared/license-audit/>license-audit</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

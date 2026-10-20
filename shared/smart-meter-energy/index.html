@@ -1,0 +1,301 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Умный счётчик электроэнергии · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Умный счётчик электроэнергии</span></nav><article class=prose><h1>Умный счётчик электроэнергии</h1><h1 id=умный-счётчик-электроэнергии>Умный счётчик электроэнергии</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=стек-всё-бесплатное--дешёвое-железо>Стек (всё бесплатное / дешёвое железо)</h2><table><thead><tr><th>Компонент</th><th>Роль</th><th>Цена</th></tr></thead><tbody><tr><td><strong>PZEM-004T v3</strong></td><td>Однофазный счётчик, UART/Modbus</td><td>~400 ₽</td></tr><tr><td><strong>PZEM-017</strong></td><td>DC-счётчик (АКБ / солнечные панели)</td><td>~500 ₽</td></tr><tr><td><strong>SDM120-Modbus</strong></td><td>DIN-рейка, однофазный, профессиональный</td><td>~1 500 ₽</td></tr><tr><td><strong>SDM630-Modbus</strong></td><td>DIN-рейка, трёхфазный</td><td>~3 500 ₽</td></tr><tr><td><strong>Меркурий 206 / 230</strong></td><td>Российский счётчик, RS-485</td><td>~3 000 ₽</td></tr><tr><td><strong>ESP32 + ESPHome</strong></td><td>Мост Modbus/UART → WiFi → HA</td><td>~300 ₽</td></tr><tr><td><strong>Shelly EM</strong></td><td>Готовый WiFi, CT-клещи</td><td>~2 500 ₽</td></tr><tr><td><strong>Home Assistant</strong></td><td>Хранение, аналитика, автоматизации</td><td>0 ₽</td></tr></tbody></table><hr><h2 id=архитектура>Архитектура</h2><div class=mermaid>graph TD
+subgraph METERS["Счётчики / сенсоры"]
+PZEM["PZEM-004T v3\nUART/Modbus"]
+SDM["SDM630\n3-фазный Modbus"]
+MERCURY["Меркурий 230\nRS-485"]
+SHELLY["Shelly EM\nCT-клещи WiFi"]
+PZEM_DC["PZEM-017\nDC (АКБ/солнце)"]
+end
+subgraph BRIDGE["Шлюз"]
+ESP_MOD["ESP32 + ESPHome\nModbus RTU → WiFi"]
+RS485["MAX485 / TTL→RS485\nпреобразователь"]
+end
+subgraph HA["Home Assistant"]
+ENERGY["Energy Dashboard\nнативный дашборд"]
+STATS["Statistics\nкВт·ч по периодам"]
+ALERT["Автоматизации\nалерты / управление"]
+end
+subgraph BILLING["Биллинг"]
+LAGO["Lago\nUsage Events"]
+C1["1С:Бухгалтерия"]
+end
+PZEM & PZEM_DC -->|UART| ESP_MOD
+SDM & MERCURY -->|RS-485| RS485 --> ESP_MOD
+ESP_MOD -->|ESPHome native API| HA
+SHELLY -->|WiFi / MQTT| HA
+HA --> BILLING</div><hr><h2 id=pzem-004t-v3--самый-дешёвый-вариант>PZEM-004T v3 — самый дешёвый вариант</h2><p>Модуль измеряет: напряжение, ток, мощность, энергию, частоту, cos φ. Точность ±0.5%.</p><h3 id=схема-подключения>Схема подключения</h3><pre tabindex=0><code>Однофазная сеть (220В):
+  L (фаза) → PZEM-004T → нагрузка
+  N (ноль) → PZEM-004T → нагрузка
+
+  PZEM UART:
+    TX → ESP32 GPIO16 (RX2)
+    RX → ESP32 GPIO17 (TX2)
+    VCC → 5В
+    GND → GND
+
+  ⚠ Гальваническая развязка обязательна при работе со 220В!
+     Используйте оптопару или готовый PZEM с изолированным UART.
+</code></pre><h3 id=esphome-конфигурация>ESPHome конфигурация</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/energy-meter.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>esphome</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>energy-meter</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ESP32</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>board</span>: <span style=color:#ae81ff>esp32dev</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wifi</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ssid</span>: !<span style=color:#ae81ff>secret wifi_ssid</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>password</span>: !<span style=color:#ae81ff>secret wifi_password</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>api</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>encryption</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>key</span>: !<span style=color:#ae81ff>secret api_key</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>ota</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>password</span>: !<span style=color:#ae81ff>secret ota_password</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>uart</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>id</span>: <span style=color:#ae81ff>pzem_uart</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>tx_pin</span>: <span style=color:#ae81ff>GPIO17</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>rx_pin</span>: <span style=color:#ae81ff>GPIO16</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>baud_rate</span>: <span style=color:#ae81ff>9600</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>stop_bits</span>: <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>pzemac         </span> <span style=color:#75715e># PZEM-004T v3</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>current</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Ток&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>A</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>voltage</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Напряжение&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>V</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>energy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Потребление&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>kWh</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>energy</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state_class</span>: <span style=color:#ae81ff>total_increasing  </span> <span style=color:#75715e># для HA Energy Dashboard</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>power</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Мощность&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>W</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>power</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>frequency</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Частота&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>Hz</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>power_factor</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Коэффициент мощности&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>10s</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>uart_id</span>: <span style=color:#ae81ff>pzem_uart</span>
+</span></span></code></pre></div><hr><h2 id=sdm630--трёхфазный-профессиональный>SDM630 — трёхфазный профессиональный</h2><p>Для TenantPass (офис/объект) и стройплощадки. Din-рейка, RS-485 Modbus RTU.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/energy-meter-3phase.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>modbus</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>id</span>: <span style=color:#ae81ff>modbus1</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>uart_id</span>: <span style=color:#ae81ff>modbus_uart</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>modbus_controller</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>id</span>: <span style=color:#ae81ff>sdm630</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x01</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>modbus_id</span>: <span style=color:#ae81ff>modbus1</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>30s</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Трёхфазные значения</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>modbus_controller</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>modbus_controller_id</span>: <span style=color:#ae81ff>sdm630</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Фаза A — напряжение&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x0000</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>register_type</span>: <span style=color:#ae81ff>holding</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>value_type</span>: <span style=color:#ae81ff>FP32</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>V</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>accuracy_decimals</span>: <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>modbus_controller</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>modbus_controller_id</span>: <span style=color:#ae81ff>sdm630</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Фаза A — ток&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x0006</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>register_type</span>: <span style=color:#ae81ff>holding</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>value_type</span>: <span style=color:#ae81ff>FP32</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>A</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>modbus_controller</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>modbus_controller_id</span>: <span style=color:#ae81ff>sdm630</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Мощность суммарная&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x0034</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>register_type</span>: <span style=color:#ae81ff>holding</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>value_type</span>: <span style=color:#ae81ff>FP32</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>W</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>power</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>modbus_controller</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>modbus_controller_id</span>: <span style=color:#ae81ff>sdm630</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Потребление суммарное&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x0156</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>register_type</span>: <span style=color:#ae81ff>holding</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>value_type</span>: <span style=color:#ae81ff>FP32</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>kWh</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>energy</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>state_class</span>: <span style=color:#ae81ff>total_increasing</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>accuracy_decimals</span>: <span style=color:#ae81ff>2</span>
+</span></span></code></pre></div><hr><h2 id=меркурий-206--230--российский-счётчик>Меркурий 206 / 230 — российский счётчик</h2><p>Широко распространён в России. Протокол — собственный поверх RS-485 (Mercury protocol), или CAN. Есть библиотеки для ESPHome и HA.</p><h3 id=вариант-a-esphome--кастомный-компонент>Вариант A: ESPHome + кастомный компонент</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/mercury-206.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Используем внешний компонент для протокола Меркурий</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>external_components</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>source</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>type</span>: <span style=color:#ae81ff>git</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>url</span>: <span style=color:#ae81ff>https://github.com/custom-components/esphome-mercury-energy-meter</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>components</span>: [<span style=color:#ae81ff>mercury_energy_meter]</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>uart</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>id</span>: <span style=color:#ae81ff>mercury_uart</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>baud_rate</span>: <span style=color:#ae81ff>9600</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>tx_pin</span>: <span style=color:#ae81ff>GPIO17</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>rx_pin</span>: <span style=color:#ae81ff>GPIO16</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>mercury_energy_meter</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>uart_id</span>: <span style=color:#ae81ff>mercury_uart</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0</span>               <span style=color:#75715e># 0 = broadcast (если один счётчик)</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>password</span>: <span style=color:#e6db74>&#34;111111&#34;</span>       <span style=color:#75715e># заводской пароль</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>energy</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Меркурий — энергия&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>state_class</span>: <span style=color:#ae81ff>total_increasing</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>power</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Меркурий — мощность&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>voltage</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Меркурий — напряжение&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>current</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Меркурий — ток&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>60s</span>
+</span></span></code></pre></div><h3 id=вариант-b-rs-485-usb-адаптер--ha-напрямую>Вариант B: RS-485 USB-адаптер → HA напрямую</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># configuration.yaml (HA)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Интеграция: Mercury Energy Meter (HACS)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>mercury_energy_meter</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>port</span>: <span style=color:#ae81ff>/dev/ttyUSB0</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>scan_interval</span>: <span style=color:#ae81ff>60</span>
+</span></span></code></pre></div><hr><h2 id=shelly-em--быстрый-старт-без-пайки>Shelly EM — быстрый старт без пайки</h2><p>Shelly EM — готовое WiFi-устройство с двумя каналами CT-клещей. Устанавливается в щиток за 5 минут.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Home Assistant: интеграция Shelly</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Через Settings → Devices → Add Integration → Shelly</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Автоматически создаёт сенсоры:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.shelly_em_channel_1_power    (Вт)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.shelly_em_channel_1_energy   (кВт·ч)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.shelly_em_channel_2_power</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.shelly_em_channel_2_energy</span>
+</span></span></code></pre></div><hr><h2 id=home-assistant-energy-dashboard>Home Assistant Energy Dashboard</h2><p>Нативный дашборд HA для мониторинга энергопотребления. Требует сенсоры с <code>state_class: total_increasing</code>.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># configuration.yaml — настройка Energy Dashboard</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>homeassistant</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>customize</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>sensor.energy_main</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Ввод дома&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>sensor.energy_garage</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Гараж&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>sensor.energy_sauna</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Баня&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>sensor.energy_guest</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Гостевой дом&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Energy → Settings:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   Electricity grid → Consumed: sensor.energy_main</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   Individual devices:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#     - sensor.energy_garage</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#     - sensor.energy_sauna</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#     - sensor.energy_guest</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#     - sensor.energy_boiler</span>
+</span></span></code></pre></div><hr><h2 id=субучёт-по-тенантам-tenantpass>Субучёт по тенантам (TenantPass)</h2><p>Для биллинга — каждый арендатор имеет отдельный счётчик.</p><div class=mermaid>graph TD
+MAIN["Вводной счётчик\nSDM630 (здание)"]
+SUB1["Субсчётчик\nТенант А"]
+SUB2["Субсчётчик\nТенант Б"]
+SUB3["Субсчётчик\nОбщие зоны"]
+HA["Home Assistant\nагрегация"]
+LAGO["Lago\nUsage Events\n→ счёт тенанту"]
+MAIN --> SUB1 & SUB2 & SUB3
+SUB1 & SUB2 & SUB3 --> HA
+HA -->|ежечасно: кВт·ч дельта| LAGO</div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># ha_lago_bridge.py — отправка потребления в Lago каждый час</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> homeassistant_client<span style=color:#f92672>,</span> httpx<span style=color:#f92672>,</span> asyncio
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> datetime <span style=color:#f92672>import</span> datetime
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>sync_energy_to_lago</span>():
+</span></span><span style=display:flex><span>    ha <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> homeassistant_client<span style=color:#f92672>.</span>connect(<span style=color:#e6db74>&#34;http://ha:8123&#34;</span>, token<span style=color:#f92672>=</span>HA_TOKEN)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    tenants <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;tenant-a&#34;</span>: <span style=color:#e6db74>&#34;sensor.energy_tenant_a&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;tenant-b&#34;</span>: <span style=color:#e6db74>&#34;sensor.energy_tenant_b&#34;</span>,
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> tenant_id, sensor <span style=color:#f92672>in</span> tenants<span style=color:#f92672>.</span>items():
+</span></span><span style=display:flex><span>        state <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> ha<span style=color:#f92672>.</span>get_state(sensor)
+</span></span><span style=display:flex><span>        kwh <span style=color:#f92672>=</span> float(state<span style=color:#f92672>.</span>state)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> lago<span style=color:#f92672>.</span>post(<span style=color:#e6db74>&#34;/api/v1/events&#34;</span>, json<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;event&#34;</span>: {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;transaction_id&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;energy-</span><span style=color:#e6db74>{</span>tenant_id<span style=color:#e6db74>}</span><span style=color:#e6db74>-</span><span style=color:#e6db74>{</span>int(datetime<span style=color:#f92672>.</span>now()<span style=color:#f92672>.</span>timestamp())<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;external_customer_id&#34;</span>: tenant_id,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;code&#34;</span>: <span style=color:#e6db74>&#34;electricity_kwh&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;properties&#34;</span>: {<span style=color:#e6db74>&#34;kwh&#34;</span>: kwh}
+</span></span><span style=display:flex><span>        }})
+</span></span></code></pre></div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=homepass--распределение-по-строениям>HomePass — распределение по строениям</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># 5 счётчиков: ввод + 4 строения</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensors</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>sensor.energy_main         </span> <span style=color:#75715e># вводной (SDM120)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>sensor.energy_house        </span> <span style=color:#75715e># дом (PZEM-004T)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>sensor.energy_garage       </span> <span style=color:#75715e># гараж (PZEM-004T)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>sensor.energy_sauna        </span> <span style=color:#75715e># баня (PZEM-004T)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>sensor.energy_guest_house  </span> <span style=color:#75715e># гостевой дом (PZEM-004T)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>sensor.energy_solar        </span> <span style=color:#75715e># солнечные панели (PZEM-017 DC)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#ae81ff>sensor.energy_battery      </span> <span style=color:#75715e># АКБ / ИБП (PZEM-017 DC)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Автоматизация: гости платят за электроэнергию в гостевом доме</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># → показания при заезде/выезде → Lago → счёт</span>
+</span></span></code></pre></div><h3 id=tenantpass--субучёт-арендаторов>TenantPass — субучёт арендаторов</h3><pre tabindex=0><code>SDM630 (вводной, трёхфазный) — на вводе здания
+SDM120 × N (субсчётчики) — на каждого арендатора
+→ HA Energy Dashboard с фильтром по tenant_id
+→ Lago: почасовой usage event → счёт в конце месяца
+</code></pre><h3 id=eventpass-стройплощадка>EventPass (стройплощадка)</h3><pre tabindex=0><code>Стройплощадка: временное подключение к электросети
+PZEM-004T на каждом щитке строительном (бытовке, башенном кране)
+ESP32 с 4G (нет WiFi на стройке)
+→ MQTT → HA → отчёт по потреблению
+→ Алерт при превышении мощности (защита от КЗ)
+→ Биллинг субподрядчиков по факту потребления
+</code></pre><hr><h2 id=защита-и-алерты-в-ha>Защита и алерты в HA</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># automation: потребление превысило порог</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Электро: критическое потребление&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.power_main</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>9000</span>      <span style=color:#75715e># Вт (при вводе 16А × 220В = 3520Вт, корректируйте)</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>title</span>: <span style=color:#e6db74>&#34;Высокое потребление!&#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          Сейчас: {{ states(&#39;sensor.power_main&#39;) }} Вт.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          Проверьте что включено.</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># automation: нет сети → ИБП / генератор</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Электро: пропало напряжение&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.voltage_main</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>below</span>: <span style=color:#ae81ff>180</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Напряжение упало до {{ states(&#39;sensor.voltage_main&#39;) }}В&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_off</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>:
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.boiler_gvs    </span> <span style=color:#75715e># отключить бойлер (приоритет 4)</span>
+</span></span><span style=display:flex><span>          - <span style=color:#ae81ff>switch.warm_floor_2  </span> <span style=color:#75715e># тёплый пол 2 этаж</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/home/systems/electricity/>electricity</a>
+← <a href=/tenantpass/>index</a>
+← <a href=/eventpass/construction/>construction</a>
+→ <a href=/shared/billing/>billing</a>
+→ <a href=/shared/smart-meter-temp/>smart-meter-temp</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

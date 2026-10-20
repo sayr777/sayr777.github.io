@@ -1,0 +1,139 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Топология Keycloak (замечание 14) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Топология Keycloak (замечание 14)</span></nav><article class=prose><h1>Топология Keycloak (замечание 14)</h1><h1 id=топология-keycloak-замечание-14>Топология Keycloak (замечание 14)</h1><p><em>Shared vs отдельный Keycloak для каждого проекта</em></p><hr><h2 id=решение-отдельные-реалмы-один-кластер>Решение: отдельные реалмы, один кластер</h2><p>Один кластер Keycloak, три изолированных realm:</p><div class=mermaid>graph TD
+subgraph KC["Keycloak Cluster (2 ноды HA)"]
+REALM_TP["Realm: tenantpass\nОрганизации = арендаторы\nUsers = сотрудники"]
+REALM_EP["Realm: eventpass\nОрганизации = мероприятия\nUsers = участники/организаторы"]
+REALM_MASTER["Realm: master\nТолько admin-операции\nне используется для auth"]
+DB_KC["PostgreSQL\nKeycloak DB\n(отдельная от app БД)"]
+end
+TP_API["TenantPass API"] --> REALM_TP
+EP_API["EventPass API"] --> REALM_EP
+ADMIN["Keycloak Admin"] --> REALM_MASTER
+KC --- DB_KC</div><hr><h2 id=почему-один-кластер-а-не-три-инстанса>Почему один кластер, а не три инстанса</h2><table><thead><tr><th>Критерий</th><th>Три инстанса</th><th>Один кластер, три realm</th></tr></thead><tbody><tr><td>Изоляция данных</td><td>Полная</td><td>Полная (realm = изолировано)</td></tr><tr><td>Ресурсы</td><td>3×RAM (3×512 МБ min)</td><td>1×RAM (1–2 ГБ)</td></tr><tr><td>Обновления</td><td>3 отдельных деплоя</td><td>Один деплой</td></tr><tr><td>Мониторинг</td><td>3 набора метрик</td><td>Один набор</td></tr><tr><td>SPOF</td><td>Три SPOF вместо одного</td><td>Один SPOF → решить через HA</td></tr><tr><td>Рекомендация</td><td>Enterprise с разными физическими зонами</td><td>✅ Для стартапа/MVP</td></tr></tbody></table><hr><h2 id=высокая-доступность-keycloak-2-ноды>Высокая доступность Keycloak (2 ноды)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.keycloak-ha.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>keycloak-1</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>quay.io/keycloak/keycloak:23.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB</span>: <span style=color:#ae81ff>postgres</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB_URL</span>: <span style=color:#ae81ff>jdbc:postgresql://postgres:5432/keycloak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB_USERNAME</span>: <span style=color:#ae81ff>keycloak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_DB_PASSWORD</span>: <span style=color:#ae81ff>secret</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_HOSTNAME</span>: <span style=color:#ae81ff>auth.tenantpass.ru</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_HTTP_ENABLED</span>: <span style=color:#e6db74>&#34;true&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_PROXY</span>: <span style=color:#ae81ff>edge</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_CACHE</span>: <span style=color:#ae81ff>ispn             </span> <span style=color:#75715e># Infinispan distributed cache</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>KC_CACHE_STACK</span>: <span style=color:#ae81ff>kubernetes </span> <span style=color:#75715e># или &#39;tcp&#39; для Docker</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>JGROUPS_DISCOVERY_PROTOCOL</span>: <span style=color:#ae81ff>TCPPING</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>JGROUPS_DISCOVERY_INITIAL_HOSTS</span>: <span style=color:#e6db74>&#34;keycloak-1[7600],keycloak-2[7600]&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>start</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8080&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>keycloak_net</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>keycloak-2</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>quay.io/keycloak/keycloak:23.0</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#75715e># Те же переменные что и keycloak-1</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>JGROUPS_DISCOVERY_INITIAL_HOSTS</span>: <span style=color:#e6db74>&#34;keycloak-1[7600],keycloak-2[7600]&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>command</span>: <span style=color:#ae81ff>start</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8080&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>keycloak_net</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>nginx-lb</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>nginx:alpine</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>volumes</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>./nginx-kc.conf:/etc/nginx/conf.d/default.conf</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;443:443&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>depends_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>keycloak-1</span>
+</span></span><span style=display:flex><span>      - <span style=color:#ae81ff>keycloak-2</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>postgres</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>postgres:15</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>POSTGRES_DB</span>: <span style=color:#ae81ff>keycloak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>POSTGRES_USER</span>: <span style=color:#ae81ff>keycloak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>POSTGRES_PASSWORD</span>: <span style=color:#ae81ff>secret</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>networks</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>keycloak_net</span>:
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-nginx data-lang=nginx><span style=display:flex><span><span style=color:#75715e># nginx-kc.conf — балансировка между двумя нодами
+</span></span></span><span style=display:flex><span><span style=color:#66d9ef>upstream</span> <span style=color:#e6db74>keycloak</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>least_conn</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>server</span> keycloak-1:<span style=color:#ae81ff>8080</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>server</span> keycloak-2:<span style=color:#ae81ff>8080</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>keepalive</span> <span style=color:#ae81ff>32</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>server</span> {
+</span></span><span style=display:flex><span>    <span style=color:#f92672>listen</span> <span style=color:#ae81ff>443</span> <span style=color:#e6db74>ssl</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>server_name</span> <span style=color:#e6db74>auth.tenantpass.ru</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ssl_certificate</span>     <span style=color:#e6db74>/etc/ssl/certs/tenantpass.crt</span>;
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ssl_certificate_key</span> <span style=color:#e6db74>/etc/ssl/private/tenantpass.key</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>location</span> <span style=color:#e6db74>/</span> {
+</span></span><span style=display:flex><span>        <span style=color:#f92672>proxy_pass</span> <span style=color:#e6db74>http://keycloak</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>proxy_set_header</span> <span style=color:#e6db74>X-Forwarded-For</span> $remote_addr;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>proxy_set_header</span> <span style=color:#e6db74>X-Forwarded-Proto</span> <span style=color:#e6db74>https</span>;
+</span></span><span style=display:flex><span>        <span style=color:#f92672>proxy_set_header</span> <span style=color:#e6db74>Host</span> $host;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><h2 id=realm-конфигурация>Realm-конфигурация</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Создание realm через Keycloak Admin CLI</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># TenantPass realm</span>
+</span></span><span style=display:flex><span>kcadm.sh create realms -s realm<span style=color:#f92672>=</span>tenantpass -s enabled<span style=color:#f92672>=</span>true <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -s ssoSessionMaxLifespan<span style=color:#f92672>=</span><span style=color:#ae81ff>28800</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -s accessTokenLifespan<span style=color:#f92672>=</span><span style=color:#ae81ff>300</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -s organizations<span style=color:#f92672>=</span>true     <span style=color:#75715e># включить Organizations (multi-tenancy)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># EventPass realm</span>
+</span></span><span style=display:flex><span>kcadm.sh create realms -s realm<span style=color:#f92672>=</span>eventpass -s enabled<span style=color:#f92672>=</span>true <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span>  -s ssoSessionMaxLifespan<span style=color:#f92672>=</span><span style=color:#ae81ff>86400</span> <span style=color:#ae81ff>\ </span> <span style=color:#75715e># билет на сутки</span>
+</span></span><span style=display:flex><span>  -s accessTokenLifespan<span style=color:#f92672>=</span><span style=color:#ae81ff>600</span>
+</span></span></code></pre></div><hr><h2 id=homepass-отдельный-keycloak-не-нужен>HomePass: отдельный Keycloak не нужен</h2><p>HomePass использует <strong>Home Assistant</strong> как единственный IdP:</p><ul><li>Пользователи: только члены семьи (3–5 человек)</li><li>Гости: временные HA-учётки или Home Assistant People + BLE</li><li>Keycloak для HomePass избыточен — HA Auth Provider достаточно</li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># HomePass: HA встроенная аутентификация</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># configuration.yaml — без изменений, HA auth встроен</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Для внешнего доступа: Cloudflare Tunnel или VPN (WireGuard)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Не нужен отдельный OAuth2 сервер</span>
+</span></span></code></pre></div><hr><h2 id=мониторинг-keycloak>Мониторинг Keycloak</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Keycloak метрики → Prometheus → Grafana</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># keycloak env:</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>KC_METRICS_ENABLED</span>: <span style=color:#e6db74>&#34;true&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># prometheus.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>scrape_configs</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>job_name</span>: <span style=color:#e6db74>&#39;keycloak&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>static_configs</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>targets</span>: [<span style=color:#e6db74>&#39;keycloak-1:8080&#39;</span>, <span style=color:#e6db74>&#39;keycloak-2:8080&#39;</span>]
+</span></span><span style=display:flex><span>    <span style=color:#f92672>metrics_path</span>: <span style=color:#ae81ff>/metrics</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Ключевые алерты:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - keycloak_login_attempts_total{error=&#34;true&#34;} &gt; 100/мин → brute force</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - up{job=&#34;keycloak&#34;} == 0 → нода упала</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - keycloak_active_sessions &gt; 10000 → проверить утечку сессий</span>
+</span></span></code></pre></div><hr><h2 id=sso-между-tenantpass-и-eventpass>SSO между TenantPass и EventPass</h2><p>Если нужно единое сквозное SSO — Identity Provider Linking:</p><pre tabindex=0><code>TenantPass realm ← Identity Brokering → EventPass realm
+  Пользователь TenantPass может логиниться в EventPass через &#34;Login with TenantPass&#34;
+  Не обязательно, только если есть общие пользователи (корпоративный EventPass)
+</code></pre><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/offline-mode/>offline-mode</a>
+← <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/shared/backup-strategy/>backup-strategy</a>
+→ <a href=/tenantpass/access-model/>access-model</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

@@ -1,0 +1,202 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Отказоустойчивость HomePass (замечания 4+5+6) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Отказоустойчивость HomePass (замечания 4+5+6)</span></nav><article class=prose><h1>Отказоустойчивость HomePass (замечания 4+5+6)</h1><h1 id=отказоустойчивость-homepass-замечания-456>Отказоустойчивость HomePass (замечания 4+5+6)</h1><p><em>DIY-минималистичный подход: никаких облаков, максимум самодельного</em></p><hr><h2 id=принцип-ha-управляет-но-не-является-точкой-отказа>Принцип: HA управляет, но не является точкой отказа</h2><p>Критические системы (котёл, замки, пожарная сигнализация) работают <strong>без HA</strong>. HA добавляет удобство и аналитику, но не является условием работы.</p><hr><h2 id=замечание-4-ha-как-spof--котёл-и-замки>Замечание 4: HA как SPOF — котёл и замки</h2><h3 id=котёл--автономная-термостатная-логика>Котёл — автономная термостатная логика</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/boiler-controller.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ESP32 рядом с котлом — работает полностью автономно</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x1c3c01d6076bf128</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Температура улица&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>outdoor_temp</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0xf83c01d607923c28</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Температура дом&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>indoor_temp</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Котёл — запуск горелки&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>boiler_relay</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Локальный термостат: работает без HA</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Если HA недоступен — котёл всё равно греет по setpoint</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>thermostat</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>pid</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Термостат котла&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>sensor</span>: <span style=color:#ae81ff>indoor_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>default_target_temperature</span>: <span style=color:#ae81ff>21</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>cool</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>boiler_relay</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>heat</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_on</span>: <span style=color:#ae81ff>boiler_relay</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>control_parameters</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>kp</span>: <span style=color:#ae81ff>0.3</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>ki</span>: <span style=color:#ae81ff>0.001</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>kd</span>: <span style=color:#ae81ff>0.0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Аппаратный watchdog: если ESP32 завис — перезагрузится сам</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>esphome</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>on_boot</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>priority</span>: <span style=color:#ae81ff>600</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>then</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>lambda</span>: |-<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          esp_task_wdt_init(30, true);  // 30 сек watchdog, panic=true
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>          esp_task_wdt_add(NULL);</span>
+</span></span></code></pre></div><h3 id=замки--failsafe-без-ha>Замки — failsafe без HA</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Все замки используют fail-safe политику самого устройства (не HA)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Электрозащёлки: fail-open (нет питания = открыто)</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Для каждого ESP32-контроллера двери: локальная кнопка выхода работает всегда</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># esphome/door-entrance.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Кнопка выхода&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>number</span>: <span style=color:#ae81ff>GPIO19</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>INPUT_PULLUP</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inverted</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_press</span>:
+</span></span><span style=display:flex><span>      <span style=color:#75715e># Работает без HA — напрямую через ESPHome</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_on</span>: <span style=color:#ae81ff>door_lock_relay</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>5s</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>door_lock_relay</span>
+</span></span></code></pre></div><hr><h2 id=ha-сервер-watchdog-и-питание>HA сервер: watchdog и питание</h2><h3 id=diy-ups-на-esp32-без-покупного-ибп>DIY UPS на ESP32 (без покупного ИБП)</h3><pre tabindex=0><code>Схема DIY UPS для Raspberry Pi / мини-ПК (5В):
+  220В → TP4056 зарядное → Li-Ion 18650 × 2 (последовательно = 8.4В)
+  → MP1584 step-down 8.4В→5В → Raspberry Pi
+  
+При пропадании 220В: батарея берёт нагрузку автоматически
+Ёмкость 2×3000 мАч = 6000 мАч → RPi4 (~3Вт) ≈ 8 часов
+
+Мониторинг батареи: ESP32 ADC → HA sensor.ups_voltage
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/ups-monitor.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>adc</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO34</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;UPS — напряжение батареи&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>ups_voltage</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>filters</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>multiply</span>: <span style=color:#ae81ff>3.3</span>   <span style=color:#75715e># делитель напряжения 1:3</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#ae81ff>V</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>attenuation</span>: <span style=color:#ae81ff>11db</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>binary_sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;UPS — сеть 220В&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO35</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>power</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># HA automation</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># - alias: &#34;UPS: низкий заряд&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   trigger: numeric_state entity_id: sensor.ups_voltage below: 6.8</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   action: notify + graceful shutdown</span>
+</span></span></code></pre></div><h3 id=ha-supervisor-watchdog>HA Supervisor watchdog</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># /etc/systemd/system/homeassistant.service</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Добавить (если bare metal, не HassOS):</span>
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>Service]</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>Restart=always</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>RestartSec=10</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>WatchdogSec=60</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Или в HassOS: Settings → System → Repair → уже встроен</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Дополнительно: Watchdog add-on из HACS (ping HA каждые N секунд)</span>
+</span></span></code></pre></div><hr><h2 id=замечание-5-ota-для-50-устройств-esphome>Замечание 5: OTA для 50+ устройств ESPHome</h2><h3 id=esphome-dashboard--единая-точка-ota>ESPHome Dashboard — единая точка OTA</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># ESPHome Dashboard встроен в HA add-on:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Settings → Add-ons → ESPHome → Install</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># </span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Возможности:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   - Список всех устройств с версиями прошивки</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   - OTA update одной кнопкой</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   - Компиляция и flash через браузер</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   - Валидация YAML перед прошивкой</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Все конфиги хранятся в /config/esphome/*.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Структура:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># esphome/</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   boiler-controller.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   door-entrance.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   temp-sensors.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   ...</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   secrets.yaml     ← пароли, не в git</span>
+</span></span></code></pre></div><h3 id=групповое-обновление-скриптом>Групповое обновление скриптом</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e>#!/bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#75715e># update-all-esphome.sh — обновить все устройства</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Запускать из /config/esphome/</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>DEVICES<span style=color:#f92672>=(</span>
+</span></span><span style=display:flex><span>  boiler-controller
+</span></span><span style=display:flex><span>  door-entrance
+</span></span><span style=display:flex><span>  door-garage
+</span></span><span style=display:flex><span>  temp-sensors
+</span></span><span style=display:flex><span>  motion-living-room
+</span></span><span style=display:flex><span>  energy-meter
+</span></span><span style=display:flex><span><span style=color:#f92672>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>for</span> device in <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>DEVICES[@]<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>; <span style=color:#66d9ef>do</span>
+</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;=== Updating: </span>$device<span style=color:#e6db74> ===&#34;</span>
+</span></span><span style=display:flex><span>  esphome run <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>device<span style=color:#e6db74>}</span><span style=color:#e6db74>.yaml&#34;</span> --device <span style=color:#e6db74>&#34;api&#34;</span>   <span style=color:#75715e># OTA через API</span>
+</span></span><span style=display:flex><span>  sleep <span style=color:#ae81ff>10</span>   <span style=color:#75715e># дать устройству перезагрузиться</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>done</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Версионирование прошивок в YAML</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># esphome/_version.yaml — общий для всех устройств</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>substitutions</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>fw_version</span>: <span style=color:#e6db74>&#34;2026.10.1&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Каждое устройство импортирует:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># packages:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   version: !include _version.yaml</span>
+</span></span></code></pre></div><hr><h2 id=замечание-6-топология-сети--diy-минимализм>Замечание 6: топология сети — DIY минимализм</h2><h3 id=правило-один-протокол--одна-задача>Правило: один протокол = одна задача</h3><pre tabindex=0><code>WiFi (2.4 ГГц):    → ESPHome устройства с реле (питание от сети, не батарейки)
+Zigbee:            → Батарейные датчики (движение, температура, открытие)
+BLE (ESPresense):  → Определение чьего телефона в комнате
+Проводной PoE:     → IP-камеры (надёжнее WiFi)
+</code></pre><p><strong>Z-Wave не используем</strong> — дорого, сложно, не нужно для DIY.</p><h3 id=размещение-точек-доступа-openwrt>Размещение точек доступа OpenWrt</h3><pre tabindex=0><code>Дом 150–200 м² (одноэтажный):
+  1 роутер-AP в центре = достаточно
+  
+Дом 200–300 м² (двухэтажный):
+  1 роутер (роль: шлюз + DHCP) в щитке
+  1 AP (роль: только WiFi) на 2 этаже
+  → Соединение: витая пара Cat5e через стену
+  → OpenWrt WDS или 802.11r Fast BSS Transition
+</code></pre><pre tabindex=0><code>Zigbee: координатор (CC2531 или Sonoff Zigbee 3.0 USB)
+  → разместить в центре дома (USB-удлинитель 2-3 м от RPi)
+  → Zigbee-розетки Sonoff S26 = повторители сети (бесплатно)
+  → Цель: дотянуться до самого дальнего датчика ≤ 2 хопа
+</code></pre><h3 id=разделение-каналов-24-ггц>Разделение каналов 2.4 ГГц</h3><pre tabindex=0><code>WiFi роутер:   канал 1 (2412 МГц)
+Zigbee:        канал 11 (2462 МГц, соответствует Zigbee канал 11)
+  → НЕ совпадают, интерференция минимальна
+
+BLE:           использует frequency hopping, специальной настройки не требует
+
+Если сосед на канале 1 — переключить WiFi на канал 6 или 13.
+</code></pre><h3 id=сегменты-vlan-упрощённая-схема-homepass>Сегменты VLAN (упрощённая схема HomePass)</h3><pre tabindex=0><code>VLAN 1  — семья (основные устройства)
+VLAN 10 — IoT (ESPHome, Zigbee2MQTT — нет выхода в интернет, только к HA)
+VLAN 20 — гости (только интернет, изолированы)
+VLAN 30 — камеры (только к Frigate, никуда больше)
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># OpenWrt UCI — IoT VLAN без интернета</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>uci set network.iot=interface</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>uci set network.iot.type=bridge</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>uci set network.iot.ifname=eth0.10</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>uci set network.iot.proto=static</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>uci set network.iot.ipaddr=192.168.10.1</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>uci set network.iot.netmask=255.255.255.0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Правило: IoT не может выходить в WAN</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>iptables -I FORWARD -i br-iot -o eth0.1 -j DROP       </span> <span style=color:#75715e># нет к основной сети</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>iptables -I FORWARD -i br-iot -o wan -j DROP           </span> <span style=color:#75715e># нет в интернет</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>iptables -A FORWARD -i br-iot -d 192.168.1.0/24 -j ACCEPT </span> <span style=color:#75715e># к HA разрешено</span>
+</span></span></code></pre></div><hr><h2 id=итоговая-таблица-отказоустойчивости>Итоговая таблица отказоустойчивости</h2><table><thead><tr><th>Система</th><th>Работает без HA?</th><th>Работает без электричества?</th><th>Работает без интернета?</th></tr></thead><tbody><tr><td>Котёл (газовый)</td><td>✅ ESPHome термостат</td><td>✅ ИБП (8 ч)</td><td>✅</td></tr><tr><td>Замки (fail-open)</td><td>✅ открываются</td><td>— зависит от батареи</td><td>✅</td></tr><tr><td>Освещение (Zigbee)</td><td>❌ нет автоматики</td><td>—</td><td>✅</td></tr><tr><td>Камеры (OpenIPC)</td><td>✅ пишут локально</td><td>❌</td><td>✅</td></tr><tr><td>Сигнализация</td><td>✅ ESP32 автономно</td><td>✅ ИБП (8 ч)</td><td>✅</td></tr><tr><td>Голосовой ассистент</td><td>❌</td><td>❌</td><td>✅ (Whisper+Piper)</td></tr><tr><td>Интернет-доступ</td><td>✅ (не зависит)</td><td>❌</td><td>—</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+← <a href=/home/stack/>stack</a>
+→ <a href=/shared/smart-switch/>smart-switch</a>
+→ <a href=/shared/smart-locks/>smart-locks</a>
+→ <a href=/home/buildings/basement/>basement</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

@@ -1,0 +1,1243 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>TenantPass on DN·Pass</title><link>https://sayr777.github.io/tenantpass/</link><description>Recent content in TenantPass on DN·Pass</description><generator>Hugo</generator><language>ru-RU</language><atom:link href="https://sayr777.github.io/tenantpass/index.xml" rel="self" type="application/rss+xml"/><item><title>ABAC — политики доступа</title><link>https://sayr777.github.io/tenantpass/abac/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/abac/</guid><description>&lt;h1 id="abac--политики-доступа"&gt;ABAC — политики доступа&lt;/h1&gt;
+&lt;p&gt;Attribute-Based Access Control. Решение принимается по атрибутам трёх категорий:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Категория&lt;/th&gt;
+					&lt;th&gt;Примеры&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Пользователь (subject)&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;tenant_id&lt;/code&gt;, &lt;code&gt;site_id&lt;/code&gt;, &lt;code&gt;department&lt;/code&gt;, роль, метод аутентификации (&lt;code&gt;amr&lt;/code&gt;)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Ресурс&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;door:room-215&lt;/code&gt;, &lt;code&gt;resource.tenant_id&lt;/code&gt;, &lt;code&gt;resource.site_id&lt;/code&gt;, &lt;code&gt;shift_end&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Окружение&lt;/td&gt;
+					&lt;td&gt;время суток, IP-адрес, тип устройства&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="пример-политики"&gt;Пример политики&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;Политика: &amp;#34;tenant-manager-access&amp;#34;
+ Role policy: user has role &amp;#34;tenant_manager&amp;#34;
+ AND
+ Attribute policy: user.tenant_id == resource.tenant_id
+ AND
+ Attribute policy: user.site_id == resource.site_id
+ AND
+ Time policy: now within work_hours
+ AND
+ Auth policy: amr contains &amp;#34;fido2&amp;#34; OR &amp;#34;nfc&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id="важно-organization-scope--не-access-gate"&gt;Важно: Organization scope — не access gate&lt;/h2&gt;
+&lt;p&gt;Если пользователь не в организации, scope &lt;code&gt;organization:&amp;lt;alias&amp;gt;&lt;/code&gt; &lt;strong&gt;молча отбрасывается&lt;/strong&gt;, запрос не отклоняется. Нельзя полагаться на presence scope как на запрет.&lt;/p&gt;</description></item><item><title>API между агентами и Keycloak</title><link>https://sayr777.github.io/tenantpass/api-agents/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/api-agents/</guid><description>&lt;h1 id="api-между-агентами-и-keycloak"&gt;API между агентами и Keycloak&lt;/h1&gt;
+&lt;h2 id="паттерн-pep--pdp"&gt;Паттерн PEP / PDP&lt;/h2&gt;
+&lt;div class="mermaid"&gt;sequenceDiagram
+ participant T as Терминал/считыватель
+ participant A as Агент-контроллер (PEP)
+ participant K as Keycloak (PDP)
+ participant D as Физическое устройство
+
+ T-&gt;&gt;A: 1. идентификация пользователя
+ A-&gt;&gt;K: 2. запрос решения (uma-ticket)
+ K--&gt;&gt;A: 3. permit / deny
+ A-&gt;&gt;D: 4. исполнение — открыть замок / заблокировать&lt;/div&gt;
+
+&lt;p&gt;Агент никогда не принимает решение самостоятельно. Он только запрашивает и исполняет.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="endpointы-keycloak-которые-использует-система"&gt;Endpoint&amp;rsquo;ы Keycloak, которые использует система&lt;/h2&gt;
+&lt;h3 id="1-token-endpoint--получить-токен-пользователя"&gt;1. Token endpoint — получить токен пользователя&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;POST /realms/{realm}/protocol/openid-connect/token
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Используется: мобильное приложение / веб-UI при логине.&lt;/p&gt;</description></item><item><title>Keycloak — архитектурные решения</title><link>https://sayr777.github.io/tenantpass/keycloak/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/keycloak/</guid><description>&lt;h1 id="keycloak--архитектурные-решения"&gt;Keycloak — архитектурные решения&lt;/h1&gt;
+&lt;h2 id="роль-в-системе"&gt;Роль в системе&lt;/h2&gt;
+&lt;p&gt;Keycloak — &lt;strong&gt;не&lt;/strong&gt; средство защиты информации и не «коробка». Это движок политик и центр идентичности.&lt;/p&gt;
+&lt;p&gt;Декларировать: «компонент аутентификации и авторизации на базе open-source Keycloak, интегрированный в продукт. Keycloak не предоставляет UI. Средства защиты — отдельные сертифицированные компоненты.»&lt;/p&gt;
+&lt;h2 id="мультикластерная-репликация-multi-cluster-v2"&gt;Мультикластерная репликация (Multi-cluster v2)&lt;/h2&gt;
+&lt;p&gt;Рекомендуемый подход (не требует внешнего Infinispan):&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Несколько независимых кластеров Keycloak → одна синхронно реплицируемая БД&lt;/li&gt;
+&lt;li&gt;Кэши локальные, инвалидация через БД (outbox)&lt;/li&gt;
+&lt;li&gt;Требование: commit latency &amp;lt; 5 мс (макс. 10 мс) между сайтами&lt;/li&gt;
+&lt;li&gt;Обновления realm замедляются на ~100 мс — не критично&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="производительность"&gt;Производительность&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Метрика&lt;/th&gt;
+					&lt;th&gt;Ориентир (3 узла)&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Активные сессии&lt;/td&gt;
+					&lt;td&gt;50 000&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Логинов/сек&lt;/td&gt;
+					&lt;td&gt;24&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Refresh токенов/сек&lt;/td&gt;
+					&lt;td&gt;350&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Создание organization&lt;/td&gt;
+					&lt;td&gt;~0.03 сек&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Создание realm&lt;/td&gt;
+					&lt;td&gt;~0.53 сек&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Запас по нашему масштабу (5 000 чел.) — ×10.&lt;/p&gt;</description></item><item><title>Offline-режим СКУД (замечание 1+2)</title><link>https://sayr777.github.io/tenantpass/offline-mode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/offline-mode/</guid><description>&lt;h1 id="offline-режим-скуд-замечание-12"&gt;Offline-режим СКУД (замечание 1+2)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;TenantPass — устойчивость к недоступности Keycloak&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="проблема"&gt;Проблема&lt;/h2&gt;
+&lt;p&gt;Стандартный flow СКУД: каждое поднесение карты → HTTP к Keycloak (UMA-ticket, 2–3 round-trip, ≥300 мс). При недоступности Keycloak (сбой, деплой, сеть) — весь СКУД встаёт.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="решение-двухуровневый-кэш-на-агенте-pep"&gt;Решение: двухуровневый кэш на агенте PEP&lt;/h2&gt;
+&lt;div class="mermaid"&gt;sequenceDiagram
+ participant T as Терминал
+ participant A as Агент PEP
+ participant R as Redis (local)
+ participant K as Keycloak
+
+ T-&gt;&gt;A: card_id presented
+ A-&gt;&gt;R: GET permit:{card_id}:{door_id}
+ alt кэш HIT (TTL не истёк)
+ R--&gt;&gt;A: {permit: true/false, cached_at}
+ A-&gt;&gt;T: open / deny (&lt; 50 мс)
+ else кэш MISS или истёк
+ A-&gt;&gt;K: POST /realms/.../protocol/uma/token
+ K--&gt;&gt;A: RPT token (permit/deny)
+ A-&gt;&gt;R: SET permit:{card_id}:{door_id} TTL=300s
+ A-&gt;&gt;T: open / deny
+ end
+
+ note over K: Keycloak DOWN →
+ A-&gt;&gt;R: GET permit:{card_id}:{door_id}
+ alt есть запись (любой TTL — stale fallback)
+ R--&gt;&gt;A: stale cached permit
+ A-&gt;&gt;T: применить fallback-политику двери
+ else нет записи
+ A-&gt;&gt;T: применить default-политику
+ end&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="redis-на-агенте"&gt;Redis на агенте&lt;/h2&gt;
+&lt;p&gt;Каждый агент PEP запускает локальный Redis (или Redis Sentinel). Не облачный, не shared — физически рядом с контроллером.&lt;/p&gt;</description></item><item><title>TenantPass — Feature Map</title><link>https://sayr777.github.io/tenantpass/features/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/features/</guid><description>&lt;h1 id="tenantpass--feature-map"&gt;TenantPass — Feature Map&lt;/h1&gt;
+&lt;p&gt;За основу взяты фичи БОСС Контроль. Каждая фича оценена: как реализуем, где превосходим, где отстаём.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="1-идентификация-сотрудника"&gt;1. Идентификация сотрудника&lt;/h2&gt;
+&lt;h3 id="босс-контроль"&gt;БОСС Контроль&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Лицо, карта, отпечаток пальца на терминале&lt;/li&gt;
+&lt;li&gt;Биометрия обрабатывается локально на терминале&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="tenantpass"&gt;TenantPass&lt;/h3&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Метод&lt;/th&gt;
+					&lt;th&gt;Статус&lt;/th&gt;
+					&lt;th&gt;Преимущество&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;RFID-карта / брелок&lt;/td&gt;
+					&lt;td&gt;✅ Базовый&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Отпечаток пальца&lt;/td&gt;
+					&lt;td&gt;✅ Через терминал&lt;/td&gt;
+					&lt;td&gt;Шаблон хранится только на устройстве (572-ФЗ)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Распознавание лица&lt;/td&gt;
+					&lt;td&gt;✅ Через терминал&lt;/td&gt;
+					&lt;td&gt;То же&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Passkey / FIDO2&lt;/td&gt;
+					&lt;td&gt;✅ Смартфон&lt;/td&gt;
+					&lt;td&gt;Нет у БОСС; криптографически стойко&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;NFC-карта (FIDO2)&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Нет у БОСС; защита от клонирования&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;BLE-смартфон (приближение)&lt;/td&gt;
+					&lt;td&gt;✅&lt;/td&gt;
+					&lt;td&gt;Нет у БОСС; без касания&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;QR-код (разовый)&lt;/td&gt;
+					&lt;td&gt;✅ Для гостей&lt;/td&gt;
+					&lt;td&gt;Нет у БОСС&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Превосходим&lt;/strong&gt;: passkey и BLE — бесконтактный вход без физической карты. Защита от клонирования через FIDO2.&lt;/p&gt;</description></item><item><title>Биометрия, Passkeys, NFC, BLE</title><link>https://sayr777.github.io/tenantpass/biometrics/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/biometrics/</guid><description>&lt;h1 id="биометрия-passkeys-nfc-ble"&gt;Биометрия, Passkeys, NFC, BLE&lt;/h1&gt;
+&lt;h2 id="принцип-keycloak-не-хранит-биометрию"&gt;Принцип: Keycloak не хранит биометрию&lt;/h2&gt;
+&lt;p&gt;Keycloak не хранит шаблоны и не читает биометрические данные.
+Он &lt;strong&gt;доверяет результату&lt;/strong&gt; FIDO2/WebAuthn-аутентификации.&lt;/p&gt;
+&lt;p&gt;Приватный ключ passkey хранится на устройстве пользователя → сервер хранит только публичный ключ → под 572-ФЗ это не «биометрические данные для аутентификации» в хранилище.&lt;/p&gt;
+&lt;h2 id="механизмы-идентификации"&gt;Механизмы идентификации&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Механизм&lt;/th&gt;
+					&lt;th&gt;Что Keycloak получает&lt;/th&gt;
+					&lt;th&gt;Требования к железу&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Passkey (WebAuthn/FIDO2)&lt;/td&gt;
+					&lt;td&gt;Криптоподтверждение биометрии без шаблона&lt;/td&gt;
+					&lt;td&gt;Смартфон с passkey поддержкой&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;NFC-карта (FIDO2)&lt;/td&gt;
+					&lt;td&gt;То же, аутентификатор на карте&lt;/td&gt;
+					&lt;td&gt;Считыватель NFC у двери&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;BLE (приближение)&lt;/td&gt;
+					&lt;td&gt;Атрибут «пользователь в зоне двери»&lt;/td&gt;
+					&lt;td&gt;BLE-считыватель + RSSI&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Биометрический терминал&lt;/td&gt;
+					&lt;td&gt;Факт успешной идентификации (передаёт агент)&lt;/td&gt;
+					&lt;td&gt;Терминал с локальной проверкой&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="поддержка-keycloak"&gt;Поддержка Keycloak&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Passkeys как supported feature с 26.0&lt;/li&gt;
+&lt;li&gt;Может использоваться в conditional UI и modal UI&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;amr&lt;/code&gt; claim в токене содержит метод аутентификации → можно проверять в ABAC-политике&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="смартфон-что-важно"&gt;Смартфон: что важно&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;BLE выключен&lt;/strong&gt; → пользователь не обнаружится у двери&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Нет BLE&lt;/strong&gt; → сценарий «подошёл → открылось» не работает&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Без MDM&lt;/strong&gt; → нет клиентского сертификата → нет атрибута «корпоративное устройство»&lt;/li&gt;
+&lt;li&gt;Тип смартфона влияет на шаг сенсорного слоя, &lt;strong&gt;не&lt;/strong&gt; на Keycloak&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="572-фз-и-хранение-биометрии"&gt;572-ФЗ и хранение биометрии&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Внутренний СКУД предприятия&lt;/strong&gt;: предприятие — оператор ПДн своих сотрудников. Аккредитация по 572-ФЗ не нужна. Хранение шаблонов допустимо с согласия, при шифровании.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Сервис аутентификации для третьих лиц&lt;/strong&gt;: нужна аккредитация (капитал ≥ 500 млн ₽, лицензия ФСБ). Практически недоступно на старте.&lt;/li&gt;
+&lt;li&gt;Запрет хранения биометрии для аутентификации (ст. 15 572-ФЗ) кроме разбора обращений (≤ 10 суток).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Стратегия&lt;/strong&gt;: использовать passkeys → приватный ключ на устройстве → сервер не хранит биометрию как таковую.&lt;/p&gt;</description></item><item><title>Варианты развёртывания</title><link>https://sayr777.github.io/tenantpass/deployments/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/deployments/</guid><description>&lt;h1 id="варианты-развёртывания"&gt;Варианты развёртывания&lt;/h1&gt;
+&lt;h2 id="два-режима"&gt;Два режима&lt;/h2&gt;
+&lt;h3 id="облачное-mvp--saas"&gt;Облачное (MVP / SaaS)&lt;/h3&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph CLOUD["Российский облачный провайдер"]
+ LB[Балансировщик]
+ KC1[Keycloak node 1]
+ KC2[Keycloak node 2]
+ KC3[Keycloak node 3]
+ DB1[(PostgreSQL primary)]
+ DB2[(PostgreSQL replica)]
+ LB --&gt; KC1 &amp; KC2
+ KC2 --&gt;|синхронная репликация| KC3
+ KC1 &amp; KC2 &amp; KC3 --&gt; DB1
+ DB1 --&gt;|репликация| DB2
+ end
+
+ INT[Интернет]
+ T[Терминалы\nGPRS / 4G]
+ GW[API Gateway]
+
+ INT --&gt; LB
+ T --&gt; GW --&gt; LB&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Требования к провайдеру&lt;/strong&gt;: аттестованный российский облачный провайдер (152-ФЗ локализация).
+Варианты: Yandex Cloud, Selectel, VK Cloud.&lt;/p&gt;</description></item><item><title>Изоляция данных СКУД / СУРВ (замечание 3)</title><link>https://sayr777.github.io/tenantpass/data-isolation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/data-isolation/</guid><description>&lt;h1 id="изоляция-данных-скуд--сурв-замечание-3"&gt;Изоляция данных СКУД / СУРВ (замечание 3)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;TenantPass — разделение данных по функциям и требованиям&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="проблема"&gt;Проблема&lt;/h2&gt;
+&lt;p&gt;Одна PostgreSQL для всего: конфигурация СКУД, события проходов, табель СУРВ. Риски:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Rollback схемы СКУД затирает данные табеля&lt;/li&gt;
+&lt;li&gt;ФЗ-152: персональные данные и события прохода требуют отдельных политик доступа&lt;/li&gt;
+&lt;li&gt;Трудовой кодекс: табель хранится 5 лет, события СКУД — 1 год&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="решение-три-отдельные-базы-данных"&gt;Решение: три отдельные базы данных&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph DB_CLUSTER["PostgreSQL (один кластер, разные БД)"]
+ DB_CONFIG["tenantpass_config\n(конфигурация: двери, зоны, расписания)"]
+ DB_AUDIT["tenantpass_audit\n(события прохода — append-only)"]
+ DB_TABEL["tenantpass_tabel\n(табель СУРВ — юридически значимые)"]
+ end
+
+ subgraph APPS["Приложения"]
+ API_GATEWAY["API Gateway"]
+ PEP["PEP Agent"]
+ SYRV["СУРВ Сервис"]
+ HR["HR-интерфейс"]
+ end
+
+ API_GATEWAY --&gt;|read/write| DB_CONFIG
+ PEP --&gt;|write events| DB_AUDIT
+ SYRV --&gt;|read events| DB_AUDIT
+ SYRV --&gt;|write/read tabel| DB_TABEL
+ HR --&gt;|read tabel| DB_TABEL&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="схемы-баз-данных"&gt;Схемы баз данных&lt;/h2&gt;
+&lt;h3 id="tenantpass_config--конфигурация"&gt;tenantpass_config — конфигурация&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sql" data-lang="sql"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- Сбрасываемая/изменяемая, нет ФЗ-152 рисков
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;CREATE&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;TABLE&lt;/span&gt; doors (
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; id UUID &lt;span style="color:#66d9ef"&gt;PRIMARY&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;KEY&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;DEFAULT&lt;/span&gt; gen_random_uuid(),
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; tenant_id UUID &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; name TEXT &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; fail_mode TEXT &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;DEFAULT&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;fail_open&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; zone_id UUID &lt;span style="color:#66d9ef"&gt;REFERENCES&lt;/span&gt; zones(id)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;);
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;CREATE&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;TABLE&lt;/span&gt; access_rules (
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; id UUID &lt;span style="color:#66d9ef"&gt;PRIMARY&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;KEY&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;DEFAULT&lt;/span&gt; gen_random_uuid(),
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; door_id UUID &lt;span style="color:#66d9ef"&gt;REFERENCES&lt;/span&gt; doors(id),
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; subject_id UUID &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;, &lt;span style="color:#75715e"&gt;-- user or group in Keycloak
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; schedule_id UUID &lt;span style="color:#66d9ef"&gt;REFERENCES&lt;/span&gt; schedules(id),
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; valid_from TIMESTAMPTZ,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; valid_until TIMESTAMPTZ
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;);
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="tenantpass_audit--события-скуд"&gt;tenantpass_audit — события СКУД&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sql" data-lang="sql"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- Append-only: никогда не UPDATE/DELETE
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- Retention: 1 год (конфигурируется через pg_partman)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;CREATE&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;TABLE&lt;/span&gt; access_events (
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; id UUID &lt;span style="color:#66d9ef"&gt;DEFAULT&lt;/span&gt; gen_random_uuid(),
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; tenant_id UUID &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; door_id UUID &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; person_id UUID &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;, &lt;span style="color:#75715e"&gt;-- FK к Keycloak user_id
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; card_id TEXT &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;, &lt;span style="color:#75715e"&gt;-- хэш карты (SHA-256), не сырые данные
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; event_type TEXT &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;, &lt;span style="color:#75715e"&gt;-- &amp;#39;granted&amp;#39; | &amp;#39;denied&amp;#39; | &amp;#39;forced_open&amp;#39; | &amp;#39;tailgate&amp;#39;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;source&lt;/span&gt; TEXT &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;, &lt;span style="color:#75715e"&gt;-- &amp;#39;keycloak&amp;#39; | &amp;#39;cache_hit&amp;#39; | &amp;#39;cache_stale&amp;#39; | &amp;#39;offline_default&amp;#39;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; occurred_at TIMESTAMPTZ &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;DEFAULT&lt;/span&gt; NOW(),
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; metadata JSONB
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;) PARTITION &lt;span style="color:#66d9ef"&gt;BY&lt;/span&gt; RANGE (occurred_at);
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- Автопартиции по месяцу (pg_partman)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;SELECT&lt;/span&gt; partman.create_parent(
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_parent_table &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;access_events&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_control &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;occurred_at&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_type &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;range&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_interval &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;monthly&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_retention &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;12 months&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_retention_keep_table &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;false&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;);
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- ВАЖНО: права — только INSERT, без UPDATE/DELETE
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;REVOKE&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;UPDATE&lt;/span&gt;, &lt;span style="color:#66d9ef"&gt;DELETE&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;ON&lt;/span&gt; access_events &lt;span style="color:#66d9ef"&gt;FROM&lt;/span&gt; pep_agent_role;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="tenantpass_tabel--табель-сурв"&gt;tenantpass_tabel — табель СУРВ&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sql" data-lang="sql"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- Retention: 5 лет (ТК РФ ст.283)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;CREATE&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;TABLE&lt;/span&gt; tabel_records (
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; id UUID &lt;span style="color:#66d9ef"&gt;PRIMARY&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;KEY&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;DEFAULT&lt;/span&gt; gen_random_uuid(),
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; tenant_id UUID &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; employee_id UUID &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; record_date DATE &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; tabel_code TEXT &lt;span style="color:#66d9ef"&gt;NOT&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;NULL&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; worked_minutes INTEGER,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; first_in TIME,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; last_out TIME,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; correction_by UUID, &lt;span style="color:#75715e"&gt;-- кто корректировал
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; correction_at TIMESTAMPTZ,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; correction_note TEXT,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;source&lt;/span&gt; TEXT &lt;span style="color:#66d9ef"&gt;DEFAULT&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;auto&amp;#39;&lt;/span&gt;, &lt;span style="color:#75715e"&gt;-- &amp;#39;auto&amp;#39; | &amp;#39;manual_hr&amp;#39; | &amp;#39;manual_manager&amp;#39;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;UNIQUE&lt;/span&gt;(employee_id, record_date)
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;);
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- Партиции по году
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;SELECT&lt;/span&gt; partman.create_parent(
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_parent_table &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;tabel_records&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_control &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;record_date&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_type &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;range&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_interval &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;yearly&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_retention &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#39;5 years&amp;#39;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; p_retention_keep_table &lt;span style="color:#f92672"&gt;=&amp;gt;&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt; &lt;span style="color:#75715e"&gt;-- архивировать, не удалять
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;);
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="политики-доступа-row-level-security"&gt;Политики доступа (Row-Level Security)&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-sql" data-lang="sql"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- tenantpass_audit: тенант видит только свои события
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;ALTER&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;TABLE&lt;/span&gt; access_events ENABLE &lt;span style="color:#66d9ef"&gt;ROW&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;LEVEL&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;SECURITY&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;CREATE&lt;/span&gt; POLICY tenant_isolation &lt;span style="color:#66d9ef"&gt;ON&lt;/span&gt; access_events
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;USING&lt;/span&gt; (tenant_id &lt;span style="color:#f92672"&gt;=&lt;/span&gt; current_setting(&lt;span style="color:#e6db74"&gt;&amp;#39;app.current_tenant&amp;#39;&lt;/span&gt;)::UUID);
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;-- tenantpass_tabel: HR видит только своих сотрудников
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;ALTER&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;TABLE&lt;/span&gt; tabel_records ENABLE &lt;span style="color:#66d9ef"&gt;ROW&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;LEVEL&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;SECURITY&lt;/span&gt;;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;CREATE&lt;/span&gt; POLICY hr_access &lt;span style="color:#66d9ef"&gt;ON&lt;/span&gt; tabel_records
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#66d9ef"&gt;USING&lt;/span&gt; (tenant_id &lt;span style="color:#f92672"&gt;=&lt;/span&gt; current_setting(&lt;span style="color:#e6db74"&gt;&amp;#39;app.current_tenant&amp;#39;&lt;/span&gt;)::UUID);
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="фз-152-что-является-персональными-данными"&gt;ФЗ-152: что является персональными данными&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Поле&lt;/th&gt;
+					&lt;th&gt;ПД?&lt;/th&gt;
+					&lt;th&gt;Хранение&lt;/th&gt;
+					&lt;th&gt;Шифрование&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;card_id&lt;/code&gt; (сырой номер)&lt;/td&gt;
+					&lt;td&gt;Да&lt;/td&gt;
+					&lt;td&gt;Хранить хэш SHA-256&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;person_id&lt;/code&gt; (UUID Keycloak)&lt;/td&gt;
+					&lt;td&gt;Псевдоним&lt;/td&gt;
+					&lt;td&gt;OK&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ФИО&lt;/td&gt;
+					&lt;td&gt;Да&lt;/td&gt;
+					&lt;td&gt;Только в Keycloak, не в audit&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Биометрия (фото лица)&lt;/td&gt;
+					&lt;td&gt;Спецкатегория&lt;/td&gt;
+					&lt;td&gt;Только с согласия, отдельно&lt;/td&gt;
+					&lt;td&gt;AES-256&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Геолокация&lt;/td&gt;
+					&lt;td&gt;Да&lt;/td&gt;
+					&lt;td&gt;Только при явном согласии&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# pep/event_writer.py — никогда не пишем сырые ПД в audit&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#66d9ef"&gt;def&lt;/span&gt; &lt;span style="color:#a6e22e"&gt;write_access_event&lt;/span&gt;(person_id: str, raw_card_id: str, door_id: str, permit: bool):
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;import&lt;/span&gt; hashlib
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; card_hash &lt;span style="color:#f92672"&gt;=&lt;/span&gt; hashlib&lt;span style="color:#f92672"&gt;.&lt;/span&gt;sha256(raw_card_id&lt;span style="color:#f92672"&gt;.&lt;/span&gt;encode())&lt;span style="color:#f92672"&gt;.&lt;/span&gt;hexdigest()[:&lt;span style="color:#ae81ff"&gt;16&lt;/span&gt;] &lt;span style="color:#75715e"&gt;# truncate — не reversible&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; db_audit&lt;span style="color:#f92672"&gt;.&lt;/span&gt;execute(&lt;span style="color:#e6db74"&gt;&amp;#34;&amp;#34;&amp;#34;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; INSERT INTO access_events (person_id, card_id, door_id, event_type, occurred_at)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; VALUES ($1, $2, $3, $4, NOW())
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; &amp;#34;&amp;#34;&amp;#34;&lt;/span&gt;, person_id, card_hash, door_id, &lt;span style="color:#e6db74"&gt;&amp;#34;granted&amp;#34;&lt;/span&gt; &lt;span style="color:#66d9ef"&gt;if&lt;/span&gt; permit &lt;span style="color:#66d9ef"&gt;else&lt;/span&gt; &lt;span style="color:#e6db74"&gt;&amp;#34;denied&amp;#34;&lt;/span&gt;)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="политика-хранения"&gt;Политика хранения&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;База&lt;/th&gt;
+					&lt;th&gt;Срок хранения&lt;/th&gt;
+					&lt;th&gt;Основание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;tenantpass_config&lt;/td&gt;
+					&lt;td&gt;Бессрочно (версионируется)&lt;/td&gt;
+					&lt;td&gt;—&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;tenantpass_audit (события СКУД)&lt;/td&gt;
+					&lt;td&gt;1 год&lt;/td&gt;
+					&lt;td&gt;Внутренняя политика&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;tenantpass_tabel (табель)&lt;/td&gt;
+					&lt;td&gt;5 лет&lt;/td&gt;
+					&lt;td&gt;ТК РФ ст. 283, Приказ Минкультуры&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Биометрия (Double Take)&lt;/td&gt;
+					&lt;td&gt;Удалять через 1 мес при отзыве согласия&lt;/td&gt;
+					&lt;td&gt;ФЗ-152&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="миграции-без-риска"&gt;Миграции без риска&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Разные БД = независимые миграции&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Инструмент: Alembic с отдельными env.py на каждую БД&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;alembic -c alembic_config.ini upgrade head &lt;span style="color:#75715e"&gt;# config DB&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;alembic -c alembic_audit.ini upgrade head &lt;span style="color:#75715e"&gt;# audit DB (только additive!)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;alembic -c alembic_tabel.ini upgrade head &lt;span style="color:#75715e"&gt;# tabel DB&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Правило: audit и tabel DB — только additive migrations&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# (ADD COLUMN, CREATE TABLE — да; DROP TABLE, ALTER TYPE — нет)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/tenantpass/offline-mode/"&gt;offline-mode&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/tenantpass/workforce-time/"&gt;workforce-time&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/shared/backup-strategy/"&gt;backup-strategy&lt;/a&gt;&lt;/p&gt;</description></item><item><title>Калькулятор TenantPass Enterprise — крупный объект</title><link>https://sayr777.github.io/tenantpass/calculator/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/calculator/</guid><description>&lt;div class="calc-wrap"&gt;
+&lt;div class="calc-box tp" id="calc-tp"&gt;
+ &lt;h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px"&gt;Калькулятор TenantPass Enterprise&lt;/h2&gt;
+ &lt;p style="color:var(--muted);font-size:.875rem;margin-bottom:28px"&gt;On-premise. Данные внутри периметра.&lt;/p&gt;
+
+ &lt;div class="calc-grid"&gt;
+ &lt;div class="calc-field"&gt;
+ &lt;label&gt;Точки доступа: &lt;span class="val" id="tp-pts-v"&gt;15&lt;/span&gt;&lt;/label&gt;
+ &lt;input type="range" id="tp-pts" min="3" max="100" value="15" oninput="calcTP()"&gt;
+ &lt;div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)"&gt;&lt;span&gt;3&lt;/span&gt;&lt;span&gt;100&lt;/span&gt;&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-field"&gt;
+ &lt;label&gt;Камеры: &lt;span class="val" id="tp-cams-v"&gt;8&lt;/span&gt;&lt;/label&gt;
+ &lt;input type="range" id="tp-cams" min="0" max="80" value="8" oninput="calcTP()"&gt;
+ &lt;div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)"&gt;&lt;span&gt;0&lt;/span&gt;&lt;span&gt;80&lt;/span&gt;&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-field"&gt;
+ &lt;label&gt;Турникеты / шлагбаумы: &lt;span class="val" id="tp-bars-v"&gt;1&lt;/span&gt;&lt;/label&gt;
+ &lt;input type="range" id="tp-bars" min="0" max="20" value="1" oninput="calcTP()"&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-field"&gt;
+ &lt;label&gt;Сотрудников: &lt;span class="val" id="tp-users-v"&gt;200&lt;/span&gt;&lt;/label&gt;
+ &lt;input type="range" id="tp-users" min="50" max="2000" step="50" value="200" oninput="calcTP()"&gt;
+ &lt;/div&gt;
+ &lt;/div&gt;
+
+ &lt;div style="margin-bottom:24px"&gt;
+ &lt;div style="font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:12px"&gt;Опциональные модули&lt;/div&gt;
+ &lt;div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="tp-surv" onchange="calcTP()"&gt; СУРВ (табель) &lt;span style="color:var(--muted);font-size:.8rem"&gt;+80 000 ₽&lt;/span&gt;&lt;/label&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="tp-ml" onchange="calcTP()"&gt; ML-пакет Стандарт &lt;span style="color:var(--muted);font-size:.8rem"&gt;+80 000 ₽&lt;/span&gt;&lt;/label&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="tp-multi" onchange="calcTP()"&gt; Мультиарендаторность &lt;span style="color:var(--muted);font-size:.8rem"&gt;+40 000 ₽&lt;/span&gt;&lt;/label&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="tp-ha" onchange="calcTP()"&gt; Резервный кластер &lt;span style="color:var(--muted);font-size:.8rem"&gt;+60 000 ₽&lt;/span&gt;&lt;/label&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="tp-beacon" onchange="calcTP()"&gt; DN·Beacon BLE &lt;span style="color:var(--muted);font-size:.8rem"&gt;+2 500 ₽/чел&lt;/span&gt;&lt;/label&gt;
+ &lt;label class="calc-opt"&gt;&lt;input type="checkbox" id="tp-lora" onchange="calcTP()"&gt; DN·LoRaWAN &lt;span style="color:var(--muted);font-size:.8rem"&gt;+25 000 ₽&lt;/span&gt;&lt;/label&gt;
+ &lt;/div&gt;
+ &lt;/div&gt;
+
+ &lt;div style="margin-bottom:24px"&gt;
+ &lt;div style="font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:8px"&gt;Поддержка&lt;/div&gt;
+ &lt;select id="tp-support" onchange="calcTP()" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:.875rem;color:var(--text);background:var(--bg);width:100%;max-width:360px"&gt;
+ &lt;option value="0"&gt;Без поддержки (самостоятельно)&lt;/option&gt;
+ &lt;option value="10000"&gt;8×5, SLA 8 ч — 10 000 ₽/мес&lt;/option&gt;
+ &lt;option value="20000"&gt;24×7, SLA 4 ч — 20 000 ₽/мес&lt;/option&gt;
+ &lt;/select&gt;
+ &lt;/div&gt;
+
+ &lt;div class="calc-result" id="tp-result"&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="tp-r-hw"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Оборудование&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="tp-r-work"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Монтаж и настройка&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="tp-r-opt"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Опции&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="tp-r-total" style="font-size:2.2rem"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Итого под ключ&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;div class="calc-result__item"&gt;
+ &lt;div class="calc-result__num" id="tp-r-roi" style="font-size:1.6rem"&gt;—&lt;/div&gt;
+ &lt;div class="calc-result__lbl"&gt;Окупаемость (охрана)&lt;/div&gt;
+ &lt;/div&gt;
+ &lt;/div&gt;
+ &lt;p style="font-size:.78rem;color:var(--muted);margin-top:12px"&gt;* Оценочный расчёт. Точная стоимость — после технического аудита объекта.&lt;/p&gt;</description></item><item><title>Команда виртуальных помощников</title><link>https://sayr777.github.io/tenantpass/team/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/team/</guid><description>&lt;h1 id="команда-виртуальных-помощников"&gt;Команда виртуальных помощников&lt;/h1&gt;
+&lt;p&gt;Специализированные AI-агенты для работы над TenantPass.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="архитектор"&gt;Архитектор&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Зона ответственности&lt;/strong&gt;: проектирование системы, выбор паттернов, ревью архитектурных решений.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Скилы&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;ABAC/RBAC/ReBAC модели доступа&lt;/li&gt;
+&lt;li&gt;Keycloak Authorization Services, Organizations, мультиарендаторность&lt;/li&gt;
+&lt;li&gt;Multi-cluster v2 репликация, failover&lt;/li&gt;
+&lt;li&gt;Интеграция Keycloak с физическим оборудованием (СКУД-агенты, BLE, NFC)&lt;/li&gt;
+&lt;li&gt;Проектирование API (PEP/PDP паттерн)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Типовые задачи&lt;/strong&gt;: «Как смоделировать X в ABAC?», «Стоит ли использовать Organizations или отдельные realms?»&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="compliance-инженер"&gt;Compliance-инженер&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Зона ответственности&lt;/strong&gt;: соответствие регуляторным требованиям РФ.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Скилы&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;152-ФЗ (персональные данные, биометрия, локализация, согласия)&lt;/li&gt;
+&lt;li&gt;572-ФЗ (биометрические системы, аккредитация, ЕБС)&lt;/li&gt;
+&lt;li&gt;ФСТЭК (SBOM, модель угроз, УЗ-1/УЗ-2, ПП РФ № 1119, СКУД по ГОСТ Р 51241)&lt;/li&gt;
+&lt;li&gt;ФСБ (СКЗИ, классы КС1–КС3, оценка среды функционирования)&lt;/li&gt;
+&lt;li&gt;Декларирование open-source компонентов (Keycloak как часть сертифицируемого продукта)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Типовые задачи&lt;/strong&gt;: «Нужна ли аккредитация по 572-ФЗ?», «Как оформить SBOM для Keycloak?»&lt;/p&gt;</description></item><item><title>Конкуренты</title><link>https://sayr777.github.io/tenantpass/competitors/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/competitors/</guid><description>&lt;h1 id="конкуренты"&gt;Конкуренты&lt;/h1&gt;
+&lt;h2 id="сравнительная-таблица"&gt;Сравнительная таблица&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Критерий&lt;/th&gt;
+					&lt;th&gt;БОСС Контроль&lt;/th&gt;
+					&lt;th&gt;PERCo / Sigur / APACS&lt;/th&gt;
+					&lt;th&gt;TenantPass (Keycloak)&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Скорость запуска&lt;/td&gt;
+					&lt;td&gt;Максимальная (минуты)&lt;/td&gt;
+					&lt;td&gt;Средняя (дни/недели)&lt;/td&gt;
+					&lt;td&gt;Низкая (разработка)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Физический доступ (двери)&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;Да&lt;/td&gt;
+					&lt;td&gt;Да (через агенты)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Гибкие ABAC-политики&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;Ограниченные роли&lt;/td&gt;
+					&lt;td&gt;Максимальная гибкость&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Мультиарендаторность&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;Organizations + политики&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Единый IdP для всех систем&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;Нет&lt;/td&gt;
+					&lt;td&gt;Да&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Готовые интеграции с 1С&lt;/td&gt;
+					&lt;td&gt;Есть&lt;/td&gt;
+					&lt;td&gt;Отлажены&lt;/td&gt;
+					&lt;td&gt;Нужно писать&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Защита от подмены («обмануть»)&lt;/td&gt;
+					&lt;td&gt;Уязвима&lt;/td&gt;
+					&lt;td&gt;Зависит от модели&lt;/td&gt;
+					&lt;td&gt;Централизованная проверка&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Стоимость&lt;/td&gt;
+					&lt;td&gt;8 700 ₽/мес/терминал&lt;/td&gt;
+					&lt;td&gt;Средняя/высокая&lt;/td&gt;
+					&lt;td&gt;Высокая на старте&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="босс-контроль"&gt;БОСС Контроль&lt;/h2&gt;
+&lt;p&gt;Облачная СУРВ (не СКУД!). Терминал → GPRS → облако. «Готово из коробки».&lt;/p&gt;</description></item><item><title>Модели управления доступом</title><link>https://sayr777.github.io/tenantpass/access-control-models/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/access-control-models/</guid><description>&lt;h1 id="модели-управления-доступом"&gt;Модели управления доступом&lt;/h1&gt;
+&lt;p&gt;*Сравнение DAC / MAC / RBAC / ABAC / ReBAC / PBAC — выбор для платформы &lt;em&gt;Pass&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="обзор-моделей"&gt;Обзор моделей&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ DAC["DAC\nDiscretionary\n'владелец решает'"]
+ MAC["MAC\nMandatory\n'метки секретности'"]
+ RBAC["RBAC\nRole-Based\n'роль определяет доступ'"]
+ ABAC["ABAC\nAttribute-Based\n'атрибуты субъекта+ресурса+контекста'"]
+ REBAC["ReBAC\nRelationship-Based\n'граф отношений'"]
+ PBAC["PBAC\nPolicy-Based\n'политики как код'"]
+ ZT["Zero Trust\n'никому не доверяй'\nпринцип поверх моделей"]
+
+ DAC --&gt;|расширение| RBAC
+ RBAC --&gt;|расширение| ABAC
+ ABAC --&gt;|унификация| PBAC
+ REBAC --&gt;|альтернатива| ABAC
+ ZT -.-&gt;|применяется поверх| ABAC &amp; REBAC&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="dac--discretionary-access-control"&gt;DAC — Discretionary Access Control&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Принцип&lt;/strong&gt;: владелец ресурса сам решает кому дать доступ.&lt;/p&gt;</description></item><item><title>Модель управления доступом</title><link>https://sayr777.github.io/tenantpass/access-model/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/access-model/</guid><description>&lt;h1 id="модель-управления-доступом"&gt;Модель управления доступом&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Основа архитектуры TenantPass&lt;/em&gt;&lt;/p&gt;
+&lt;h2 id="слои-модели"&gt;Слои модели&lt;/h2&gt;
+&lt;div class="mermaid"&gt;graph TD
+ S["СУБЪЕКТЫ ДОСТУПА\nСотрудник · Подрядчик · Посетитель · Техперсонал"]
+ I["СРЕДСТВА ИДЕНТИФИКАЦИИ\nPasskey/FIDO2 · NFC-карта\nBLE-смартфон · Биометрия"]
+ K["KEYCLOAK — POLICY ENGINE\nABAC: субъект + ресурс + контекст\ntenant_id · site_id · time · device · amr"]
+ E["ИСПОЛНИТЕЛЬ\nДверь/лифт · ПК/принтер"]
+ L["ЖУРНАЛ АУДИТА\n(все решения — permit и deny)"]
+
+ S --&gt;|идентификация| I
+ I --&gt;|запрос доступа| K
+ K --&gt;|permit| E
+ K --&gt;|deny| L
+ E --&gt;|событие входа| L&lt;/div&gt;
+
+&lt;h2 id="роли-rbac-основа"&gt;Роли (RBAC-основа)&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Роль&lt;/th&gt;
+					&lt;th&gt;Что видит / может&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;employee&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Только свои отметки, свой табель&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;site_manager&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Сотрудники своего объекта, корректировка явок (в течение 24 ч)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;tenant_admin&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Управление пользователями своей организации-арендатора&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;hr&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Табели по компании (только чтение), без настройки терминалов&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;admin&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Управление терминалами, правилами, интеграциями&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;auditor&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Только чтение табелей и логов&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="атрибуты-abac-расширение"&gt;Атрибуты (ABAC-расширение)&lt;/h2&gt;
+&lt;h3 id="атрибуты-субъекта"&gt;Атрибуты субъекта&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;tenant_id&lt;/code&gt; — организация-арендатор&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;site_id&lt;/code&gt; — объект/здание&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;department&lt;/code&gt; — подразделение&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;employment_type&lt;/code&gt; — тип занятости (штат / подрядчик / гость)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="атрибуты-ресурса"&gt;Атрибуты ресурса&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;resource.type&lt;/code&gt; — &lt;code&gt;door&lt;/code&gt;, &lt;code&gt;elevator&lt;/code&gt;, &lt;code&gt;workstation&lt;/code&gt;, &lt;code&gt;timesheet&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;resource.tenant_id&lt;/code&gt; — кому принадлежит ресурс&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;resource.site_id&lt;/code&gt; — на каком объекте&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;resource.shift_end&lt;/code&gt; — когда закончилась смена (для табеля)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="атрибуты-окружения-контекст"&gt;Атрибуты окружения (контекст)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;time&lt;/code&gt; — рабочее / нерабочее время&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;ip&lt;/code&gt; / &lt;code&gt;network&lt;/code&gt; — корпоративная сеть или нет&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;amr&lt;/code&gt; — метод аутентификации (&lt;code&gt;fido2&lt;/code&gt;, &lt;code&gt;nfc&lt;/code&gt;, &lt;code&gt;password&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;device_trusted&lt;/code&gt; — устройство проверено (MDM-сертификат)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="пример-политик"&gt;Пример политик&lt;/h2&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;# Менеджер видит только свой объект своего арендатора
+user.role == &amp;#34;site_manager&amp;#34;
+AND user.tenant_id == resource.tenant_id
+AND user.site_id == resource.site_id
+
+# Вход через дверь только в рабочее время и только по FIDO2/NFC
+resource.type == &amp;#34;door&amp;#34;
+AND time.in(work_hours)
+AND amr contains (&amp;#34;fido2&amp;#34; OR &amp;#34;nfc&amp;#34;)
+
+# Корректировка табеля — только в течение 24 ч после смены
+resource.type == &amp;#34;timesheet&amp;#34;
+AND user.role == &amp;#34;site_manager&amp;#34;
+AND (now - resource.shift_end) &amp;lt; 24h
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id="принципы"&gt;Принципы&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Минимум привилегий&lt;/strong&gt;: каждая роль видит только то, что нужно&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Запрет по умолчанию&lt;/strong&gt;: всё, что явно не разрешено — запрещено&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Аудит каждого решения&lt;/strong&gt;: permit И deny записываются&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Автономность&lt;/strong&gt;: при недоступности Keycloak — режим по последним известным разрешениям (для дверей)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Централизованность&lt;/strong&gt;: ни один терминал не принимает решение самостоятельно&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/tenantpass/"&gt;index&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/tenantpass/abac/"&gt;abac&lt;/a&gt;
+→ &lt;a href="https://sayr777.github.io/tenantpass/deployments/"&gt;deployments&lt;/a&gt;&lt;/p&gt;</description></item><item><title>Мультиарендаторность: Organizations vs Realms</title><link>https://sayr777.github.io/tenantpass/multitenancy/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/multitenancy/</guid><description>&lt;h1 id="мультиарендаторность-organizations-vs-realms"&gt;Мультиарендаторность: Organizations vs Realms&lt;/h1&gt;
+&lt;h2 id="два-пути"&gt;Два пути&lt;/h2&gt;
+&lt;h3 id="organizations-внутри-одного-realm"&gt;Organizations внутри одного Realm&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Когда выбирать&lt;/strong&gt;: арендаторов десятки, не нужна полная изоляция политик аутентификации.&lt;/p&gt;
+&lt;p&gt;Плюсы:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Создание за 0.03 сек vs 0.53 сек для realm&lt;/li&gt;
+&lt;li&gt;Единая точка администрирования&lt;/li&gt;
+&lt;li&gt;Пользователь может быть в нескольких организациях одновременно&lt;/li&gt;
+&lt;li&gt;Автоматическая маршрутизация по домену email (&lt;code&gt;@tenant-a.com&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Fine-Grained Admin Permissions с 26.7 (администратор видит только свою org)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Ограничения (критические):&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Organization Groups &lt;strong&gt;нельзя&lt;/strong&gt; использовать в Authorization Policies — только realm-группы&lt;/li&gt;
+&lt;li&gt;Нет per-organization политик аутентификации (MFA, пароли, время жизни токенов)&lt;/li&gt;
+&lt;li&gt;Нет per-organization темы логина&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Производительность&lt;/strong&gt;: при 300+ org + persistent user sessions → падение после 300 RPS. Решение: отключить persistent sessions → масштаб до 5000 org&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Баг (issue #48654)&lt;/strong&gt;: &lt;code&gt;count()&lt;/code&gt; при проверке существования org при миллионах org = spike CPU на БД&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="отдельные-realms"&gt;Отдельные Realms&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Когда выбирать&lt;/strong&gt;: нужна полная изоляция ключей/политик, арендаторов &amp;lt; 50.&lt;/p&gt;</description></item><item><title>Пользовательские истории и сценарии использования</title><link>https://sayr777.github.io/tenantpass/user-stories/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/user-stories/</guid><description>&lt;h1 id="пользовательские-истории-и-сценарии-использования"&gt;Пользовательские истории и сценарии использования&lt;/h1&gt;
+&lt;p&gt;Формат историй: «Как [роль], я хочу [действие], чтобы [ценность]».
+Формат сценариев: шаги + ожидаемый результат.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="platform_admin"&gt;platform_admin&lt;/h2&gt;
+&lt;h3 id="истории"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;platform_admin&lt;/code&gt;, я хочу создать нового арендатора за несколько кликов, чтобы подключать заказчиков без ручной настройки Keycloak.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;platform_admin&lt;/code&gt;, я хочу ротировать ключи подписи токенов по расписанию, чтобы выполнять требования ФСБ без простоя системы.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;platform_admin&lt;/code&gt;, я хочу видеть общую статистику по всем арендаторам (нагрузка, ошибки аутентификации), чтобы выявлять аномалии до того, как они станут инцидентами.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;platform_admin&lt;/code&gt;, я хочу деактивировать арендатора целиком, не удаляя данные, чтобы обеспечить off-boarding заказчика с сохранением аудит-следа.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-подключение-нового-арендатора"&gt;Сценарий: подключение нового арендатора&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Заказчик подписал договор
+2. platform_admin заходит в панель управления
+3. Заполняет: название org, домен email (@company.ru), контакт tenant_admin
+4. Система создаёт Organization в Keycloak, генерирует invite-ссылку для tenant_admin
+5. Отправляет ссылку заказчику
+6. Новый арендатор появляется в списке → статус &amp;#34;pending&amp;#34; до первого входа tenant_admin
+
+Результат: арендатор изолирован, platform_admin не имеет доступа к ПДн его сотрудников
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="сценарий-ротация-ключей-подписи"&gt;Сценарий: ротация ключей подписи&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Плановое окно обслуживания (ночь)
+2. platform_admin инициирует ротацию
+3. Keycloak создаёт новый ключ, старый переводит в &amp;#34;deprecated&amp;#34; (ещё валиден для проверки)
+4. Все активные токены постепенно перевыпускаются с новым ключом
+5. Через 24 ч старый ключ деактивируется
+6. Событие записывается в audit log с timestamp и ID администратора
+
+Результат: непрерывность работы + соответствие требованиям ФСБ по ротации
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="platform_auditor"&gt;platform_auditor&lt;/h2&gt;
+&lt;h3 id="истории-1"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;platform_auditor&lt;/code&gt;, я хочу экспортировать системные журналы за период, чтобы предоставить доказательную базу для проверки ФСТЭК.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;platform_auditor&lt;/code&gt;, я хочу видеть список всех изменений конфигурации Keycloak с автором и временем, чтобы подтвердить управление изменениями.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;platform_auditor&lt;/code&gt;, я хочу получать уведомление об инцидентах ИБ в течение 1 часа, чтобы уложиться в регламент уведомления РКН (24 ч).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-подготовка-отчёта-для-фстэк"&gt;Сценарий: подготовка отчёта для ФСТЭК&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Получен запрос на аудит
+2. platform_auditor открывает журналы за запрошенный период
+3. Применяет фильтры: тип событий (аутентификация, смена ролей, ротация ключей)
+4. Экспортирует в формат, подписанный ЭП системы
+5. Проверяет: нет пробелов в логах (целостность), все события задокументированы
+
+Результат: пакет документов для регулятора без участия разработчиков
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="tenant_admin"&gt;tenant_admin&lt;/h2&gt;
+&lt;h3 id="истории-2"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;tenant_admin&lt;/code&gt;, я хочу добавить нового сотрудника и сразу назначить ему объект и роль, чтобы он мог войти на следующий рабочий день.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;tenant_admin&lt;/code&gt;, я хочу добавить объект (новый склад) и назначить на него site_manager, чтобы объект заработал без участия platform_admin.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;tenant_admin&lt;/code&gt;, я хочу зарегистрировать подрядчика с конкретным сроком доступа, чтобы не отзывать вручную когда договор истечёт.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;tenant_admin&lt;/code&gt;, я хочу видеть сводку: сколько сотрудников активно, сколько объектов, какие роли используются, чтобы контролировать состояние своей организации.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;tenant_admin&lt;/code&gt;, я хочу деактивировать уволенного сотрудника в одном месте, чтобы доступ прекратился одновременно везде (дверь, ПК, веб-система).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-onboarding-нового-сотрудника"&gt;Сценарий: onboarding нового сотрудника&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Сотрудник принят в штат
+2. tenant_admin открывает форму &amp;#34;Добавить сотрудника&amp;#34;
+3. Заполняет: ФИО, должность, объект (site_id), группа доступа, дата начала
+4. Выбирает роль: employee
+5. Система создаёт пользователя в Keycloak, добавляет в org, устанавливает атрибуты
+6. Сотрудник получает invite на email → устанавливает passkey
+7. С указанной даты он может отмечаться и проходить на объект
+
+Результат: полный доступ настроен до первого рабочего дня
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="сценарий-off-boarding-уволенного-сотрудника"&gt;Сценарий: off-boarding уволенного сотрудника&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Приказ об увольнении подписан
+2. tenant_admin находит сотрудника → &amp;#34;Деактивировать&amp;#34;
+3. Система:
+ - Отзывает все активные токены (not-before)
+ - Удаляет из org в Keycloak
+ - Агенты дверей получают invalidation при следующем запросе (макс. 45 сек)
+ - ПК-агент блокирует сессию при следующей проверке
+4. Журнал фиксирует: кто деактивировал, когда, причина
+
+Результат: доступ прекращён в течение 1 минуты на всех точках
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="hr"&gt;hr&lt;/h2&gt;
+&lt;h3 id="истории-3"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;hr&lt;/code&gt;, я хочу видеть сводный табель по всем объектам за месяц, чтобы передать его в расчёт ЗП без ручного сбора данных.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;hr&lt;/code&gt;, я хочу выгрузить табель в формате Excel / 1С, чтобы не перепечатывать данные вручную.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;hr&lt;/code&gt;, я хочу получать уведомление, когда у сотрудника истекает медкнижка или допуск, чтобы не пропустить срок и не допустить его на объект с просроченными документами.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;hr&lt;/code&gt;, я хочу видеть сводку опозданий и переработок за период, чтобы рассчитать корректировки к зарплате.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-закрытие-табеля-за-месяц"&gt;Сценарий: закрытие табеля за месяц&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Конец расчётного периода
+2. hr открывает раздел &amp;#34;Табели&amp;#34; → выбирает период
+3. Видит: по каждому сотруднику — отработанные часы, опоздания, ранние уходы, переработки
+4. Обнаруживает 3 незакрытые корректировки → уведомляет site_manager
+5. После подтверждения site_manager → табель переходит в статус &amp;#34;закрыт&amp;#34;
+6. Экспортирует в 1С (XML) или Excel
+7. Система помечает табель как переданный (audit trail)
+
+Результат: расчёт ЗП на основе реальных данных, без споров
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="сценарий-просроченный-документ"&gt;Сценарий: просроченный документ&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. За 7 дней до истечения медкнижки сотрудника Иванова
+ система отправляет уведомление hr и tenant_admin
+2. hr связывается с Ивановым
+3. Если документ не обновлён к дате истечения:
+ - Система автоматически блокирует отметку на терминале
+ - Иванов получает уведомление: &amp;#34;Доступ приостановлен: истекла медкнижка&amp;#34;
+4. hr загружает скан нового документа → доступ восстанавливается
+
+Результат: контроль документов без ручного мониторинга
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="security_officer"&gt;security_officer&lt;/h2&gt;
+&lt;h3 id="истории-4"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;security_officer&lt;/code&gt;, я хочу немедленно заблокировать доступ конкретному человеку, не дожидаясь tenant_admin, чтобы реагировать на инциденты безопасности в реальном времени.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;security_officer&lt;/code&gt;, я хочу видеть кто находился на объекте в конкретный момент времени, чтобы расследовать инцидент (кража, ЧП).&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;security_officer&lt;/code&gt;, я хочу получать алерт при повторных неудачных попытках идентификации, чтобы выявлять попытки несанкционированного доступа.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;security_officer&lt;/code&gt;, я хочу видеть «маршрут» конкретного сотрудника по объекту в течение дня, чтобы проверить алиби или выявить нарушение зон допуска.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-экстренная-блокировка"&gt;Сценарий: экстренная блокировка&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Охранник сообщает о подозрительном поведении сотрудника Петрова
+2. security_officer открывает &amp;#34;Управление доступом&amp;#34; → ищет Петрова
+3. Нажимает &amp;#34;Заблокировать&amp;#34; → вводит причину: &amp;#34;Инцидент ИБ — расследование&amp;#34;
+4. Система:
+ - Отзывает токены Петрова (not-before в Keycloak)
+ - Все агенты дверей получат deny при следующем запросе (≤ 45 сек)
+5. Журнал: security_officer Смирнова, время, причина
+6. Петров пробует войти → отказ → уведомление на пост охраны
+7. После расследования: tenant_admin или security_officer снимает блокировку
+
+Результат: реакция &amp;lt; 1 мин, полный аудит-след
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="сценарий-расследование-инцидента"&gt;Сценарий: расследование инцидента&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Обнаружена кража в серверной комнате в период 22:00–23:00
+2. security_officer открывает журнал → фильтр: зона &amp;#34;серверная&amp;#34;, период 21:30–23:30
+3. Система показывает: 2 прохода (вход 22:14 Козлов, выход 22:47 Козлов)
+4. security_officer смотрит &amp;#34;маршрут Козлова за день&amp;#34;: проходная → офис → серверная → проходная
+5. Фото с биометрического терминала подтверждает личность
+6. Экспортирует отчёт с ЭП системы для передачи в службу безопасности
+
+Результат: доказательная база с временными метками и фото
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="tenant_auditor"&gt;tenant_auditor&lt;/h2&gt;
+&lt;h3 id="истории-5"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;tenant_auditor&lt;/code&gt;, я хочу просматривать все события доступа за любой период, не имея возможности их изменить, чтобы обеспечить независимую проверку.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;tenant_auditor&lt;/code&gt;, я хочу экспортировать отчёт с ЭП системы, чтобы данные имели юридическую силу.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-плановая-проверка"&gt;Сценарий: плановая проверка&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Ежеквартальная внутренняя проверка
+2. tenant_auditor запрашивает журналы за квартал
+3. Проверяет: нет ли пробелов, все ли отзывы прав задокументированы, нет ли входов в нерабочее время без объяснений
+4. Формирует отчёт → экспортирует с ЭП → передаёт руководству
+
+Результат: подтверждение соответствия внутренним политикам
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="site_manager"&gt;site_manager&lt;/h2&gt;
+&lt;h3 id="истории-6"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;site_manager&lt;/code&gt;, я хочу в 8:00 видеть кто уже на месте и кто опоздал, чтобы принять оперативные решения по смене.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;site_manager&lt;/code&gt;, я хочу скорректировать пропущенную отметку сотрудника в течение 24 часов, чтобы табель отражал реальное рабочее время.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;site_manager&lt;/code&gt;, я хочу составить расписание смен на следующую неделю, чтобы сотрудники знали свой график заранее.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;site_manager&lt;/code&gt;, я хочу открыть дверь удалённо для курьера, не выходя из кабинета, чтобы не прерывать работу.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;site_manager&lt;/code&gt;, я хочу видеть уведомление если кто-то задержался после конца смены, чтобы избежать несанкционированного нахождения на объекте.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-утренняя-проверка-явки"&gt;Сценарий: утренняя проверка явки&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. 8:05, смена началась в 8:00
+2. site_manager открывает дашборд &amp;#34;Кто на месте&amp;#34;
+3. Видит: 18 из 20 сотрудников отметились, 2 — нет (Иванов, Сидоров)
+4. Автоматическое уведомление уже отправлено Иванову и Сидорову
+5. site_manager звонит Иванову → больничный → создаёт отметку &amp;#34;Больничный&amp;#34; вручную
+6. Сидоров отвечает: опаздывает на 30 мин → статус &amp;#34;опоздание&amp;#34; зафиксируется автоматически при отметке
+
+Результат: за 5 минут ясна картина явки, табель корректен
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="сценарий-корректировка-табеля"&gt;Сценарий: корректировка табеля&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Сотрудник Иванов забыл отметиться при выходе
+2. site_manager видит: приход 09:00, уход — нет (смена закончилась 18:00)
+3. Открывает запись → &amp;#34;Скорректировать уход&amp;#34; → вводит 18:00, причина: &amp;#34;Технический сбой терминала&amp;#34;
+4. Система проверяет: запрос в течение 24 ч ✓, роль site_manager ✓ → разрешает
+5. Корректировка сохраняется с меткой: кто изменил, когда, причина
+6. hr видит скорректированную запись со статусом &amp;#34;изменено вручную&amp;#34;
+
+Результат: табель точен, аудит-след сохранён
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="shift_supervisor"&gt;shift_supervisor&lt;/h2&gt;
+&lt;h3 id="истории-7"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;shift_supervisor&lt;/code&gt;, я хочу видеть список своей бригады с отметками о явке прямо на смене, чтобы знать с кем работаю сегодня.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;shift_supervisor&lt;/code&gt;, я хочу отметить причину отсутствия члена бригады (без изменения табеля), чтобы site_manager принял оперативное решение.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-начало-смены-на-стройплощадке"&gt;Сценарий: начало смены на стройплощадке&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. 7:00, начало смены на объекте &amp;#34;Корпус Б&amp;#34;
+2. shift_supervisor открывает приложение → &amp;#34;Моя смена&amp;#34;
+3. Видит: из 12 человек бригады — 10 отметились, 2 нет (Фёдоров, Кузьмин)
+4. Звонит Фёдорову: не выйдет → отмечает &amp;#34;Не выйдет, причина: болезнь&amp;#34; (без изменения табеля!)
+5. Уведомление уходит site_manager → тот принимает решение о замене
+
+Результат: site_manager получает информацию в 7:05, есть время найти замену
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="employee"&gt;employee&lt;/h2&gt;
+&lt;h3 id="истории-8"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;employee&lt;/code&gt;, я хочу отметиться на входе лицом или телефоном, не ища карточку, чтобы приход фиксировался быстро и без лишних действий.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;employee&lt;/code&gt;, я хочу видеть свой табель за месяц, чтобы проверить корректность перед начислением ЗП.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;employee&lt;/code&gt;, я хочу видеть своё расписание на следующую неделю в приложении, чтобы планировать личное время.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;employee&lt;/code&gt;, я хочу получить уведомление если мой табель был скорректирован, чтобы быть в курсе изменений.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-утренняя-отметка"&gt;Сценарий: утренняя отметка&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Сотрудник подходит к проходной
+2. Поднимает телефон (BLE + passkey) или смотрит в камеру (biometrics)
+3. Терминал передаёт запрос агенту → агент запрашивает Keycloak
+4. Keycloak проверяет: действующий сотрудник ✓, документы не просрочены ✓, рабочее время ✓
+5. Permit → турникет открывается, событие записывается
+6. Сотрудник получает уведомление: &amp;#34;Добро пожаловать, 08:52&amp;#34;
+
+Результат: 3 секунды от подхода до прохода
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="сценарий-проверка-своего-табеля"&gt;Сценарий: проверка своего табеля&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Перед получением зарплаты
+2. employee открывает приложение → &amp;#34;Мой табель&amp;#34; → выбирает месяц
+3. Видит: 21 рабочий день, 3 опоздания (&amp;lt; 15 мин), 168 часов итого
+4. Замечает: 12-го числа нет отметки об уходе
+5. Отправляет запрос на корректировку site_manager (с объяснением)
+6. site_manager подтверждает → employee получает уведомление об исправлении
+
+Результат: прозрачность расчёта, нет споров при выплате
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="contractor"&gt;contractor&lt;/h2&gt;
+&lt;h3 id="истории-9"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;contractor&lt;/code&gt;, я хочу войти на объект по своему корпоративному смартфону, не получая отдельную карту, чтобы начать работу без лишней бюрократии.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;contractor&lt;/code&gt;, я хочу получить уведомление за 3 дня до истечения моего допуска, чтобы успеть продлить договор.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-доступ-подрядчика-на-объект"&gt;Сценарий: доступ подрядчика на объект&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Монтажная бригада прибыла на объект
+2. tenant_admin заранее зарегистрировал: contractor Алексеев, site_id = &amp;#34;склад-3&amp;#34;,
+ valid_from = 2026-10-20, valid_until = 2026-11-03, access_group = &amp;#34;монтажная зона&amp;#34;
+3. Алексеев подходит к турникету
+4. Агент запрашивает Keycloak:
+ - role == contractor ✓
+ - site_id == &amp;#34;склад-3&amp;#34; ✓
+ - now between valid_from and valid_until ✓
+ - access_group includes &amp;#34;монтажная зона&amp;#34; ✓
+ → permit
+5. 4-го ноября Алексеев пробует пройти:
+ - now &amp;gt; valid_until → deny
+ - Терминал: &amp;#34;Срок допуска истёк. Обратитесь к администратору.&amp;#34;
+
+Результат: доступ автоматически прекращается без ручного отзыва
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="visitor"&gt;visitor&lt;/h2&gt;
+&lt;h3 id="истории-10"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;visitor&lt;/code&gt;, я хочу быстро получить временный пропуск на проходной, чтобы не ждать пока сотрудник за мной спустится.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;visitor&lt;/code&gt;, я хочу знать маршрут к нужному кабинету, чтобы не блуждать по закрытым зонам.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-регистрация-посетителя"&gt;Сценарий: регистрация посетителя&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Посетитель приходит на ресепшн
+2. Охранник / site_manager создаёт visitor-запись:
+ ФИО, цель визита, к кому, valid_until = сегодня 18:00
+3. Посетитель получает QR-код на телефон (разовый токен)
+4. Проходит через турникет зоны приёма → сканирует QR
+5. Система фиксирует: вход 14:23, зона &amp;#34;ресепшн + переговорная 1&amp;#34;
+6. В 18:00 QR истекает → если ещё на объекте: уведомление охране
+
+Результат: посетитель под контролем, аудит-след есть
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="tech_staff"&gt;tech_staff&lt;/h2&gt;
+&lt;h3 id="истории-11"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;tech_staff&lt;/code&gt; (уборщица), я хочу иметь доступ в офис только в разрешённые часы (19:00–22:00), чтобы не мешать работе и не иметь доступа в другое время.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;tech_staff&lt;/code&gt; (IT), я хочу запросить временный доступ в серверную, чтобы провести регламентные работы, и чтобы это было задокументировано.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-сервисный-доступ-it-в-серверную"&gt;Сценарий: сервисный доступ IT в серверную&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. IT-специалист Громов планирует замену диска в 23:00
+2. Создаёт заявку: &amp;#34;Доступ в серверную 23:00–01:00, причина: замена HDD&amp;#34;
+3. site_manager подтверждает заявку
+4. В 23:00 Громов подходит к серверной:
+ - Агент видит: tech_staff ✓, approved_access_request ✓, time in window ✓ → permit
+5. Каждый проход в серверную записывается с меткой &amp;#34;сервисный доступ: заявка #127&amp;#34;
+6. В 01:01 — доступ автоматически закрывается
+
+Результат: нестандартный доступ разрешён, полностью задокументирован
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="security_guard"&gt;security_guard&lt;/h2&gt;
+&lt;h3 id="истории-12"&gt;Истории&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Как &lt;code&gt;security_guard&lt;/code&gt;, я хочу видеть в реальном времени кто находится на каждом этаже, чтобы реагировать на нештатные ситуации.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;security_guard&lt;/code&gt;, я хочу открыть любую дверь объекта дистанционно, чтобы помочь при эвакуации или ЧП.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;security_guard&lt;/code&gt;, я хочу получать алерт при попытке прохода в закрытую зону, чтобы немедленно реагировать.&lt;/li&gt;
+&lt;li&gt;Как &lt;code&gt;security_guard&lt;/code&gt;, я хочу видеть фото пользователя при каждом проходе, чтобы подтвердить соответствие.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="сценарий-мониторинг-объекта-ночью"&gt;Сценарий: мониторинг объекта ночью&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. 02:30, security_guard на посту
+2. Алерт: попытка прохода в зону &amp;#34;серверная&amp;#34; — deny (нет действующей заявки)
+3. Нарушитель: сотрудник Рябов (по данным его карты)
+4. security_guard открывает запись: фото с терминала — не Рябов (подмена карты!)
+5. Нажимает &amp;#34;Тревога&amp;#34;: блокируются все выходы кроме эвакуационных
+6. Уведомление уходит security_officer и platform_admin
+7. Все события протоколируются
+
+Результат: инцидент заблокирован за 2 минуты, доказательная база собрана
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id="сценарий-ручное-открытие-двери-при-эвакуации"&gt;Сценарий: ручное открытие двери при эвакуации&lt;/h3&gt;
+&lt;pre tabindex="0"&gt;&lt;code&gt;1. Срабатывает пожарная сигнализация
+2. security_guard активирует режим &amp;#34;Эвакуация&amp;#34; в панели
+3. Система:
+ - Разблокирует все двери на путях эвакуации
+ - Блокирует технические входы (чтобы не усложнять ситуацию)
+ - Сохраняет список кто был на объекте на момент сигнала
+4. После отбоя: security_guard вручную закрывает режим эвакуации
+5. Каждое ручное действие — в журнале с причиной
+
+Результат: безопасность людей + полный аудит-след для пожарной службы
+&lt;/code&gt;&lt;/pre&gt;&lt;hr&gt;
+&lt;h2 id="связи"&gt;Связи&lt;/h2&gt;
+&lt;p&gt;← &lt;a href="https://sayr777.github.io/tenantpass/roles/"&gt;roles&lt;/a&gt;
+← &lt;a href="https://sayr777.github.io/tenantpass/access-model/"&gt;access-model&lt;/a&gt;&lt;/p&gt;</description></item><item><title>Роли пользователей</title><link>https://sayr777.github.io/tenantpass/roles/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/roles/</guid><description>&lt;h1 id="роли-пользователей"&gt;Роли пользователей&lt;/h1&gt;
+&lt;p&gt;Иерархия: Платформа → Арендатор → Объект → Сотрудник.
+Роли вышестоящего уровня не наследуют автоматически права нижестоящих — каждый уровень явно задаётся через атрибуты и политики.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="уровень-платформы"&gt;Уровень платформы&lt;/h2&gt;
+&lt;h3 id="platform_admin"&gt;&lt;code&gt;platform_admin&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;Управляет всей платформой TenantPass. Создаёт и удаляет арендаторов, управляет глобальными настройками Keycloak.&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Доступ&lt;/th&gt;
+					&lt;th&gt;Описание&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Данные&lt;/td&gt;
+					&lt;td&gt;Все realm&amp;rsquo;ы и организации&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Физический&lt;/td&gt;
+					&lt;td&gt;Нет (не операционная роль)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Операции&lt;/td&gt;
+					&lt;td&gt;CRUD арендаторов, управление realm-настройками, ротация ключей, просмотр системных логов&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Ограничения: не видит персональные данные сотрудников арендаторов (принцип минимума привилегий). Доступ только из управляющего сегмента сети.&lt;/p&gt;</description></item><item><title>Система управления рабочим временем (СУРВ)</title><link>https://sayr777.github.io/tenantpass/workforce-time/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/workforce-time/</guid><description>&lt;h1 id="система-управления-рабочим-временем-сурв"&gt;Система управления рабочим временем (СУРВ)&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;TenantPass Corporate — учёт рабочего времени, табель, интеграции&lt;/em&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="обзор"&gt;Обзор&lt;/h2&gt;
+&lt;p&gt;СУРВ — вторая ключевая функция TenantPass (рядом со СКУД). Собирает события из СКУД (вход/выход через турникет), формирует табель рабочего времени, интегрируется с 1С:ЗУП.&lt;/p&gt;
+&lt;div class="mermaid"&gt;graph TD
+ subgraph INPUT["Источники событий"]
+ TURNSTILE["Турникет / СКУД\nвход/выход + timestamp"]
+ MOBILE["Мобильное приложение\nгеолокационная отметка (разъездной персонал)"]
+ MANUAL["Ручная корректировка\nHR в веб-интерфейсе"]
+ SCHEDULE["Расписание смен\nграфики работы"]
+ end
+
+ subgraph ENGINE["Движок СУРВ"]
+ COLLECTOR["Event Collector\nсбор сырых событий"]
+ RULES["Rules Engine\nправила расчёта (опоздание, сверхурочные)"]
+ TABEL["Табель\n(ТШ-форма, Т-12, Т-13)"]
+ REPORT["Отчёты\nHR-аналитика, посещаемость"]
+ end
+
+ subgraph EXPORT["Выгрузки"]
+ C1["1С:ЗУП\nXML / HTTP API"]
+ EXCEL["Excel\nТ-13 форма"]
+ PDF["PDF\nподписанные табели"]
+ end
+
+ INPUT --&gt; ENGINE
+ ENGINE --&gt; EXPORT&lt;/div&gt;
+
+&lt;hr&gt;
+&lt;h2 id="типы-рабочих-расписаний"&gt;Типы рабочих расписаний&lt;/h2&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Тип&lt;/th&gt;
+					&lt;th&gt;Описание&lt;/th&gt;
+					&lt;th&gt;Пример&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Стандартное&lt;/td&gt;
+					&lt;td&gt;5/2, 8:00–17:00&lt;/td&gt;
+					&lt;td&gt;Офис&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Сменное&lt;/td&gt;
+					&lt;td&gt;2/2, 3 смены&lt;/td&gt;
+					&lt;td&gt;Охрана, производство&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Гибкое (флекс)&lt;/td&gt;
+					&lt;td&gt;Ядро 11:00–15:00, остальное свободно&lt;/td&gt;
+					&lt;td&gt;IT-компания&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Проектное&lt;/td&gt;
+					&lt;td&gt;Нет фиксированного графика, задачи&lt;/td&gt;
+					&lt;td&gt;Консалтинг&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Разъездное&lt;/td&gt;
+					&lt;td&gt;Отметка по геолокации&lt;/td&gt;
+					&lt;td&gt;Торговые представители&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Дистанционное&lt;/td&gt;
+					&lt;td&gt;Нет контроля прихода&lt;/td&gt;
+					&lt;td&gt;Remote-сотрудники&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id="модель-данных"&gt;Модель данных&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-yaml" data-lang="yaml"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Расписание смены&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;schedule&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;id&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;shift-2x2-day&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;2/2 дневная&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;days_on&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;days_off&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;shifts&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; - &lt;span style="color:#f92672"&gt;name&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;День&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;start&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;08:00&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;end&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;20:00&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;break_minutes&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;60&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;overtime_threshold_minutes&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;720&lt;/span&gt; &lt;span style="color:#75715e"&gt;# 12 ч = начало сверхурочных&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Правило расчёта опоздания&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;rule&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;type&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;late_arrival&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;grace_period_minutes&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;15&lt;/span&gt; &lt;span style="color:#75715e"&gt;# до 15 мин — не считается&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;mark_as&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;late &lt;/span&gt; &lt;span style="color:#75715e"&gt;# или absent_partial&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Правило сверхурочных&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#f92672"&gt;rule&lt;/span&gt;:
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;type&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;overtime&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;min_duration_minutes&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;30&lt;/span&gt; &lt;span style="color:#75715e"&gt;# меньше 30 мин не считается&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;rate_multiplier&lt;/span&gt;: &lt;span style="color:#ae81ff"&gt;1.5&lt;/span&gt; &lt;span style="color:#75715e"&gt;# коэффициент оплаты&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;requires_approval&lt;/span&gt;: &lt;span style="color:#66d9ef"&gt;true&lt;/span&gt; &lt;span style="color:#75715e"&gt;# нужно согласование руководителя&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="табель-рабочего-времени"&gt;Табель рабочего времени&lt;/h2&gt;
+&lt;p&gt;Формат совместим с унифицированными формами Т-12 / Т-13 (Постановление Госкомстата РФ №1).&lt;/p&gt;</description></item><item><title>Системные пользователи (Service Accounts)</title><link>https://sayr777.github.io/tenantpass/service-accounts/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://sayr777.github.io/tenantpass/service-accounts/</guid><description>&lt;h1 id="системные-пользователи-service-accounts"&gt;Системные пользователи (Service Accounts)&lt;/h1&gt;
+&lt;p&gt;Машинные учётные записи для взаимодействия сервисов внутри системы.
+Не являются людьми. Не входят в пользовательский интерфейс. Аутентификация только через Client Credentials Flow.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="принципы"&gt;Принципы&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Каждый сервис имеет &lt;strong&gt;свой&lt;/strong&gt; client с минимально необходимыми правами&lt;/li&gt;
+&lt;li&gt;Никаких shared credentials между сервисами&lt;/li&gt;
+&lt;li&gt;Все межсервисные вызовы идут через Keycloak token → проверяются получателем&lt;/li&gt;
+&lt;li&gt;Ротация client secret — по расписанию или при подозрении на компрометацию&lt;/li&gt;
+&lt;li&gt;Все вызовы логируются с указанием &lt;code&gt;client_id&lt;/code&gt; источника&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="список-сервисных-аккаунтов"&gt;Список сервисных аккаунтов&lt;/h2&gt;
+&lt;h3 id="door-controller-client"&gt;&lt;code&gt;door-controller-client&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Кто&lt;/strong&gt;: агент контроллера дверей и лифтов на каждом физическом устройстве.&lt;/p&gt;</description></item></channel></rss>

@@ -1,0 +1,80 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Ворота и калитка · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Ворота и калитка</span></nav><article class=prose><h1>Ворота и калитка</h1><h1 id=ворота-и-калитка>Ворота и калитка</h1><p>Главная точка входа на территорию. Самая приоритетная зона автоматизации.</p><h2 id=ворота-въезд-для-машин>Ворота (въезд для машин)</h2><h3 id=железо>Железо</h3><pre tabindex=0><code>[Привод ворот] ← существующий (CAME, NICE, DoorHan и т.п.)
+      │
+  [Сухой контакт / реле управления]
+      │
+  [ESP32 + ESPHome]  ──WiFi──►  Home Assistant
+      │
+  [Датчик положения] — открыто / закрыто (герконовый или концевик)
+  [Датчик препятствия] — фотоэлемент (обычно встроен в привод)
+</code></pre><p>Не заменять привод — подключаться через реле к управляющим входам существующего привода.</p><h3 id=методы-открытия>Методы открытия</h3><table><thead><tr><th>Метод</th><th>Кто</th><th>Как</th></tr></thead><tbody><tr><td>Пульт (стандартный)</td><td>Семья</td><td>Штатный пульт привода</td></tr><tr><td>Кнопка в приложении HA</td><td>Хозяин</td><td>Tap → открыть/закрыть</td></tr><tr><td>BLE / геозона</td><td>Хозяин</td><td>Автоматически при подъезде</td></tr><tr><td>RFID-метка на машине</td><td>Семья</td><td>Метка у лобового стекла → считыватель у ворот</td></tr><tr><td>Домофон → кнопка</td><td>Гость</td><td>Видеозвонок → хозяин нажимает «открыть»</td></tr><tr><td>PIN</td><td>Подрядчик</td><td>Вводит код на панели</td></tr></tbody></table><h3 id=автоматизации>Автоматизации</h3><pre tabindex=0><code>Автооткрытие (хозяин):
+  Триггер: геозона &#34;Рядом&#34; (500 м) + время суток 6:00–23:00
+  Условие: хозяин отсутствовал &gt; 10 мин (не случайный выход из геозоны)
+  Действие: открыть ворота
+  Таймаут: закрыть через 3 мин если машина уже въехала (датчик движения во дворе)
+
+Автозакрытие:
+  Триггер: ворота открыты &gt; 5 мин
+  Условие: нет движения в воротах (ИК-датчик)
+  Действие: закрыть + Push &#34;Ворота закрыты автоматически&#34;
+
+Ночная блокировка:
+  23:00 — 06:00: автооткрытие по геозоне отключено
+  Открытие только через приложение (с подтверждением)
+</code></pre><hr><h2 id=калитка-пешеходный-вход>Калитка (пешеходный вход)</h2><h3 id=железо-1>Железо</h3><pre tabindex=0><code>[Электромеханический замок] — нормально закрытый (открывается подачей тока)
+      │
+  [ESP32 + ESPHome]  ──WiFi──►  Home Assistant
+      │
+  ├── [RFID считыватель Wiegand 26]
+  ├── [Кнопка выхода] (изнутри — всегда открыть)
+  ├── [PIN-панель]
+  └── [Видеодомофон] ──► интеграция в HA (SIP / RTSP)
+</code></pre><h3 id=методы-открытия-1>Методы открытия</h3><table><thead><tr><th>Метод</th><th>Кто</th><th>Особенность</th></tr></thead><tbody><tr><td>RFID-карта / брелок</td><td>Семья, уборщица</td><td>Постоянный доступ</td></tr><tr><td>PIN-код</td><td>Гости, подрядчики</td><td>Временный, с ограничением</td></tr><tr><td>Кнопка в приложении</td><td>Хозяин</td><td>Удалённо</td></tr><tr><td>Видеодомофон → кнопка</td><td>Хозяин</td><td>Видит кто стоит</td></tr><tr><td>Кнопка изнутри</td><td>Все</td><td>Всегда открывает</td></tr></tbody></table><h3 id=esphome-конфиг-упрощённо>ESPHome конфиг (упрощённо)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># ESP32 контроллер калитки</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>switch</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO26</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>id</span>: <span style=color:#ae81ff>gate_lock</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Калитка&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>restore_mode</span>: <span style=color:#ae81ff>ALWAYS_OFF </span> <span style=color:#75715e># нормально закрыт</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_turn_on</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>delay</span>: <span style=color:#ae81ff>5s            </span> <span style=color:#75715e># держать открытой 5 секунд</span>
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>switch.turn_off</span>: <span style=color:#ae81ff>gate_lock</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wiegand</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>d0_pin</span>: <span style=color:#ae81ff>GPIO18</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>d1_pin</span>: <span style=color:#ae81ff>GPIO19</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>on_tag</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#f92672>homeassistant.event</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>event</span>: <span style=color:#ae81ff>esphome.rfid_scan</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>            <span style=color:#f92672>tag</span>: !<span style=color:#ae81ff>lambda &#39;return x;&#39;</span>
+</span></span></code></pre></div><h3 id=автоматизации-1>Автоматизации</h3><pre tabindex=0><code>При сканировании карты:
+  HA проверяет: карта в базе? + активна? + время разрешено?
+    Да → открыть замок + записать событие
+    Нет → отказ + Push хозяину &#34;Неизвестная карта: UID 4A3B2C&#34;
+
+Ночной режим (23:00–07:00):
+  RFID и PIN работают
+  Уведомление хозяину при каждом входе
+
+Забытая открытая калитка:
+  Датчик положения (геркон) сигнализирует: открыта &gt; 2 мин
+  Push: &#34;Калитка открыта&#34;
+</code></pre><hr><h2 id=видеодомофон>Видеодомофон</h2><p>Рекомендация: <strong>Hikvision DS-KV8113</strong> или <strong>RTSP-совместимый домофон</strong>.</p><p>Интеграция в Home Assistant:</p><ul><li>RTSP-поток → Frigate (запись при звонке)</li><li>SIP → линукс-телефония → уведомление с видео на телефон</li><li>Кнопка «Открыть» прямо в уведомлении на телефоне</li></ul><hr><h2 id=fail-safe>Fail-safe</h2><table><thead><tr><th>Ситуация</th><th>Поведение</th></tr></thead><tbody><tr><td>Нет WiFi / сервер упал</td><td>ESP32 работает автономно: RFID-карты из локального кэша</td></tr><tr><td>Нет электричества</td><td>Замок калитки → пружина → механический ключ</td></tr><tr><td>Ворота: нет питания</td><td>Ручная разблокировка привода (рычаг)</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/home/access/>access</a>
+← <a href=/home/index/>index</a>
+→ <a href=/home/buildings/garage/>garage</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer></body></html>

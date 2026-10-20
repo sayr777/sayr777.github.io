@@ -1,0 +1,107 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>'ML-архитектура платформы *Pass' · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><section class=p-hero><div class=w><div class=p-hero__eyebrow>ML</div><h1 class=p-hero__h1>'ML-архитектура платформы *Pass'</h1><p class=p-hero__sub><h1 id=ml-архитектура-платформы-pass>ML-архитектура платформы *Pass</h1><p><em>Машинное обучение как сквозной слой TenantPass + HomePass + EventPass</em></p><hr><h2 id=концепция-данные--модели--решения>Концепция: данные → модели → решения</h2><p>Три проекта генерируют непрерывный поток данных:</p><ul><li><strong>Камеры</strong> (OpenIPC): видеопотоки 24/7</li><li><strong>BLE-метки</strong> (DN·Beacon): позиции людей в реальном времени</li><li><strong>LoRaWAN</strong> (DN·LoRaWAN): датчики среды</li><li><strong>СКУД-события</strong>: время, точка, результат каждого прохода</li><li><strong>Энергоучёт</strong>: потребление каждые 10 секунд</li><li><strong>Температура, движение</strong>: непрерывные временные ряды</li></ul><p>ML превращает этот поток в <strong>автоматические решения</strong> без участия оператора.</p><hr><h2 id=карта-ml-задач-по-проектам>Карта ML-задач по проектам</h2><div class=mermaid>graph TD
+subgraph DATA["Источники данных"]
+CAM["📷 Камеры\nOpenIPC→Frigate"]
+BLE["📡 BLE-метки\nDN·Beacon"]
+LORA["🔗 LoRaWAN\nDN·LoRaWAN"]
+ACS["🚪 СКУД события\nвход/выход/отказ"]
+ENERGY["⚡ Энергоданные\nPZEM, SDM630"]
+SENSORS["🌡 Сенсоры\nтемп, влажность, CO2"]
+end
+subgraph ML_LAYERS["ML-слои"]
+CV["👁 Computer Vision\nYOLO · Faces · LPR · Crowd"]
+ANOMALY["🔴 Anomaly Detection\nIsolation Forest · LSTM AE"]
+FORECAST["📈 Forecasting\nProphet · LightGBM · LSTM"]
+BEHAVIOR["🧠 Behavioral Analytics\nClustering · Sequence Models"]
+NLP["🎤 NLP / Voice\nWhisper · LLM · TTS"]
+end
+subgraph DECISIONS["Решения"]
+ACCESS["Допуск / запрет\n(Keycloak PEP)"]
+ALERT["Тревога / оповещение\n(HA + Asterisk PA)"]
+OPTIMIZE["Оптимизация\n(климат, энергия)"]
+REPORT["Отчёт / аналитика\n(Grafana, ClickHouse)"]
+end
+DATA --> ML_LAYERS --> DECISIONS</div><hr><h2 id=ml-стек-весь-open-source>ML-стек (весь open-source)</h2><table><thead><tr><th>Слой</th><th>Компонент</th><th>Лицензия</th><th>Задача</th></tr></thead><tbody><tr><td><strong>Inference Edge</strong></td><td>ONNX Runtime</td><td>MIT</td><td>Запуск моделей на RPi / x86</td></tr><tr><td><strong>Inference Server</strong></td><td>Triton Inference Server</td><td>BSD</td><td>Batching, GPU, REST/gRPC API</td></tr><tr><td><strong>Vision</strong></td><td>Frigate + YOLO v8</td><td>MIT</td><td>Object detection в реалтайме</td></tr><tr><td><strong>Face recognition</strong></td><td>CompreFace</td><td>Apache 2.0</td><td>Распознавание лиц</td></tr><tr><td><strong>LLM / Vision-LLM</strong></td><td>Ollama + LLaVA</td><td>MIT</td><td>Описание сцен, голосовой ассистент</td></tr><tr><td><strong>STT</strong></td><td>Faster-Whisper</td><td>MIT</td><td>Распознавание речи</td></tr><tr><td><strong>TTS</strong></td><td>Piper</td><td>MIT</td><td>Синтез речи</td></tr><tr><td><strong>Time-series</strong></td><td>Prophet / statsforecast</td><td>MIT/Apache</td><td>Прогнозирование</td></tr><tr><td><strong>Классический ML</strong></td><td>scikit-learn</td><td>BSD</td><td>Anomaly detection, классификация</td></tr><tr><td><strong>Gradient boosting</strong></td><td>LightGBM / XGBoost</td><td>MIT</td><td>Fraud, прогнозы</td></tr><tr><td><strong>Deep learning</strong></td><td>PyTorch</td><td>BSD</td><td>Custom модели</td></tr><tr><td><strong>Feature store</strong></td><td>Feast (или Redis)</td><td>Apache 2.0</td><td>Признаки для онлайн-inference</td></tr><tr><td><strong>Эксперименты</strong></td><td>MLflow</td><td>Apache 2.0</td><td>Трекинг моделей</td></tr><tr><td><strong>Data pipeline</strong></td><td>Prefect</td><td>Apache 2.0</td><td>Оркестрация обучения</td></tr></tbody></table><hr><h2 id=архитектура-inference-пайплайна>Архитектура inference-пайплайна</h2><div class=mermaid>graph TD
+subgraph STREAM["Real-time stream"]
+CAM_S["RTSP камеры"] -->|frames| FRIGATE["Frigate\n(YOLO v8)"]
+BLE_S["MQTT BLE события"] --> FEAT_ENG["Feature Engineering\n(Redis Streams)"]
+ACS_S["СКУД события"] --> FEAT_ENG
+end
+subgraph BATCH["Batch обучение (ночью)"]
+CH["ClickHouse\n(исторические данные)"] --> TRAIN["Prefect DAG\n(обучение моделей)"]
+TRAIN --> MLFLOW["MLflow\n(registry)"]
+MLFLOW --> TRITON["Triton\n(обновление модели)"]
+end
+subgraph SERVING["Online serving"]
+FRIGATE -->|detections| TRITON["Triton Inference\nServer"]
+FEAT_ENG -->|features| TRITON
+TRITON -->|predictions| DECISION["Decision Engine\n(FastAPI)"]
+DECISION --> KC["Keycloak PEP\n(доступ)"]
+DECISION --> HA["Home Assistant\n(автоматизации)"]
+DECISION --> ALERT_SYS["Тревога / PA"]
+end</div><hr><h2 id=распределение-inference-edge-vs-server>Распределение inference: Edge vs Server</h2><table><thead><tr><th>Модель</th><th>Где работает</th><th>Почему</th></tr></thead><tbody><tr><td>YOLO v8 (СКУД детекция)</td><td>Сервер (GPU/Coral)</td><td>Требует >1 GFLOPS</td></tr><tr><td>Face recognition (CompreFace)</td><td>Сервер</td><td>Точность важнее latency</td></tr><tr><td>Anomaly detection (СКУД)</td><td>Сервер</td><td>10 мс, хватает</td></tr><tr><td>LLaVA (описание сцены)</td><td>Сервер (Ollama)</td><td>7B параметров</td></tr><tr><td>Whisper (STT)</td><td>Сервер</td><td>Medium модель</td></tr><tr><td>Простой threshold</td><td>ESP32 / RPi</td><td>Нет сети — нет доступа</td></tr><tr><td>ONNX классификатор (fraud)</td><td>Edge RPi</td><td>Оффлайн EventPass</td></tr></tbody></table><hr><h2 id=описание-ml-модулей>Описание ML-модулей</h2><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>Computer Vision (YOLO, лица, LPR, толпа)</td><td><a href=/ml/vision/>vision</a></td></tr><tr><td>Anomaly Detection (энергия, СКУД, поведение)</td><td><a href=/ml/anomaly/>anomaly</a></td></tr><tr><td>Forecasting (посещаемость, энергия, обслуживание)</td><td><a href=/ml/forecast/>forecast</a></td></tr><tr><td>Behavioral Analytics (паттерны, риск, биометрика)</td><td><a href=/ml/behavioral/>behavioral</a></td></tr><tr><td>Inference Stack (Triton, ONNX, Ollama, MLflow)</td><td><a href=/ml/inference-stack/>inference-stack</a></td></tr></tbody></table><hr><h2 id=применение-ml-по-проектам>Применение ML по проектам</h2><h3 id=tenantpass>TenantPass</h3><ul><li>Детекция хвостового захода (tailgating) по камере</li><li>Аномалии паттернов доступа (сотрудник всегда приходит в 9:00, сегодня в 03:00 → тревога)</li><li>Биометрическая аутентификация (лицо + карта = 2FA)</li><li>Прогноз потока на КПП → адаптивное открытие дополнительных проходов</li><li>Прогноз энергопотребления по зонам</li></ul><h3 id=homepass>HomePass</h3><ul><li>Распознавание членов семьи (камера + DN·Beacon → точная идентификация)</li><li>Адаптивная автоматизация: ML учится на привычках (когда включать котёл, свет)</li><li>Детекция аномального поведения (незнакомый человек ночью на территории)</li><li>Прогноз когда хозяева вернутся домой → предподготовка дома</li></ul><h3 id=eventpass>EventPass</h3><ul><li>Детекция crowds и очередей: управление потоком</li><li>Fraud detection: аномальные паттерны сканирования билетов</li><li>Liveness detection: защита от фото-атаки (пассажир показывает фото QR)</li><li>Прогноз заполнения зон → превентивное перенаправление потоков</li><li>Evacuation path optimization: ML выбирает оптимальный маршрут эвакуации</li></ul><hr><h2 id=связи>Связи</h2><p>→ <a href=/ml/vision/>vision</a>
+→ <a href=/ml/anomaly/>anomaly</a>
+→ <a href=/ml/forecast/>forecast</a>
+→ <a href=/ml/behavioral/>behavioral</a>
+→ <a href=/ml/inference-stack/>inference-stack</a>
+← <a href=/shared/video-surveillance/>video-surveillance</a>
+← <a href=/shared/dn-beacon/>dn-beacon</a>
+← <a href=/eventpass/analytics-pipeline/>analytics-pipeline</a></p></p><div class=btn-row style=margin-bottom:24px><a href=/ml/calculator/ class="btn btn--fill">Калькулятор →</a>
+<a href=/ml/cases/ class="btn btn--out">Кейсы и сценарии</a></div></div></section><section class=sec><div class=w><div class=prose style=max-width:860px;padding:0><h1 id=ml-архитектура-платформы-pass>ML-архитектура платформы *Pass</h1><p><em>Машинное обучение как сквозной слой TenantPass + HomePass + EventPass</em></p><hr><h2 id=концепция-данные--модели--решения>Концепция: данные → модели → решения</h2><p>Три проекта генерируют непрерывный поток данных:</p><ul><li><strong>Камеры</strong> (OpenIPC): видеопотоки 24/7</li><li><strong>BLE-метки</strong> (DN·Beacon): позиции людей в реальном времени</li><li><strong>LoRaWAN</strong> (DN·LoRaWAN): датчики среды</li><li><strong>СКУД-события</strong>: время, точка, результат каждого прохода</li><li><strong>Энергоучёт</strong>: потребление каждые 10 секунд</li><li><strong>Температура, движение</strong>: непрерывные временные ряды</li></ul><p>ML превращает этот поток в <strong>автоматические решения</strong> без участия оператора.</p><hr><h2 id=карта-ml-задач-по-проектам>Карта ML-задач по проектам</h2><div class=mermaid>graph TD
+subgraph DATA["Источники данных"]
+CAM["📷 Камеры\nOpenIPC→Frigate"]
+BLE["📡 BLE-метки\nDN·Beacon"]
+LORA["🔗 LoRaWAN\nDN·LoRaWAN"]
+ACS["🚪 СКУД события\nвход/выход/отказ"]
+ENERGY["⚡ Энергоданные\nPZEM, SDM630"]
+SENSORS["🌡 Сенсоры\nтемп, влажность, CO2"]
+end
+subgraph ML_LAYERS["ML-слои"]
+CV["👁 Computer Vision\nYOLO · Faces · LPR · Crowd"]
+ANOMALY["🔴 Anomaly Detection\nIsolation Forest · LSTM AE"]
+FORECAST["📈 Forecasting\nProphet · LightGBM · LSTM"]
+BEHAVIOR["🧠 Behavioral Analytics\nClustering · Sequence Models"]
+NLP["🎤 NLP / Voice\nWhisper · LLM · TTS"]
+end
+subgraph DECISIONS["Решения"]
+ACCESS["Допуск / запрет\n(Keycloak PEP)"]
+ALERT["Тревога / оповещение\n(HA + Asterisk PA)"]
+OPTIMIZE["Оптимизация\n(климат, энергия)"]
+REPORT["Отчёт / аналитика\n(Grafana, ClickHouse)"]
+end
+DATA --> ML_LAYERS --> DECISIONS</div><hr><h2 id=ml-стек-весь-open-source>ML-стек (весь open-source)</h2><table><thead><tr><th>Слой</th><th>Компонент</th><th>Лицензия</th><th>Задача</th></tr></thead><tbody><tr><td><strong>Inference Edge</strong></td><td>ONNX Runtime</td><td>MIT</td><td>Запуск моделей на RPi / x86</td></tr><tr><td><strong>Inference Server</strong></td><td>Triton Inference Server</td><td>BSD</td><td>Batching, GPU, REST/gRPC API</td></tr><tr><td><strong>Vision</strong></td><td>Frigate + YOLO v8</td><td>MIT</td><td>Object detection в реалтайме</td></tr><tr><td><strong>Face recognition</strong></td><td>CompreFace</td><td>Apache 2.0</td><td>Распознавание лиц</td></tr><tr><td><strong>LLM / Vision-LLM</strong></td><td>Ollama + LLaVA</td><td>MIT</td><td>Описание сцен, голосовой ассистент</td></tr><tr><td><strong>STT</strong></td><td>Faster-Whisper</td><td>MIT</td><td>Распознавание речи</td></tr><tr><td><strong>TTS</strong></td><td>Piper</td><td>MIT</td><td>Синтез речи</td></tr><tr><td><strong>Time-series</strong></td><td>Prophet / statsforecast</td><td>MIT/Apache</td><td>Прогнозирование</td></tr><tr><td><strong>Классический ML</strong></td><td>scikit-learn</td><td>BSD</td><td>Anomaly detection, классификация</td></tr><tr><td><strong>Gradient boosting</strong></td><td>LightGBM / XGBoost</td><td>MIT</td><td>Fraud, прогнозы</td></tr><tr><td><strong>Deep learning</strong></td><td>PyTorch</td><td>BSD</td><td>Custom модели</td></tr><tr><td><strong>Feature store</strong></td><td>Feast (или Redis)</td><td>Apache 2.0</td><td>Признаки для онлайн-inference</td></tr><tr><td><strong>Эксперименты</strong></td><td>MLflow</td><td>Apache 2.0</td><td>Трекинг моделей</td></tr><tr><td><strong>Data pipeline</strong></td><td>Prefect</td><td>Apache 2.0</td><td>Оркестрация обучения</td></tr></tbody></table><hr><h2 id=архитектура-inference-пайплайна>Архитектура inference-пайплайна</h2><div class=mermaid>graph TD
+subgraph STREAM["Real-time stream"]
+CAM_S["RTSP камеры"] -->|frames| FRIGATE["Frigate\n(YOLO v8)"]
+BLE_S["MQTT BLE события"] --> FEAT_ENG["Feature Engineering\n(Redis Streams)"]
+ACS_S["СКУД события"] --> FEAT_ENG
+end
+subgraph BATCH["Batch обучение (ночью)"]
+CH["ClickHouse\n(исторические данные)"] --> TRAIN["Prefect DAG\n(обучение моделей)"]
+TRAIN --> MLFLOW["MLflow\n(registry)"]
+MLFLOW --> TRITON["Triton\n(обновление модели)"]
+end
+subgraph SERVING["Online serving"]
+FRIGATE -->|detections| TRITON["Triton Inference\nServer"]
+FEAT_ENG -->|features| TRITON
+TRITON -->|predictions| DECISION["Decision Engine\n(FastAPI)"]
+DECISION --> KC["Keycloak PEP\n(доступ)"]
+DECISION --> HA["Home Assistant\n(автоматизации)"]
+DECISION --> ALERT_SYS["Тревога / PA"]
+end</div><hr><h2 id=распределение-inference-edge-vs-server>Распределение inference: Edge vs Server</h2><table><thead><tr><th>Модель</th><th>Где работает</th><th>Почему</th></tr></thead><tbody><tr><td>YOLO v8 (СКУД детекция)</td><td>Сервер (GPU/Coral)</td><td>Требует >1 GFLOPS</td></tr><tr><td>Face recognition (CompreFace)</td><td>Сервер</td><td>Точность важнее latency</td></tr><tr><td>Anomaly detection (СКУД)</td><td>Сервер</td><td>10 мс, хватает</td></tr><tr><td>LLaVA (описание сцены)</td><td>Сервер (Ollama)</td><td>7B параметров</td></tr><tr><td>Whisper (STT)</td><td>Сервер</td><td>Medium модель</td></tr><tr><td>Простой threshold</td><td>ESP32 / RPi</td><td>Нет сети — нет доступа</td></tr><tr><td>ONNX классификатор (fraud)</td><td>Edge RPi</td><td>Оффлайн EventPass</td></tr></tbody></table><hr><h2 id=описание-ml-модулей>Описание ML-модулей</h2><table><thead><tr><th>Модуль</th><th>Страница</th></tr></thead><tbody><tr><td>Computer Vision (YOLO, лица, LPR, толпа)</td><td><a href=/ml/vision/>vision</a></td></tr><tr><td>Anomaly Detection (энергия, СКУД, поведение)</td><td><a href=/ml/anomaly/>anomaly</a></td></tr><tr><td>Forecasting (посещаемость, энергия, обслуживание)</td><td><a href=/ml/forecast/>forecast</a></td></tr><tr><td>Behavioral Analytics (паттерны, риск, биометрика)</td><td><a href=/ml/behavioral/>behavioral</a></td></tr><tr><td>Inference Stack (Triton, ONNX, Ollama, MLflow)</td><td><a href=/ml/inference-stack/>inference-stack</a></td></tr></tbody></table><hr><h2 id=применение-ml-по-проектам>Применение ML по проектам</h2><h3 id=tenantpass>TenantPass</h3><ul><li>Детекция хвостового захода (tailgating) по камере</li><li>Аномалии паттернов доступа (сотрудник всегда приходит в 9:00, сегодня в 03:00 → тревога)</li><li>Биометрическая аутентификация (лицо + карта = 2FA)</li><li>Прогноз потока на КПП → адаптивное открытие дополнительных проходов</li><li>Прогноз энергопотребления по зонам</li></ul><h3 id=homepass>HomePass</h3><ul><li>Распознавание членов семьи (камера + DN·Beacon → точная идентификация)</li><li>Адаптивная автоматизация: ML учится на привычках (когда включать котёл, свет)</li><li>Детекция аномального поведения (незнакомый человек ночью на территории)</li><li>Прогноз когда хозяева вернутся домой → предподготовка дома</li></ul><h3 id=eventpass>EventPass</h3><ul><li>Детекция crowds и очередей: управление потоком</li><li>Fraud detection: аномальные паттерны сканирования билетов</li><li>Liveness detection: защита от фото-атаки (пассажир показывает фото QR)</li><li>Прогноз заполнения зон → превентивное перенаправление потоков</li><li>Evacuation path optimization: ML выбирает оптимальный маршрут эвакуации</li></ul><hr><h2 id=связи>Связи</h2><p>→ <a href=/ml/vision/>vision</a>
+→ <a href=/ml/anomaly/>anomaly</a>
+→ <a href=/ml/forecast/>forecast</a>
+→ <a href=/ml/behavioral/>behavioral</a>
+→ <a href=/ml/inference-stack/>inference-stack</a>
+← <a href=/shared/video-surveillance/>video-surveillance</a>
+← <a href=/shared/dn-beacon/>dn-beacon</a>
+← <a href=/eventpass/analytics-pipeline/>analytics-pipeline</a></p></div></div></section><section class=arts><div class=w><div class=sec-hd><h2 class=sec-hd__title>Документация и статьи</h2></div><div class=arts__grid><div class=acard><div class=acard__type>Статья</div><a href=https://sayr777.github.io/ml/anomaly/><div class=acard__title>Anomaly Detection</div></a><p class=acard__desc><h1 id=anomaly-detection>Anomaly Detection</h1><p><em>Обнаружение аномалий в потоках данных СКУД, энергии, поведения</em></p><hr><h2 id=задачи-anomaly-detection>Задачи anomaly detection …</h2></p></div><div class=acard><div class=acard__type>Статья</div><a href=https://sayr777.github.io/ml/behavioral/><div class=acard__title>Behavioral Analytics — поведенческая аналитика</div></a><p class=acard__desc><h1 id=behavioral-analytics--поведенческая-аналитика>Behavioral Analytics — поведенческая аналитика</h1><p><em>Паттерны движения, риск-скоринг, биометрика поведения</em></p><hr><h2 id=что-такое-поведенческая-аналитика-в-скуд>Что …</h2></p></div><div class=acard><div class=acard__type>Статья</div><a href=https://sayr777.github.io/ml/vision/><div class=acard__title>Computer Vision</div></a><p class=acard__desc><h1 id=computer-vision>Computer Vision</h1><p>*Задачи компьютерного зрения в платформе <em>Pass</em></p><hr><h2 id=задачи-cv-по-проектам>Задачи CV по проектам</h2><div class=mermaid>graph TD
+subgraph …</div></p></div><div class=acard><div class=acard__type>Статья</div><a href=https://sayr777.github.io/ml/forecast/><div class=acard__title>Forecasting — прогнозирование</div></a><p class=acard__desc><h1 id=forecasting--прогнозирование>Forecasting — прогнозирование</h1><p><em>Временные ряды: посещаемость, энергия, техобслуживание</em></p><hr><h2 id=задачи-прогнозирования>Задачи прогнозирования …</h2></p></div><div class=acard><div class=acard__type>Статья</div><a href=https://sayr777.github.io/ml/inference-stack/><div class=acard__title>Inference Stack — сервинг ML-моделей</div></a><p class=acard__desc><h1 id=inference-stack--сервинг-ml-моделей>Inference Stack — сервинг ML-моделей</h1><p><em>Triton, ONNX Runtime, Ollama, MLflow — производственный стек</em></p><hr><h2 id=архитектура-сервинга>Архитектура …</h2></p></div></div></div></section></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

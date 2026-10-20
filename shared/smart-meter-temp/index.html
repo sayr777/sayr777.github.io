@@ -1,0 +1,218 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Умный датчик температуры и влажности · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Умный датчик температуры и влажности</span></nav><article class=prose><h1>Умный датчик температуры и влажности</h1><h1 id=умный-датчик-температуры-и-влажности>Умный датчик температуры и влажности</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=стек>Стек</h2><table><thead><tr><th>Сенсор</th><th>Применение</th><th>Точность</th><th>Цена</th></tr></thead><tbody><tr><td><strong>DS18B20</strong></td><td>Трубы, котёл, баня, уличный</td><td>±0.5°C</td><td>~80 ₽</td></tr><tr><td><strong>DHT22 / AM2302</strong></td><td>Помещения: темп + влажность</td><td>±0.5°C / ±2%</td><td>~120 ₽</td></tr><tr><td><strong>BME280</strong></td><td>Помещения: темп + влажн + давление</td><td>±1°C / ±3%</td><td>~150 ₽</td></tr><tr><td><strong>BME680</strong></td><td>Качество воздуха + VOC</td><td>±1°C</td><td>~400 ₽</td></tr><tr><td><strong>SHT31</strong></td><td>Точные измерения (I2C)</td><td>±0.3°C / ±2%</td><td>~300 ₽</td></tr><tr><td><strong>MAX6675 / MAX31855</strong></td><td>Высокая температура: баня, котёл (до 1024°C)</td><td>±2°C</td><td>~200 ₽</td></tr><tr><td><strong>NTC 10кОм</strong></td><td>Тёплый пол, котёл, холодильник</td><td>±1°C</td><td>~30 ₽</td></tr><tr><td><strong>Aqara WSDCGQ11LM</strong></td><td>Zigbee, готовое устройство</td><td>±0.3°C</td><td>~900 ₽</td></tr><tr><td><strong>SONOFF SNZB-02</strong></td><td>Zigbee, дёшево</td><td>±0.5°C</td><td>~400 ₽</td></tr></tbody></table><hr><h2 id=архитектура>Архитектура</h2><div class=mermaid>graph TD
+subgraph SENSORS["Датчики"]
+DS18["DS18B20\nOneWire / шина"]
+DHT["DHT22\nGPIO"]
+BME["BME280/680\nI2C"]
+ZB["Zigbee-датчик\nAqara / SONOFF"]
+MAX["MAX6675\nSPI (высокая t°)"]
+end
+subgraph BRIDGE["Шлюз"]
+ESPH["ESP32 + ESPHome\nWiFi → HA"]
+ZB2M["Zigbee2MQTT\n(Zigbee-координатор)"]
+end
+subgraph HA["Home Assistant"]
+CLIMATE["Climate entities\nтермостаты"]
+ALERT["Автоматизации\nморозозащита / перегрев"]
+ENERGY_CORR["Корреляция с энергией\n'котёл работает когда -15°C'"]
+end
+DS18 & DHT & BME & MAX --> ESPH --> HA
+ZB --> ZB2M --> HA
+HA --> CLIMATE & ALERT & ENERGY_CORR</div><hr><h2 id=esphome--однопроводная-шина-ds18b20>ESPHome — однопроводная шина DS18B20</h2><p>DS18B20 — самый универсальный: водозащищённый корпус, работает в диапазоне −55…+125°C, несколько датчиков на одном проводе.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># esphome/temp-bus.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>esphome</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>name</span>: <span style=color:#ae81ff>temp-sensors</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>ESP32</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>board</span>: <span style=color:#ae81ff>esp32dev</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>wifi</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>ssid</span>: !<span style=color:#ae81ff>secret wifi_ssid</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>password</span>: !<span style=color:#ae81ff>secret wifi_password</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Шина DS18B20 (один GPIO, до 10 датчиков)</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>one_wire</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>gpio</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pin</span>: <span style=color:#ae81ff>GPIO4</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Каждый датчик идентифицируется по ROM-адресу</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x1c3c01d6076bf128</span>   <span style=color:#75715e># уличный</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Температура улица&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#e6db74>&#34;°C&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device_class</span>: <span style=color:#ae81ff>temperature</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>30s</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0xf83c01d607923c28</span>   <span style=color:#75715e># котёл</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Температура котёл подача&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x283c01d607923c29</span>   <span style=color:#75715e># котёл обратка</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Температура котёл обратка&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x453c01d607923c30</span>   <span style=color:#75715e># баня полок</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Температура баня&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>dallas_temp</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x673c01d607923c31</span>   <span style=color:#75715e># труба хол.воды в гараже</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Температура труба гараж&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e># Вычислить ΔT котла (подача - обратка)</span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>template</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Котёл ΔT&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>lambda</span>: &gt;<span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>      return id(boiler_supply).state - id(boiler_return).state;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>30s</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>unit_of_measurement</span>: <span style=color:#e6db74>&#34;°C&#34;</span>
+</span></span></code></pre></div><hr><h2 id=esphome--bme280-помещение-темп--влажность--давление>ESPHome — BME280 (помещение: темп + влажность + давление)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>i2c</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>sda</span>: <span style=color:#ae81ff>GPIO21</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>scl</span>: <span style=color:#ae81ff>GPIO22</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>bme280_i2c</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>temperature</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Гостиная — температура&#34;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>oversampling</span>: <span style=color:#ae81ff>16x</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pressure</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Атмосферное давление&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>humidity</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Гостиная — влажность&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x76</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>60s</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>bme680</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>temperature</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Серверная — температура&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>pressure</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Серверная — давление&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>humidity</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Серверная — влажность&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>gas_resistance</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Серверная — качество воздуха&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>address</span>: <span style=color:#ae81ff>0x77</span>
+</span></span></code></pre></div><hr><h2 id=esphome--max6675-высокая-температура-баня-котёл>ESPHome — MAX6675 (высокая температура: баня, котёл)</h2><p>MAX6675 работает с термопарой типа K: диапазон 0…+1024°C, точность ±3°C. Идеально для бани и котла.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#f92672>spi</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>clk_pin</span>: <span style=color:#ae81ff>GPIO18</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>miso_pin</span>: <span style=color:#ae81ff>GPIO19</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>sensor</span>:
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>max6675</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Баня — температура камня&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>cs_pin</span>: <span style=color:#ae81ff>GPIO5</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>10s</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>max6675</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>name</span>: <span style=color:#e6db74>&#34;Котёл — температура камеры сгорания&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>cs_pin</span>: <span style=color:#ae81ff>GPIO15</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>update_interval</span>: <span style=color:#ae81ff>10s</span>
+</span></span></code></pre></div><hr><h2 id=zigbee-датчики-через-zigbee2mqtt>Zigbee-датчики через Zigbee2MQTT</h2><p>Готовые коммерческие датчики — не нужна пайка, быстрый старт.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># configuration.yaml (HA) — автоматически после сопряжения</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Aqara WSDCGQ11LM создаёт:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.aqara_bedroom_temperature</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.aqara_bedroom_humidity</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#   sensor.aqara_bedroom_battery</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Zigbee2MQTT конфиг для сопряжения:</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># /etc/zigbee2mqtt/configuration.yaml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>permit_join</span>: <span style=color:#66d9ef>false</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>devices</span>:
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#34;0x00158d0001234abc&#34;</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Спальня — темп/влажность&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#e6db74>&#34;0x00158d0001234def&#34;</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>friendly_name</span>: <span style=color:#e6db74>&#34;Детская — темп/влажность&#34;</span>
+</span></span></code></pre></div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=homepass--карта-датчиков>HomePass — карта датчиков</h3><pre tabindex=0><code>Уличный (DS18B20 IP67):
+  → морозозащита труб, коррекция котла по погоде
+
+Котёл — подача / обратка (DS18B20):
+  → ΔT контроль, КПД, перегрев
+
+Баня — камень / парная (MAX6675):
+  → Push когда 80°C, автовыключение при 120°C (пожарная безопасность)
+
+Комнаты (DHT22 / Aqara Zigbee):
+  → термостаты тёплого пола, comfort-режимы
+
+Гараж — труба (DS18B20):
+  → алерт при T &lt; +2°C → включить подогрев трубы
+
+Гостевой дом (BME280):
+  → авто-климат при заезде гостей
+
+Серверная (BME680):
+  → перегрев сервера → Push + включить вентилятор
+</code></pre><h3 id=tenantpass--мониторинг-офиса>TenantPass — мониторинг офиса</h3><pre tabindex=0><code>Серверная: BME680 (темп + влажность + VOC)
+  → SLA: температура 18–27°C, алерт при выходе
+  
+Переговорные: Aqara Zigbee × N
+  → CO2 + влажность → авто-вентиляция
+
+Электрощит: DS18B20
+  → алерт при перегреве клемм (&gt;60°C = аварийная ситуация)
+</code></pre><h3 id=eventpass-стройплощадка>EventPass (стройплощадка)</h3><pre tabindex=0><code>Бетон / опалубка: DS18B20 × 4 (в массиве бетона)
+  → Набор прочности: нужно 5–25°C
+  → Push при T &lt; 5°C → включить прогрев (тепловые пушки)
+  → Журнал температуры бетона → акт строительного контроля
+
+Бытовка / трубы: DS18B20
+  → Морозозащита: T &lt; 0°C → алерт + обогреватель
+</code></pre><hr><h2 id=автоматизации-ha>Автоматизации HA</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Морозозащита труб в гараже</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Мороз: защита трубы гараж&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.temp_garage_pipe</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>below</span>: <span style=color:#ae81ff>3</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.heater_garage_pipe</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Труба в гараже: {{ states(&#39;sensor.temp_garage_pipe&#39;) }}°C — обогрев включён&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Баня готова</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Баня: готова&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.temp_sauna_stone</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>80</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>tts.speak</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>media_player.kitchen_speaker</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Баня готова, температура камня {{ states(&#39;sensor.temp_sauna_stone&#39;) }} градусов&#34;</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Баня: {{ states(&#39;sensor.temp_sauna_stone&#39;) }}°C&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Перегрев сервера</span>
+</span></span><span style=display:flex><span>- <span style=color:#f92672>alias</span>: <span style=color:#e6db74>&#34;Серверная: перегрев&#34;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>trigger</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>platform</span>: <span style=color:#ae81ff>numeric_state</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>sensor.temp_server_room</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>above</span>: <span style=color:#ae81ff>35</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>action</span>:
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>switch.turn_on</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>target</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>entity_id</span>: <span style=color:#ae81ff>switch.fan_server_room</span>
+</span></span><span style=display:flex><span>    - <span style=color:#f92672>service</span>: <span style=color:#ae81ff>notify.mobile_app_owner</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>data</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>message</span>: <span style=color:#e6db74>&#34;Серверная перегрев: {{ states(&#39;sensor.temp_server_room&#39;) }}°C&#34;</span>
+</span></span></code></pre></div><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/>index</a>
+← <a href=/shared/smart-meter-energy/>smart-meter-energy</a>
+← <a href=/home/systems/heating/>heating</a>
+→ <a href=/shared/smart-switch/>smart-switch</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

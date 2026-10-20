@@ -1,0 +1,66 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Контроль доступа · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Контроль доступа</span></nav><article class=prose><h1>Контроль доступа</h1><h1 id=контроль-доступа>Контроль доступа</h1><h2 id=роли-жителей>Роли жителей</h2><table><thead><tr><th>Роль</th><th>Кто</th><th>Доступ</th></tr></thead><tbody><tr><td><code>owner</code></td><td>Хозяин</td><td>Всё, всегда</td></tr><tr><td><code>family</code></td><td>Члены семьи</td><td>Дом, гараж, баня, гостевой дом</td></tr><tr><td><code>guest</code></td><td>Гости</td><td>Дом (пока дома хозяин) или гостевой дом (по коду)</td></tr><tr><td><code>housekeeper</code></td><td>Уборщица, садовник</td><td>Только дом, только в рабочее время (пн-пт 9:00–18:00)</td></tr><tr><td><code>contractor</code></td><td>Сантехник, электрик</td><td>Конкретная зона, конкретный день, однократно или ограниченный срок</td></tr><tr><td><code>delivery</code></td><td>Курьер</td><td>Только ворота → крытый тамбур, без входа в дом</td></tr></tbody></table><hr><h2 id=точки-доступа>Точки доступа</h2><div class=mermaid>graph TD
+STREET[Улица]
+INTERCOM["Видеодомофон\nвызов → телефон хозяина"]
+GATE["Ворота\nRFID-метка · приложение · пульт"]
+WICKET["Калитка\nRFID · PIN · BLE · приложение"]
+TERRITORY[Территория]
+HOUSE["Дом — входная дверь\nRFID · PIN · телефон"]
+GARAGE["Гараж\nRFID · телефон\n(изнутри всегда открыто)"]
+SAUNA["Баня\nRFID · PIN"]
+GUEST["Гостевой дом\nPIN (меняется на гостя) · RFID"]
+STREET --> INTERCOM
+STREET --> GATE --> TERRITORY
+STREET --> WICKET --> TERRITORY
+TERRITORY --> HOUSE
+TERRITORY --> GARAGE
+TERRITORY --> SAUNA
+TERRITORY --> GUEST</div><hr><h2 id=сценарии-доступа>Сценарии доступа</h2><h3 id=хозяин-возвращается-домой>Хозяин возвращается домой</h3><pre tabindex=0><code>1. Телефон с BLE / геозона подъезжает к дому
+2. Home Assistant обнаруживает приближение за 200 м
+3. За 50 м: ворота открываются автоматически
+4. Машина въехала → ворота закрываются через 30 сек
+5. Подход к двери дома → замок разблокируется
+6. Сценарий «Дома»: включается свет в прихожей, отопление переходит в комфортный режим
+</code></pre><h3 id=гость-в-гостевом-доме>Гость в гостевом доме</h3><pre tabindex=0><code>1. Хозяин создаёт PIN-код в приложении: например 4829, действует 3 дня
+2. Отправляет гостю через мессенджер
+3. Гость вводит PIN на калитке → проходит на территорию
+4. Вводит тот же PIN на двери гостевого дома → входит
+5. После истечения срока PIN деактивируется автоматически
+6. Гость не имеет доступа в основной дом или баню
+</code></pre><h3 id=уборщица>Уборщица</h3><pre tabindex=0><code>1. Уборщица имеет постоянную RFID-карту
+2. Доступ разрешён: пн-пт, 9:00–18:00, только дом
+3. При входе → уведомление хозяину: &#34;Уборщица вошла в дом, 10:23&#34;
+4. При выходе → &#34;Уборщица вышла, пробыла 2 ч 15 мин&#34;
+5. Если пришла в выходной → отказ + уведомление хозяину
+</code></pre><h3 id=подрядчик-например-сантехник>Подрядчик (например, сантехник)</h3><pre tabindex=0><code>1. Хозяин в приложении: &#34;Добавить подрядчика&#34;
+   → выбирает зону (котельная), дату (сегодня), время (10:00–14:00)
+2. Подрядчик получает временный PIN
+3. В назначенное время PIN работает → доступ только в котельную
+4. За пределами времени — отказ
+5. После визита PIN автоматически истекает
+6. Хозяин получает полный лог визита
+</code></pre><h3 id=доставка>Доставка</h3><pre tabindex=0><code>1. Курьер звонит в домофон
+2. Хозяин видит видео на телефоне
+3. Нажимает &#34;Открыть калитку&#34; → курьер входит на территорию
+4. Оставляет посылку в крытом тамбуре
+5. Калитка закрывается через 2 минуты
+6. Доступ в дом курьер не получает
+</code></pre><hr><h2 id=методы-идентификации>Методы идентификации</h2><table><thead><tr><th>Метод</th><th>Применение</th><th>Надёжность</th><th>Удобство</th></tr></thead><tbody><tr><td>RFID-карта / брелок</td><td>Семья, уборщица, постоянные</td><td>Высокая</td><td>Высокое</td></tr><tr><td>RFID-метка на машине</td><td>Ворота</td><td>Высокая</td><td>Максимальное</td></tr><tr><td>PIN-код</td><td>Гости, подрядчики</td><td>Средняя</td><td>Высокое</td></tr><tr><td>BLE (телефон)</td><td>Хозяин, семья</td><td>Высокая</td><td>Максимальное</td></tr><tr><td>Видеодомофон + кнопка в приложении</td><td>Курьеры, незнакомцы</td><td>—</td><td>Среднее</td></tr><tr><td>QR-код (разовый)</td><td>Курьеры при отсутствии хозяина</td><td>Средняя</td><td>Высокое</td></tr></tbody></table><hr><h2 id=уведомления>Уведомления</h2><p>Все события доступа → Push на телефон хозяина:</p><ul><li>Кто вошёл / вышел и куда</li><li>Неудачная попытка входа (неверный PIN, карта не распознана)</li><li>Дверь / ворота открыты больше N минут</li><li>Движение на территории ночью (Frigate)</li></ul><hr><h2 id=fail-safe-при-отключении-питания--сбое-сервера>Fail-safe (при отключении питания / сбое сервера)</h2><table><thead><tr><th>Точка</th><th>Поведение при сбое</th></tr></thead><tbody><tr><td>Ворота</td><td>Остаются в текущем положении; ручное управление через механический ключ</td></tr><tr><td>Калитка</td><td>Электромеханический замок с пружиной → открыта (эвакуация) или закрыта (безопасность) — выбирается при установке</td></tr><tr><td>Дверь дома</td><td>Умный замок → механический ключ всегда работает</td></tr><tr><td>Гараж</td><td>Кнопка на стене открывает напрямую</td></tr></tbody></table><hr><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+→ <a href=/home/cameras/>cameras</a>
+→ <a href=/home/alarm/>alarm</a>
+→ <a href=/home/stack/>stack</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

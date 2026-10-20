@@ -1,0 +1,88 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Биллинг: лицензионный комплаенс (замечание 10) · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Биллинг: лицензионный комплаенс (замечание 10)</span></nav><article class=prose><h1>Биллинг: лицензионный комплаенс (замечание 10)</h1><h1 id=биллинг-лицензионный-комплаенс-замечание-10>Биллинг: лицензионный комплаенс (замечание 10)</h1><p><em>Lago AGPL + коммерческое использование SaaS</em></p><hr><h2 id=проблема>Проблема</h2><p>Lago — AGPL-3.0. При использовании в SaaS (TenantPass/EventPass продаётся клиентам через сеть) <strong>AGPL обязывает открыть исходники</strong> всего приложения, которое взаимодействует с Lago через сеть.</p><hr><h2 id=три-варианта-решения>Три варианта решения</h2><div class=mermaid>graph TD
+PROBLEM["Lago AGPL в SaaS — риск открытия исходников"]
+PROBLEM --> OPT1["Вариант 1: Lago Cloud\nКоммерческая лицензия\n~$500/мес"]
+PROBLEM --> OPT2["Вариант 2: Изоляция Lago\nОтдельный сервис с API-границей\nISOLATED: нет связи с бизнес-кодом"]
+PROBLEM --> OPT3["Вариант 3: Замена на Apache 2.0\nOpenMeter / custom"]
+OPT1 -->|рекомендуется для Enterprise| DONE1["✅ Нет рисков"]
+OPT2 -->|рекомендуется для MVP| DONE2["✅ AGPL распространяется только на изолированный сервис"]
+OPT3 -->|для self-hosted| DONE3["✅ Полная свобода"]</div><hr><h2 id=вариант-2-изоляция-lago-рекомендуется-для-старта>Вариант 2: Изоляция Lago (рекомендуется для старта)</h2><p>AGPL требует открыть исходники <strong>программы</strong>, которая включает или линкует AGPL-код. Если Lago — это отдельный сервис, с которым взаимодействуете только через REST API, то ваш код не является производным произведением.</p><pre tabindex=0><code>Архитектурная граница (AGPL firewall):
+
+  [TenantPass API]  ──HTTP REST──→  [Lago Billing Service]
+       ^                                      |
+       |                           (только этот сервис AGPL)
+  Ваш проприетарный код           (изолирован в Docker, нет общего кода)
+
+  Правило:
+  - Ваш код НЕ импортирует Lago библиотеки
+  - Ваш код взаимодействует только через HTTP API
+  - Lago запускается в отдельном Docker-контейнере
+  - → ваш код НЕ является derivative work
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># billing/lago_client.py — только HTTP, никакого import lago</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> typing <span style=color:#f92672>import</span> Optional
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>BillingService</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Тонкий HTTP-клиент к Lago. Наш код не знает про AGPL внутренности.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, base_url: str, api_key: str):
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>base <span style=color:#f92672>=</span> base_url
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>headers <span style=color:#f92672>=</span> {<span style=color:#e6db74>&#34;Authorization&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Bearer </span><span style=color:#e6db74>{</span>api_key<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>report_usage</span>(self, tenant_id: str, metric: str, value: float,
+</span></span><span style=display:flex><span>                           transaction_id: Optional[str] <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>self<span style=color:#f92672>.</span>base<span style=color:#e6db74>}</span><span style=color:#e6db74>/api/v1/events&#34;</span>, headers<span style=color:#f92672>=</span>self<span style=color:#f92672>.</span>headers, json<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;event&#34;</span>: {
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;transaction_id&#34;</span>: transaction_id <span style=color:#f92672>or</span> <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>tenant_id<span style=color:#e6db74>}</span><span style=color:#e6db74>-</span><span style=color:#e6db74>{</span>metric<span style=color:#e6db74>}</span><span style=color:#e6db74>-</span><span style=color:#e6db74>{</span>int(time())<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;external_customer_id&#34;</span>: tenant_id,
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;code&#34;</span>: metric,
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;properties&#34;</span>: {<span style=color:#e6db74>&#34;value&#34;</span>: value}
+</span></span><span style=display:flex><span>                }
+</span></span><span style=display:flex><span>            })
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_invoice</span>(self, tenant_id: str, period: str) <span style=color:#f92672>-&gt;</span> dict:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>            r <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>get(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;</span><span style=color:#e6db74>{</span>self<span style=color:#f92672>.</span>base<span style=color:#e6db74>}</span><span style=color:#e6db74>/api/v1/invoices&#34;</span>,
+</span></span><span style=display:flex><span>                            headers<span style=color:#f92672>=</span>self<span style=color:#f92672>.</span>headers,
+</span></span><span style=display:flex><span>                            params<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;external_customer_id&#34;</span>: tenant_id, <span style=color:#e6db74>&#34;period&#34;</span>: period})
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> r<span style=color:#f92672>.</span>json()
+</span></span></code></pre></div><hr><h2 id=вариант-3-замена-lago-на-openmeter-apache-20>Вариант 3: Замена Lago на OpenMeter (Apache 2.0)</h2><p><a href=https://openmeter.io/>OpenMeter</a> — usage-based billing engine, Apache 2.0, нет AGPL рисков.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># docker-compose.openmeter.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>services</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>openmeter</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>image</span>: <span style=color:#ae81ff>ghcr.io/openmeterio/openmeter:latest</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>environment</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>POSTGRES_URL</span>: <span style=color:#ae81ff>postgresql://...</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ports</span>:
+</span></span><span style=display:flex><span>      - <span style=color:#e6db74>&#34;8888:8888&#34;</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># OpenMeter API почти идентичен Lago</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>report_usage</span>(customer_id: str, meter: str, value: float):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(<span style=color:#e6db74>&#34;http://openmeter:8888/api/v1/events&#34;</span>,
+</span></span><span style=display:flex><span>                     json<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>                         <span style=color:#e6db74>&#34;specversion&#34;</span>: <span style=color:#e6db74>&#34;1.0&#34;</span>,
+</span></span><span style=display:flex><span>                         <span style=color:#e6db74>&#34;type&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;com.tenantpass.</span><span style=color:#e6db74>{</span>meter<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>,
+</span></span><span style=display:flex><span>                         <span style=color:#e6db74>&#34;source&#34;</span>: <span style=color:#e6db74>&#34;api&#34;</span>,
+</span></span><span style=display:flex><span>                         <span style=color:#e6db74>&#34;subject&#34;</span>: customer_id,
+</span></span><span style=display:flex><span>                         <span style=color:#e6db74>&#34;data&#34;</span>: {<span style=color:#e6db74>&#34;value&#34;</span>: value}
+</span></span><span style=display:flex><span>                     })
+</span></span></code></pre></div><hr><h2 id=сравнение-вариантов>Сравнение вариантов</h2><table><thead><tr><th>Критерий</th><th>Lago AGPL (isolated)</th><th>Lago Cloud</th><th>OpenMeter (Apache)</th></tr></thead><tbody><tr><td>Стоимость</td><td>0 ₽</td><td>~$500/мес</td><td>0 ₽</td></tr><tr><td>Лицензионный риск</td><td>Низкий (при изоляции)</td><td>Нет</td><td>Нет</td></tr><tr><td>Функциональность</td><td>Полная</td><td>Полная + поддержка</td><td>Базовая</td></tr><tr><td>Зрелость</td><td>High (2022+)</td><td>High</td><td>Medium</td></tr><tr><td>Рекомендация</td><td>MVP</td><td>Enterprise</td><td>Альтернатива</td></tr></tbody></table><hr><h2 id=cgrates-mit--нет-проблем>CGRateS (MIT) — нет проблем</h2><p>CGRateS для SIP CDR биллинга лицензирован MIT — никаких ограничений для коммерческого использования.</p><hr><h2 id=связи>Связи</h2><p>← <a href=/shared/billing/>billing</a>
+→ <a href=/tenantpass/>index</a>
+→ <a href=/eventpass/architecture/>architecture</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

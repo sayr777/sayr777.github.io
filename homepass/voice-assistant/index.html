@@ -1,0 +1,100 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Голосовой помощник · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=hp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp nav__lnk--active">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/homepass/>HomePass</a>
+<span class=crumb__sep>/</span>
+<span>Голосовой помощник</span></nav><article class=prose><h1>Голосовой помощник</h1><h1 id=голосовой-помощник>Голосовой помощник</h1><h2 id=концепция>Концепция</h2><p>Полностью локальный голосовой помощник — никакой Алисы, никакого Google Home, никакой отправки голоса в облако. Работает без интернета.</p><div class=mermaid>graph LR
+MIC["Микрофон\nESP32-S3"]
+STT["Whisper STT"]
+LLM["LLM / Intent\nopenWakeWord"]
+HA["Home Assistant"]
+TTS["Piper TTS"]
+SPK["Динамик\nESP32-S3"]
+TV["ТВ / дашборд"]
+MIC -->|аудио| STT -->|текст| LLM -->|команда| HA
+HA -->|ответ / действие| TTS --> SPK
+HA --> TV</div><hr><h2 id=стек>Стек</h2><table><thead><tr><th>Компонент</th><th>Назначение</th><th>Технология</th></tr></thead><tbody><tr><td><strong>Микрофон-сателлит</strong></td><td>Слушает в каждой комнате</td><td>ESP32-S3 + INMP441 / reSpeaker</td></tr><tr><td><strong>Wake word</strong></td><td>«Привет, дом» / «Окей, умный дом»</td><td>openWakeWord (локально)</td></tr><tr><td><strong>STT</strong></td><td>Голос → текст</td><td>Whisper (faster-whisper, модель <code>small</code> или <code>medium</code>)</td></tr><tr><td><strong>Intent / NLU</strong></td><td>Понять команду</td><td>HA Conversation + LLM (опционально)</td></tr><tr><td><strong>LLM</strong></td><td>Сложные вопросы и отчёты</td><td>Ollama + Llama3 / Mistral локально</td></tr><tr><td><strong>TTS</strong></td><td>Ответ голосом</td><td>Piper (русские голоса: <code>ru_RU-ruslan-medium</code>)</td></tr><tr><td><strong>Динамик</strong></td><td>Воспроизвести ответ</td><td>ESP32-S3 + I2S усилитель или умная колонка</td></tr></tbody></table><hr><h2 id=сателлит-в-каждой-комнате>Сателлит в каждой комнате</h2><pre tabindex=0><code>Схема сателлита (ESP32-S3 DIY):
+  INMP441 микрофон (I2S)
+  MAX98357 усилитель + динамик (I2S)
+  LED-кольцо (статус: слушает / думает / отвечает)
+  Питание USB-C
+
+Прошивка: ESPHome + Wyoming Satellite
+Связь с HA: WiFi → Wyoming protocol
+
+Стоимость одного сателлита: ~1 500–2 500 ₽
+</code></pre><p>Готовые альтернативы: <strong>M5Stack Echo</strong> или <strong>Home Assistant Voice PE</strong> (~$65).</p><hr><h2 id=команды-управления-домом>Команды управления домом</h2><h3 id=освещение>Освещение</h3><pre tabindex=0><code>&#34;Включи свет на кухне&#34;
+&#34;Приглушённый свет в гостиной&#34;
+&#34;Включи ночник в детской&#34;
+&#34;Выключи всё на первом этаже&#34;
+</code></pre><h3 id=климат>Климат</h3><pre tabindex=0><code>&#34;Какая температура в спальне?&#34;
+&#34;Сделай потеплее в гостиной&#34;
+&#34;Включи баню&#34; → запускает сценарий прогрева
+&#34;Когда баня прогреется?&#34; → &#34;По прогнозу через 1 час 20 минут&#34;
+</code></pre><h3 id=безопасность>Безопасность</h3><pre tabindex=0><code>&#34;Кто сейчас дома?&#34; → &#34;Дома Анна и дети. Уборщица ушла в 13:00&#34;
+&#34;Открой калитку&#34; → &#34;Открываю калитку на 30 секунд&#34;
+&#34;Включи охрану&#34; → &#34;Охрана периметра включена&#34;
+&#34;Есть ли кто-то на участке?&#34; → анализ Frigate + ответ
+</code></pre><h3 id=отчёты-голос--тв>Отчёты (голос → ТВ)</h3><pre tabindex=0><code>&#34;Покажи кто приходил сегодня&#34;         → включает ТВ + видео-отчёт
+&#34;Покажи отчёт по энергии за неделю&#34;   → ТВ + графики
+&#34;Покажи последние события с камер&#34;     → ТВ + клипы Frigate
+&#34;Кто звонил в домофон вчера?&#34;          → ТВ + фото + время
+</code></pre><hr><h2 id=llm-для-сложных-запросов>LLM для сложных запросов</h2><p>Базовый HA Conversation понимает простые команды. Для сложных вопросов — локальная LLM через <strong>Ollama</strong>.</p><pre tabindex=0><code>Модели (запускаются на сервере):
+  Команды управления:   gemma3:4b   (быстро, ~1 сек)
+  Сложные вопросы:      llama3.2:8b (медленнее, ~3–5 сек)
+  Анализ событий:       llama3.2:8b + контекст из HA
+
+Интеграция: HA extended_openai_conversation → Ollama API
+</code></pre><h3 id=примеры-сложных-запросов>Примеры сложных запросов</h3><pre tabindex=0><code>&#34;Что случилось дома пока меня не было?&#34;
+→ LLM получает: журнал событий за период + состояния устройств
+→ Ответ: &#34;Уборщица была с 10 до 13. В 14:23 почтальон оставил посылку.
+          Котёл один раз перешёл в экономрежим. Всё в норме.&#34;
+
+&#34;Почему сегодня большой расход газа?&#34;
+→ LLM анализирует: температура за сутки, время горения котла, открытые окна
+→ Ответ: &#34;На улице было -18°C, котёл работал на 40% дольше обычного.
+          Норма для такой погоды.&#34;
+
+&#34;Кто из чужих заходил на участок на этой неделе?&#34;
+→ Frigate события → Double Take (кто знакомый, кто нет)
+→ Ответ + фото → на ТВ
+</code></pre><hr><h2 id=мультиязычность>Мультиязычность</h2><pre tabindex=0><code>Языки: русский (основной) + английский
+Переключение автоматически по языку фразы-пробуждения:
+  &#34;Привет, дом&#34;   → русский Whisper + Piper ru
+  &#34;Hey home&#34;      → английский Whisper + Piper en
+</code></pre><hr><h2 id=контекст-разговора>Контекст разговора</h2><pre tabindex=0><code>Диалог (не одноразовые команды):
+
+Пользователь: &#34;Включи баню&#34;
+Ассистент:    &#34;Баня включена. Прогреется примерно через час двадцать.&#34;
+Пользователь: &#34;А напомни мне&#34;
+Ассистент:    &#34;Хорошо, напомню когда температура достигнет 80°C.&#34;
+              [устанавливает автоматизацию]
+
+→ 1:25 позже →
+Ассистент:    &#34;Баня готова, сейчас 81°C.&#34;
+</code></pre><hr><h2 id=приватность-и-ограничения>Приватность и ограничения</h2><pre tabindex=0><code>Запись:
+  Микрофон активен только ПОСЛЕ wake word
+  До wake word — только edge-модель openWakeWord на ESP32
+  После ответа — микрофон снова в режиме ожидания
+
+Хранение:
+  STT-запросы не логируются (настраивается)
+  История команд — локально в HA, 30 дней
+
+Режим &#34;Тихо&#34;:
+  Физическая кнопка на сателлите — выключить микрофон полностью
+  LED: красный = микрофон выключен
+</code></pre><hr><h2 id=связи>Связи</h2><p>← <a href=/home/index/>index</a>
+← <a href=/home/stack/>stack</a>
+→ <a href=/home/tv-dashboard/>tv-dashboard</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

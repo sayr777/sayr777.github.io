@@ -1,0 +1,128 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Система видеонаблюдения — общее решение · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/shared/>'Shared — общие компоненты и решения'</a>
+<span class=crumb__sep>/</span>
+<span>Система видеонаблюдения — общее решение</span></nav><article class=prose><h1>Система видеонаблюдения — общее решение</h1><h1 id=система-видеонаблюдения--общее-решение>Система видеонаблюдения — общее решение</h1><p><em>Применяется во всех проектах: TenantPass, HomePass, EventPass</em></p><hr><h2 id=архитектурные-уровни>Архитектурные уровни</h2><div class=mermaid>graph TD
+subgraph EDGE["Edge — камеры"]
+CAM_IP["IP-камера\nRTSP stream"]
+CAM_ESP["ESP32-CAM\n(бюджет)"]
+DOOR_CAM["Домофонная камера\nDahua / Hikvision"]
+end
+subgraph NVR["NVR — запись и детекция"]
+FRIGATE["Frigate NVR\n(open-source)"]
+CORAL["Google Coral TPU\nAI-ускорение"]
+STORE[("Хранилище\nHDD / SSD / NAS")]
+end
+subgraph ANALYTICS["Аналитика и распознавание"]
+DOUBLE_TAKE["Double Take\nраспознавание лиц"]
+LLAVA["LLaVA / Ollama\nvision-анализ событий"]
+CLIP_GEN["Генератор описаний\nдля журнала"]
+end
+subgraph CONSUMER["Потребители"]
+HA["Home Assistant\nавтоматизации"]
+WEB["Веб-интерфейс\nFrigate UI"]
+TV["ТВ-дашборд\nкасты клипов"]
+ALERTS["Push-уведомления\nна телефон"]
+ACS["СКУД / EventPass\nфото к событию входа"]
+end
+CAM_IP & CAM_ESP & DOOR_CAM -->|RTSP| FRIGATE
+FRIGATE --> CORAL
+FRIGATE --> STORE
+FRIGATE -->|события + клипы| HA
+HA --> TV & ALERTS & ACS
+FRIGATE --> DOUBLE_TAKE --> HA
+FRIGATE --> LLAVA --> CLIP_GEN --> HA
+FRIGATE --> WEB</div><hr><h2 id=frigate-nvr--ядро-системы>Frigate NVR — ядро системы</h2><p><strong>Frigate</strong> — open-source NVR с встроенным AI-детектором объектов (YOLO).</p><h3 id=принцип-работы>Принцип работы</h3><div class=mermaid>sequenceDiagram
+participant CAM as Камера (RTSP)
+participant FR as Frigate
+participant CORAL as Coral TPU
+participant HA as Home Assistant
+participant STORE as Хранилище
+CAM->>FR: непрерывный RTSP-поток
+FR->>FR: motion detection (CPU, дёшево)
+FR->>CORAL: кадр при движении → object detection
+CORAL-->>FR: "person 0.94", "car 0.87"
+FR->>STORE: запись клипа (только при событии)
+FR->>HA: MQTT событие: {camera, label, score, clip_url}
+HA->>HA: запуск автоматизаций</div><h3 id=конфигурация-фрагмент>Конфигурация (фрагмент)</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># frigate.yml</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>cameras</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>entrance</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>ffmpeg</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>inputs</span>:
+</span></span><span style=display:flex><span>        - <span style=color:#f92672>path</span>: <span style=color:#ae81ff>rtsp://admin:pass@192.168.1.20:554/stream1</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>roles</span>: [<span style=color:#ae81ff>detect, record]</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>detect</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>width</span>: <span style=color:#ae81ff>1920</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>height</span>: <span style=color:#ae81ff>1080</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>fps</span>: <span style=color:#ae81ff>5</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>objects</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>track</span>: [<span style=color:#ae81ff>person, car, cat, dog]</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>filters</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>person</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>min_score</span>: <span style=color:#ae81ff>0.7</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>threshold</span>: <span style=color:#ae81ff>0.8</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>zones</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>gate_zone</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>coordinates</span>: <span style=color:#ae81ff>100</span>,<span style=color:#ae81ff>200</span>,<span style=color:#ae81ff>800</span>,<span style=color:#ae81ff>200</span>,<span style=color:#ae81ff>800</span>,<span style=color:#ae81ff>900</span>,<span style=color:#ae81ff>100</span>,<span style=color:#ae81ff>900</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>record</span>:
+</span></span><span style=display:flex><span>      <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>retain</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>days</span>: <span style=color:#ae81ff>7</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>motion</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>events</span>:
+</span></span><span style=display:flex><span>        <span style=color:#f92672>retain</span>:
+</span></span><span style=display:flex><span>          <span style=color:#f92672>default</span>: <span style=color:#ae81ff>30</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>mode</span>: <span style=color:#ae81ff>active_objects</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>detectors</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>coral</span>:
+</span></span><span style=display:flex><span>    <span style=color:#f92672>type</span>: <span style=color:#ae81ff>edgetpu</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>device</span>: <span style=color:#ae81ff>usb</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>snapshots</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>enabled</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>timestamp</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>bounding_box</span>: <span style=color:#66d9ef>true</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>crop</span>: <span style=color:#66d9ef>true</span>
+</span></span></code></pre></div><hr><h2 id=применение-по-проектам>Применение по проектам</h2><h3 id=tenantpass-корпоративный-объект>TenantPass (корпоративный объект)</h3><table><thead><tr><th>Функция</th><th>Реализация</th></tr></thead><tbody><tr><td>Фото при каждом входе</td><td>Frigate snapshot → привязка к событию в журнале</td></tr><tr><td>Верификация &ldquo;лицо совпадает с картой&rdquo;</td><td>Double Take → алерт security_officer при несовпадении</td></tr><tr><td>Запись в зонах доступа</td><td>Клип 10 сек до / 10 сек после события прохода</td></tr><tr><td>Аналитика посещаемости</td><td>Heatmap зон по детекции person</td></tr><tr><td>Архивное хранение</td><td>30 дней событий, 7 дней фоновая запись</td></tr></tbody></table><p><strong>Интеграция с Keycloak:</strong></p><pre tabindex=0><code>Событие прохода → дверной агент → Keycloak permit →
+параллельно: Frigate snapshot → S3 →
+запись в журнал: { user_id, door_id, timestamp, photo_url }
+</code></pre><hr><h3 id=homepass-частный-дом>HomePass (частный дом)</h3><table><thead><tr><th>Функция</th><th>Реализация</th></tr></thead><tbody><tr><td>Запись только при обнаружении человека</td><td>Frigate zones + person detector</td></tr><tr><td>Клип к уведомлению</td><td>Frigate event → HA → Push с thumbnail</td></tr><tr><td>Ночной режим периметра</td><td>Автоматизация: ночью zone=perimeter повышает alert</td></tr><tr><td>Экстренный доступ аварийных служб</td><td>Временный RTSP-токен через HA</td></tr><tr><td>AI-описание события</td><td>LLaVA анализирует snapshot → текст в журнал</td></tr><tr><td>ТВ-дашборд с клипами</td><td>cast клипа Frigate на Chromecast</td></tr><tr><td>Распознавание своих</td><td>Double Take: &ldquo;Мария&rdquo; vs &ldquo;незнакомый&rdquo;</td></tr></tbody></table><p><strong>Приватность:</strong></p><pre tabindex=0><code>Запись ТОЛЬКО при motion + person detected
+Зоны приватности: зона внутри дома не пишется (только периметр)
+Хранение: локально (NAS), никуда не отправляется
+</code></pre><hr><h3 id=eventpass-временное-мероприятие>EventPass (временное мероприятие)</h3><table><thead><tr><th>Функция</th><th>Реализация</th></tr></thead><tbody><tr><td>Фото при регистрации</td><td>Веб-камера считывателя → S3 → привязка к QR</td></tr><tr><td>Контроль потока</td><td>Frigate person count на входах → дашборд организатора</td></tr><tr><td>Верификация аккредитации</td><td>Фото при сканировании QR → проверка с фото аккредитации</td></tr><tr><td>Запись инцидентов</td><td>Событие в зоне → клип → лог инцидента</td></tr><tr><td>Стройплощадка</td><td>Детекция в запретных зонах → алерт прорабу</td></tr></tbody></table><p><strong>Облачное хранение:</strong></p><pre tabindex=0><code>Frigate развёртывается:
+  - Малое мероприятие: ноутбук / мини-ПК организатора (Frigate local)
+  - Крупное: арендованный VPS с GPU / edge-сервер на площадке
+  - Клипы → S3 EventPass Cloud (тенант-изолированное хранилище)
+</code></pre><hr><h2 id=стратегии-хранения>Стратегии хранения</h2><table><thead><tr><th>Стратегия</th><th>Когда</th><th>Описание</th></tr></thead><tbody><tr><td><strong>Event-only</strong></td><td>Дом, мелкое мероприятие</td><td>Запись только при обнаружении объекта</td></tr><tr><td><strong>Motion</strong></td><td>Стройка</td><td>Запись при любом движении</td></tr><tr><td><strong>Continuous</strong></td><td>Критичные зоны СКУД</td><td>Непрерывная запись 24/7</td></tr><tr><td><strong>Alert-only</strong></td><td>Отдалённые точки (ворота)</td><td>Только snapshot по событию</td></tr></tbody></table><h3 id=расчёт-хранилища>Расчёт хранилища</h3><pre tabindex=0><code>Камера 1080p, H.264, motion-only:
+  ~500 МБ / день при средней активности
+  16 камер × 500 МБ × 30 дней = 240 ГБ
+
+Камера continuous 1080p, H.265:
+  ~3 ГБ / день
+  8 камер × 3 ГБ × 14 дней = 336 ГБ
+
+Рекомендация: NAS 2-4 ТБ для дома, 8-16 ТБ для объекта СКУД
+</code></pre><hr><h2 id=аппаратная-платформа>Аппаратная платформа</h2><table><thead><tr><th>Компонент</th><th>Дом</th><th>Корп. объект</th><th>Мероприятие</th></tr></thead><tbody><tr><td>Камеры</td><td>Hikvision/Dahua 2MP–4MP</td><td>4MP–8MP PTZ</td><td>Мобильные 1080p</td></tr><tr><td>NVR-сервер</td><td>Мини-ПК (N100, 16GB)</td><td>Сервер 2U / мини-ПК</td><td>Ноутбук / мини-ПК</td></tr><tr><td>AI-ускоритель</td><td>Google Coral USB ($60)</td><td>Coral PCIe / NVIDIA</td><td>Coral USB</td></tr><tr><td>Хранилище</td><td>NAS 4 ТБ</td><td>NAS / SAN 8–48 ТБ</td><td>SSD 1 ТБ</td></tr><tr><td>PoE-свитч</td><td>TP-Link TL-SG1218MP</td><td>Managed PoE switch</td><td>Portable PoE</td></tr></tbody></table><hr><h2 id=распознавание-лиц--double-take>Распознавание лиц — Double Take</h2><p><strong>Double Take</strong> — прослойка над Frigate, которая сравнивает snapshot с базой известных лиц через CompreFace / DeepStack / InsightFace.</p><div class=mermaid>graph LR
+FR[Frigate\nсобытие + snapshot] --> DT[Double Take]
+DT --> CF[CompreFace\nлокально]
+CF -->|"Мария 0.97"| DT
+DT -->|match: known| HA_K[HA: известный\nнизкий приоритет]
+DT -->|no match: unknown| HA_U[HA: незнакомый\nвысокий приоритет]</div><p><strong>Важно по 572-ФЗ:</strong> биометрические шаблоны хранятся локально. Никакой отправки в облако. Для TenantPass корпоративного уровня — отдельная оценка соответствия 572-ФЗ (аккредитованная биометрическая система vs internal).</p><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/>index</a>
+← <a href=/home/cameras/>cameras</a>
+← <a href=/eventpass/architecture/>architecture</a>
+→ <a href=/home/alarm/>alarm</a>
+→ <a href=/tenantpass/compliance/152fz/>152fz</a>
+→ <a href=/tenantpass/compliance/572fz/>572fz</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>

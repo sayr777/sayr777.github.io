@@ -1,0 +1,216 @@
+<!doctype html><html lang=ru><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Модели управления доступом · DN·Pass</title><meta name=description content="Три продукта — одна экосистема: TenantPass СКУД, HomePass умный дом, EventPass временные площадки."><link rel=stylesheet href="/css/main.css?v=2"><link rel=preconnect href=https://fonts.googleapis.com></head><body class=tp><nav class=nav><div class=nav__w><a href=/ class=nav__logo>DN<span>·</span>Pass</a><div class=nav__links><a href=/ class=nav__lnk>Платформа</a>
+<a href=/tenantpass/ class="nav__lnk nav__lnk--prod tp nav__lnk--active">TenantPass</a>
+<a href=/homepass/ class="nav__lnk nav__lnk--prod hp">HomePass</a>
+<a href=/eventpass/ class="nav__lnk nav__lnk--prod ep">EventPass</a></div></div></nav><main><div class=w><nav class=crumb aria-label=breadcrumb><a href=/>DN·Pass</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/>'Платформа *Pass — Вики'</a>
+<span class=crumb__sep>/</span>
+<a href=https://sayr777.github.io/tenantpass/>TenantPass</a>
+<span class=crumb__sep>/</span>
+<span>Модели управления доступом</span></nav><article class=prose><h1>Модели управления доступом</h1><h1 id=модели-управления-доступом>Модели управления доступом</h1><p>*Сравнение DAC / MAC / RBAC / ABAC / ReBAC / PBAC — выбор для платформы <em>Pass</em></p><hr><h2 id=обзор-моделей>Обзор моделей</h2><div class=mermaid>graph TD
+DAC["DAC\nDiscretionary\n'владелец решает'"]
+MAC["MAC\nMandatory\n'метки секретности'"]
+RBAC["RBAC\nRole-Based\n'роль определяет доступ'"]
+ABAC["ABAC\nAttribute-Based\n'атрибуты субъекта+ресурса+контекста'"]
+REBAC["ReBAC\nRelationship-Based\n'граф отношений'"]
+PBAC["PBAC\nPolicy-Based\n'политики как код'"]
+ZT["Zero Trust\n'никому не доверяй'\nпринцип поверх моделей"]
+DAC -->|расширение| RBAC
+RBAC -->|расширение| ABAC
+ABAC -->|унификация| PBAC
+REBAC -->|альтернатива| ABAC
+ZT -.->|применяется поверх| ABAC & REBAC</div><hr><h2 id=dac--discretionary-access-control>DAC — Discretionary Access Control</h2><p><strong>Принцип</strong>: владелец ресурса сам решает кому дать доступ.</p><pre tabindex=0><code>Пример: файловая система Linux
+  owner: user1, group: staff, other: ---
+  user1 может дать доступ user2 командой chmod
+
+Плюсы: просто, гибко для владельца
+Минусы:
+  - Масштаб: 1000 дверей × 500 сотрудников = 500 000 решений
+  - Нет централизованного контроля
+  - Сложно аудировать «кто что разрешил»
+</code></pre><p>*<em>Применение в <em>Pass</em></em>: не используется как основная модель. Элементы DAC есть в HomePass — владелец сам управляет гостевыми доступами.</p><hr><h2 id=mac--mandatory-access-control>MAC — Mandatory Access Control</h2><p><strong>Принцип</strong>: система присваивает метки (labels) субъектам и объектам. Доступ — только если метка субъекта ≥ метки объекта.</p><pre tabindex=0><code>Уровни: UNCLASSIFIED &lt; CONFIDENTIAL &lt; SECRET &lt; TOP SECRET
+
+Субъект: сотрудник с меткой SECRET
+Объект:  дверь серверной с меткой SECRET
+Решение: SECRET ≥ SECRET → разрешить
+
+Объект:  дверь ЦОД с меткой TOP SECRET
+Решение: SECRET &lt; TOP SECRET → запретить
+</code></pre><p>*<em>Применение в <em>Pass</em></em>: MAC-принципы применяются в TenantPass для зон с повышенным контролем:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#75715e># Зоны с MAC-уровнями</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>zones</span>:
+</span></span><span style=display:flex><span>  <span style=color:#f92672>lobby:         clearance_level</span>: <span style=color:#ae81ff>0</span>   <span style=color:#75715e># любой</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>open_office:   clearance_level</span>: <span style=color:#ae81ff>1</span>   <span style=color:#75715e># сотрудник</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>management:    clearance_level</span>: <span style=color:#ae81ff>2</span>   <span style=color:#75715e># менеджмент + выше</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>server_room:   clearance_level</span>: <span style=color:#ae81ff>3</span>   <span style=color:#75715e># IT + безопасность</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>treasury:      clearance_level</span>: <span style=color:#ae81ff>4</span>   <span style=color:#75715e># финансовый директор + аудитор</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Правило: user.clearance_level &gt;= zone.clearance_level</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Принцип Bell-LaPadula: no read up, no write down</span>
+</span></span></code></pre></div><hr><h2 id=rbac--role-based-access-control>RBAC — Role-Based Access Control</h2><p><strong>Принцип</strong>: пользователь → роль → права. Права назначаются роли, а не человеку.</p><pre tabindex=0><code>Иерархия RBAC:
+  User → Role → Permission → Resource
+
+  Иванов → employee → read(timesheet:own)
+  Петров → site_manager → read(timesheet:site), write(timesheet:site)
+  Сидоров → admin → all(*)
+</code></pre><p><strong>Иерархия ролей в TenantPass</strong>:</p><div class=mermaid>graph TD
+SUPERADMIN["superadmin\n(платформа)"]
+TENANT_ADMIN["tenant_admin\n(арендатор)"]
+SITE_MANAGER["site_manager\n(объект)"]
+HR["hr\n(кадры)"]
+SECURITY["security\n(охрана)"]
+EMPLOYEE["employee\n(сотрудник)"]
+CONTRACTOR["contractor\n(подрядчик)"]
+VISITOR["visitor\n(посетитель)"]
+AUDITOR["auditor\n(аудитор)"]
+SUPERADMIN --> TENANT_ADMIN --> SITE_MANAGER
+SITE_MANAGER --> HR & SECURITY & EMPLOYEE
+EMPLOYEE --> CONTRACTOR --> VISITOR
+TENANT_ADMIN --> AUDITOR</div><p><strong>Плюсы RBAC</strong>: просто, понятно, легко аудировать.<br><strong>Минусы</strong>: «роль взрывается» при росте числа ресурсов и условий (role explosion).</p><pre tabindex=0><code>Проблема: 
+  employee_floor1_morning
+  employee_floor1_evening
+  employee_floor2_morning
+  employee_floor2_evening
+  contractor_floor1_morning
+  ... → 100+ ролей для одного объекта
+</code></pre><hr><h2 id=abac--attribute-based-access-control>ABAC — Attribute-Based Access Control</h2><p><strong>Принцип</strong>: решение = f(атрибуты субъекта, атрибуты ресурса, контекст среды).</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># Решение access control как функция</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>can_access</span>(subject: dict, resource: dict, environment: dict) <span style=color:#f92672>-&gt;</span> bool:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> (
+</span></span><span style=display:flex><span>        subject[<span style=color:#e6db74>&#34;tenant_id&#34;</span>] <span style=color:#f92672>==</span> resource[<span style=color:#e6db74>&#34;tenant_id&#34;</span>]      <span style=color:#75715e># тот же арендатор</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>and</span> subject[<span style=color:#e6db74>&#34;clearance&#34;</span>] <span style=color:#f92672>&gt;=</span> resource[<span style=color:#e6db74>&#34;min_clearance&#34;</span>]
+</span></span><span style=display:flex><span>        <span style=color:#f92672>and</span> resource[<span style=color:#e6db74>&#34;zone_id&#34;</span>] <span style=color:#f92672>in</span> subject[<span style=color:#e6db74>&#34;permitted_zones&#34;</span>]
+</span></span><span style=display:flex><span>        <span style=color:#f92672>and</span> environment[<span style=color:#e6db74>&#34;hour&#34;</span>] <span style=color:#f92672>in</span> resource[<span style=color:#e6db74>&#34;allowed_hours&#34;</span>]
+</span></span><span style=display:flex><span>        <span style=color:#f92672>and</span> environment[<span style=color:#e6db74>&#34;auth_method&#34;</span>] <span style=color:#f92672>in</span> resource[<span style=color:#e6db74>&#34;required_amr&#34;</span>]
+</span></span><span style=display:flex><span>    )
+</span></span></code></pre></div><p>*<em>Атрибуты в платформе <em>Pass</em></em>:</p><table><thead><tr><th>Категория</th><th>Атрибуты</th></tr></thead><tbody><tr><td><strong>Субъект</strong></td><td><code>user_id</code>, <code>tenant_id</code>, <code>site_id</code>, <code>department</code>, <code>employment_type</code>, <code>clearance_level</code>, <code>amr</code> (как аутентифицирован), <code>device_trusted</code></td></tr><tr><td><strong>Ресурс</strong></td><td><code>resource_type</code> (door/zone/report), <code>tenant_id</code>, <code>site_id</code>, <code>zone_id</code>, <code>risk_level</code>, <code>required_amr</code>, <code>allowed_hours</code></td></tr><tr><td><strong>Среда</strong></td><td><code>current_time</code>, <code>day_of_week</code>, <code>network_zone</code>, <code>ml_risk_score</code>, <code>fire_alarm_active</code></td></tr></tbody></table><p><strong>XACML Policy (стандарт OASIS) — концептуально</strong>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-xml data-lang=xml><span style=display:flex><span><span style=color:#f92672>&lt;Policy</span> <span style=color:#a6e22e>PolicyId=</span><span style=color:#e6db74>&#34;employee-door-access&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;Target&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;AnyOf&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&lt;AllOf&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;Match</span> <span style=color:#a6e22e>MatchId=</span><span style=color:#e6db74>&#34;string-equal&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>&lt;AttributeValue&gt;</span>door<span style=color:#f92672>&lt;/AttributeValue&gt;</span>
+</span></span><span style=display:flex><span>          <span style=color:#f92672>&lt;AttributeDesignator</span> <span style=color:#a6e22e>Category=</span><span style=color:#e6db74>&#34;resource&#34;</span> <span style=color:#a6e22e>AttributeId=</span><span style=color:#e6db74>&#34;resource-type&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;/Match&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&lt;/AllOf&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;/AnyOf&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;/Target&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;Rule</span> <span style=color:#a6e22e>Effect=</span><span style=color:#e6db74>&#34;Permit&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;Condition&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#75715e>&lt;!-- субъект в той же организации что ресурс --&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&lt;Apply</span> <span style=color:#a6e22e>FunctionId=</span><span style=color:#e6db74>&#34;string-equal&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;AttributeDesignator</span> <span style=color:#a6e22e>Category=</span><span style=color:#e6db74>&#34;subject&#34;</span> <span style=color:#a6e22e>AttributeId=</span><span style=color:#e6db74>&#34;tenant_id&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;AttributeDesignator</span> <span style=color:#a6e22e>Category=</span><span style=color:#e6db74>&#34;resource&#34;</span> <span style=color:#a6e22e>AttributeId=</span><span style=color:#e6db74>&#34;tenant_id&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&lt;/Apply&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#75715e>&lt;!-- рабочее время --&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&lt;Apply</span> <span style=color:#a6e22e>FunctionId=</span><span style=color:#e6db74>&#34;time-in-range&#34;</span><span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;AttributeDesignator</span> <span style=color:#a6e22e>Category=</span><span style=color:#e6db74>&#34;environment&#34;</span> <span style=color:#a6e22e>AttributeId=</span><span style=color:#e6db74>&#34;current-time&#34;</span><span style=color:#f92672>/&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;AttributeValue&gt;</span>08:00:00<span style=color:#f92672>&lt;/AttributeValue&gt;</span>
+</span></span><span style=display:flex><span>        <span style=color:#f92672>&lt;AttributeValue&gt;</span>20:00:00<span style=color:#f92672>&lt;/AttributeValue&gt;</span>
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&lt;/Apply&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#f92672>&lt;/Condition&gt;</span>
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&lt;/Rule&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;/Policy&gt;</span>
+</span></span></code></pre></div><p><strong>Keycloak Authorization Services</strong> реализует ABAC через:</p><ul><li><code>UMA 2.0</code> — User Managed Authorization</li><li><code>Resource Scopes</code> — ресурсы и разрешения</li><li><code>Policy Evaluation</code> — REST endpoint для PEP</li></ul><hr><h2 id=rebac--relationship-based-access-control>ReBAC — Relationship-Based Access Control</h2><p><strong>Принцип</strong>: доступ определяется <strong>отношениями</strong> в графе (Google Zanzibar, 2019).</p><pre tabindex=0><code>Граф отношений:
+  User:Alice --[owner]--&gt; Document:report_q4
+  User:Bob   --[viewer]--&gt; Document:report_q4
+  Group:marketing --[member]--&gt; User:Alice
+  Folder:finance --[contains]--&gt; Document:report_q4
+  User:Bob --[member]--&gt; Group:finance_team
+  Group:finance_team --[viewer]--&gt; Folder:finance
+
+Вопрос: может ли Bob смотреть report_q4?
+Ответ:  Bob → member → finance_team → viewer → Folder:finance
+        → Folder:finance contains Document:report_q4 → YES
+</code></pre><p><strong>Реализации</strong>: Google Zanzibar, OpenFGA (CNCF), SpiceDB, Warrant.</p><p><strong>Применение в TenantPass</strong>: для иерархии зон и делегирования.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># OpenFGA schema для TenantPass</span>
+</span></span><span style=display:flex><span>type user
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>type organization
+</span></span><span style=display:flex><span>  relations
+</span></span><span style=display:flex><span>    define admin: [user]
+</span></span><span style=display:flex><span>    define member: [user] <span style=color:#f92672>or</span> admin
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>type site
+</span></span><span style=display:flex><span>  relations
+</span></span><span style=display:flex><span>    define organization: [organization]
+</span></span><span style=display:flex><span>    define manager: [user] <span style=color:#f92672>or</span> admin <span style=color:#f92672>from</span> organization
+</span></span><span style=display:flex><span>    define employee: [user] <span style=color:#f92672>or</span> manager
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>type zone
+</span></span><span style=display:flex><span>  relations
+</span></span><span style=display:flex><span>    define site: [site]
+</span></span><span style=display:flex><span>    define can_enter: employee <span style=color:#f92672>from</span> site <span style=color:#f92672>or</span> manager <span style=color:#f92672>from</span> site
+</span></span><span style=display:flex><span>    define can_manage: manager <span style=color:#f92672>from</span> site
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>type door
+</span></span><span style=display:flex><span>  relations
+</span></span><span style=display:flex><span>    define zone: [zone]
+</span></span><span style=display:flex><span>    define can_open: can_enter <span style=color:#f92672>from</span> zone
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># Проверка: может ли user:alice открыть door:server_room_1?</span>
+</span></span><span style=display:flex><span>fga_client<span style=color:#f92672>.</span>check({
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;user&#34;</span>: <span style=color:#e6db74>&#34;user:alice&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;relation&#34;</span>: <span style=color:#e6db74>&#34;can_open&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;object&#34;</span>: <span style=color:#e6db74>&#34;door:server_room_1&#34;</span>
+</span></span><span style=display:flex><span>})
+</span></span><span style=display:flex><span><span style=color:#75715e># → True/False за ~5 мс (граф в памяти)</span>
+</span></span></code></pre></div><hr><h2 id=pbac--policy-based-access-control>PBAC — Policy-Based Access Control</h2><p><strong>Принцип</strong>: политики написаны как <strong>код</strong> (Policy as Code). OPA (Open Policy Agent) + Rego язык.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-rego data-lang=rego><span style=display:flex><span><span style=color:#75715e># opa/policies/door_access.rego</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>package</span> <span style=color:#a6e22e>tenantpass</span><span style=color:#f92672>.</span><span style=color:#a6e22e>access</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#a6e22e>future</span><span style=color:#f92672>.</span><span style=color:#a6e22e>keywords</span><span style=color:#f92672>.</span><span style=color:#66d9ef>if</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#a6e22e>future</span><span style=color:#f92672>.</span><span style=color:#a6e22e>keywords</span><span style=color:#f92672>.</span><span style=color:#66d9ef>in</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Разрешить вход если:</span>
+</span></span><span style=display:flex><span>allow <span style=color:#66d9ef>if</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>resource</span><span style=color:#f92672>.</span><span style=color:#a6e22e>type</span> <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;door&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>subject</span><span style=color:#f92672>.</span><span style=color:#a6e22e>tenant_id</span> <span style=color:#f92672>==</span> <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>resource</span><span style=color:#f92672>.</span><span style=color:#a6e22e>tenant_id</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>subject</span><span style=color:#f92672>.</span><span style=color:#a6e22e>clearance_level</span> <span style=color:#f92672>&gt;=</span> <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>resource</span><span style=color:#f92672>.</span><span style=color:#a6e22e>min_clearance</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>current_hour</span> <span style=color:#f92672>:=</span> <span style=color:#a6e22e>time</span><span style=color:#f92672>.</span><span style=color:#a6e22e>clock</span>(<span style=color:#a6e22e>time</span><span style=color:#f92672>.</span><span style=color:#a6e22e>now_ns</span>())[<span style=color:#ae81ff>0</span>]
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>current_hour</span> <span style=color:#f92672>&gt;=</span> <span style=color:#ae81ff>8</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>current_hour</span> <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>20</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>subject</span><span style=color:#f92672>.</span><span style=color:#a6e22e>auth_method</span> <span style=color:#66d9ef>in</span> {<span style=color:#e6db74>&#34;fido2&#34;</span><span style=color:#f92672>,</span> <span style=color:#e6db74>&#34;nfc&#34;</span><span style=color:#f92672>,</span> <span style=color:#e6db74>&#34;ble_beacon&#34;</span>}
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>environment</span><span style=color:#f92672>.</span><span style=color:#a6e22e>ml_risk_score</span> <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0.5</span>    <span style=color:#75715e># ← ML интеграция</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>not</span> <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>environment</span><span style=color:#f92672>.</span><span style=color:#a6e22e>fire_alarm_active</span>  <span style=color:#75715e># ← IoT интеграция</span>
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Экстренный режим: при пожаре — все двери открыты</span>
+</span></span><span style=display:flex><span>allow <span style=color:#66d9ef>if</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>resource</span><span style=color:#f92672>.</span><span style=color:#a6e22e>type</span> <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;door&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>resource</span><span style=color:#f92672>.</span><span style=color:#a6e22e>fail_mode</span> <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;fail_open&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>input</span><span style=color:#f92672>.</span><span style=color:#a6e22e>environment</span><span style=color:#f92672>.</span><span style=color:#a6e22e>fire_alarm_active</span>
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># Интеграция OPA с PEP агентом</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> httpx
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>check_policy_opa</span>(subject: dict, resource: dict, env: dict) <span style=color:#f92672>-&gt;</span> bool:
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>with</span> httpx<span style=color:#f92672>.</span>AsyncClient() <span style=color:#66d9ef>as</span> c:
+</span></span><span style=display:flex><span>        r <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> c<span style=color:#f92672>.</span>post(<span style=color:#e6db74>&#34;http://opa:8181/v1/data/tenantpass/access/allow&#34;</span>,
+</span></span><span style=display:flex><span>                         json<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;input&#34;</span>: {
+</span></span><span style=display:flex><span>                             <span style=color:#e6db74>&#34;subject&#34;</span>: subject,
+</span></span><span style=display:flex><span>                             <span style=color:#e6db74>&#34;resource&#34;</span>: resource,
+</span></span><span style=display:flex><span>                             <span style=color:#e6db74>&#34;environment&#34;</span>: env
+</span></span><span style=display:flex><span>                         }})
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> r<span style=color:#f92672>.</span>json()[<span style=color:#e6db74>&#34;result&#34;</span>]
+</span></span></code></pre></div><hr><h2 id=zero-trust>Zero Trust</h2><p><strong>Принцип</strong>: не доверяй никому по умолчанию. Верифицируй каждый запрос, каждый раз.</p><pre tabindex=0><code>Традиционная модель (замок-ров):
+  Внутри сети → доверяем → доступ ко всему
+  
+Zero Trust:
+  Даже внутри сети → каждый запрос требует аутентификации + авторизации
+  Каждый сотрудник → минимум привилегий
+  Каждое устройство → проверяется (MDM, сертификат)
+  Каждый доступ → логируется и анализируется ML
+</code></pre><p><strong>Zero Trust в TenantPass</strong>:</p><pre tabindex=0><code>1. Идентификация: каждый запрос несёт токен (JWT) — нет анонимных
+2. Контекст: ML risk score включён в решение
+3. Минимум привилегий: RBAC + ABAC ограничивают до конкретного объекта
+4. Непрерывная верификация: Continuous Authentication (BLE поведение)
+5. Микросегментация: каждый сервис в отдельном VLAN/namespace
+6. Шифрование: mTLS между сервисами (Istio/Envoy)
+</code></pre><hr><h2 id=что-выбрано-для-платформы-pass>Что выбрано для платформы *Pass</h2><table><thead><tr><th>Проект</th><th>Основная модель</th><th>Дополнения</th></tr></thead><tbody><tr><td><strong>TenantPass</strong></td><td><strong>RBAC + ABAC</strong> (Keycloak)</td><td>MAC для зон, OPA для сложных политик, ReBAC для иерархии</td></tr><tr><td><strong>HomePass</strong></td><td><strong>RBAC</strong> (простое)</td><td>DAC для гостевых доступов</td></tr><tr><td><strong>EventPass</strong></td><td><strong>ABAC</strong> (атрибуты билета)</td><td>ReBAC для вложенных зон мероприятия</td></tr></tbody></table><p><strong>Почему не чистый ReBAC</strong>: требует отдельного граф-сервиса (OpenFGA/SpiceDB), сложность операции. Оправдано при 100+ типах ресурсов и глубокой иерархии.</p><p><strong>Почему не чистый OPA</strong>: Keycloak Authorization Services даёт 80% ABAC без дополнительного сервиса. OPA подключается опционально для сложных случаев.</p><hr><h2 id=связи>Связи</h2><p>← <a href=/tenantpass/access-model/>access-model</a>
+← <a href=/tenantpass/abac/>abac</a>
+← <a href=/tenantpass/offline-mode/>offline-mode</a>
+← <a href=/tenantpass/api-agents/>api-agents</a>
+→ <a href=/architecture/microservices/>microservices</a>
+→ <a href=/ml/behavioral/>behavioral</a></p></article></div></main><footer class=foot><div class=w><div class=foot__grid><div><div class=foot__brand>DN·Pass</div><p class=foot__tag>Платформа IoT-доступа нового поколения.<br>Open-source стек, без vendor lock-in.</p></div><div class=foot__col><h4>Продукты</h4><a href=/homepass/>HomePass</a>
+<a href=/cloudpass/>CloudPass</a>
+<a href=/tenantpass/>TenantPass</a></div><div class=foot__col><h4>Калькуляторы</h4><a href=/homepass/calculator/>HomePass</a>
+<a href=/cloudpass/calculator/>CloudPass</a>
+<a href=/tenantpass/calculator/>TenantPass Enterprise</a></div><div class=foot__col><h4>Документация</h4><a href=/shared/>Общие компоненты</a>
+<a href=/architecture/>Архитектура</a>
+<a href=/ml/>ML-слой</a></div></div><div class=foot__btm><span>© 2026 DN·Pass. Open-source platform.</span>
+<span>Keycloak · PostgreSQL · Valkey · Redpanda · Frigate</span></div></div></footer><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0,theme:"neutral"})</script></body></html>
